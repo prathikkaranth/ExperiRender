@@ -103,6 +103,13 @@ public:
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};
 
+	VkPipelineLayout _trianglePipelineLayout;
+	VkPipeline _trianglePipeline;
+
+	VkPipelineLayout _meshPipelineLayout;
+	VkPipeline _meshPipeline;
+	GPUMeshBuffers rectangle;
+
 	//draw resources
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent{};
@@ -113,6 +120,11 @@ public:
 	VkCommandPool _immCommandPool;
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	void destroy_buffer(const AllocatedBuffer& buffer);
 
 	//initializes everything in the engine
 	void init();
@@ -129,12 +141,15 @@ public:
 private: 
 
 	void draw_background(VkCommandBuffer cmd);
+	void draw_geometry(VkCommandBuffer cmd);
 
 	void init_imgui();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();
 	void init_background_pipelines();
+	void init_triangle_pipeline();
+	void init_mesh_pipeline();
 
 	void init_descriptors();
 
@@ -145,4 +160,6 @@ private:
 
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
+
+	void init_default_data();
 };
