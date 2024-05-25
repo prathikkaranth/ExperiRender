@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-set(CMAKE_CXX_STANDARD 17)             # available options are [98, 11, 14, 17. 20]
+set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17. 20]
 
 project(RendererPK)
 
@@ -26,13 +26,40 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-# GLM
+# VK-Bootstrap
 FetchContent_Declare(
 	Vkbootstrap
 	GIT_REPOSITORY	https://github.com/charles-lunarg/vk-bootstrap.git
 	GIT_TAG 	50b75222b200cb6e62010573608d2e65f2e816ec #refs/tags/1.3.283
 )
 FetchContent_MakeAvailable(Vkbootstrap)
+
+# VMA
+FetchContent_Declare(
+	VMA
+	GIT_REPOSITORY	https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+	GIT_TAG 	eaf8fc27eeadf6f21b11183651b829e897f01957 
+)
+FetchContent_MakeAvailable(VMA)
+
+# Volk
+FetchContent_Declare(
+    volk
+    GIT_REPOSITORY  https://github.com/zeux/volk.git
+    GIT_TAG         749f0ab4e9e69394f4d1d39cbb11b5fb6c9e31b1
+)
+FetchContent_MakeAvailable(volk)
+
+# IMGUI
+file(GLOB IMGUI_SRC
+    "deps/imgui/*.cpp"
+    "deps/imgui/backends/imgui_impl_vulkan.cpp"
+    "deps/imgui/backends/imgui_impl_sdl2.cpp"
+)
+
+add_library(imgui STATIC ${IMGUI_SRC})
+target_link_libraries(imgui Vulkan::Vulkan SDL2::SDL2)
+target_include_directories(imgui PUBLIC deps/imgui)
 
 # source and headers
 file(GLOB CPP_SRC
@@ -42,7 +69,7 @@ file(GLOB_RECURSE HEADERS "src/*.h")
 
 add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
 target_include_directories(Renderer PRIVATE src/)
-target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap)
+target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui)
 
 if (WIN32)
     add_custom_command(TARGET Renderer POST_BUILD
@@ -50,3 +77,4 @@ if (WIN32)
             "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/lib/x64/SDL2.dll"
             $<TARGET_FILE_DIR:Renderer>)
 endif()
+
