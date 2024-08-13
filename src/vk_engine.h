@@ -3,8 +3,10 @@
 #include <vk_types.h>
 #include <vk_descriptors.h>
 #include <vk_pipelines.h>
-#include <deque>
+#include <vk_loader.h>	
 #include <functional>
+#include <camera.h>
+
 #include <glm/glm.hpp>
 
 #include "VkBootstrap.h"
@@ -51,9 +53,62 @@ struct FrameData {
 	VkFence _renderFence;
 
 	DeletionQueue _deletionQueue;
+	DescriptorAllocatorGrowable _frameDescriptors;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
+
+struct GLTFMetallic_Roughness {
+	MaterialPipeline opaquePipeline;
+	MaterialPipeline transparentPipeline;
+
+	VkDescriptorSetLayout materialLayout;
+
+	struct MaterialConstants {
+		glm::vec4 colorFactors;
+		glm::vec4 metal_rough_factors;
+		//padding, we need it anyway for uniform buffers
+		glm::vec4 extra[14];
+	};
+
+	struct MaterialResources {
+		AllocatedImage colorImage;
+		VkSampler colorSampler;
+		AllocatedImage metalRoughImage;
+		VkSampler metalRoughSampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	DescriptorWriter writer;
+
+	void build_pipelines(VulkanEngine* engine);
+	void clear_resources(VkDevice device);
+
+	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+};
+
+struct RenderObject {
+	uint32_t indexCount;
+	uint32_t firstIndex;
+	VkBuffer indexBuffer;
+
+	MaterialInstance* material;
+
+	glm::mat4 transform;
+	VkDeviceAddress vertexBufferAddress;
+};
+
+struct DrawContext {
+	std::vector<RenderObject> OpaqueSurfaces;
+};
+
+struct MeshNode : public Node {
+
+	std::shared_ptr<MeshAsset> mesh;
+
+	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+};
 
 class VulkanEngine {
 public:
@@ -74,11 +129,20 @@ public:
 	int currentBackgroundEffect{0};
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
 
+	DrawContext mainDrawContext;
+	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+
+	void update_scene();
+
+	Camera mainCamera;
+
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
 
 	VkExtent2D _windowExtent{ 1700 , 900 };
+
+	float renderScale = 1.f;
 
 	FrameData _frames[FRAME_OVERLAP];
 
@@ -95,10 +159,12 @@ public:
 
 	VmaAllocator _allocator;
 
-	DescriptorAllocator globalDescriptorAllocator;
+	DescriptorAllocatorGrowable globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors{};
 	VkDescriptorSetLayout _drawImageDescriptorLayout{};
+
+	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};
@@ -108,10 +174,24 @@ public:
 
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
+
 	GPUMeshBuffers rectangle;
+	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
+
+	GPUSceneData sceneData;
+
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+
+	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	void destroy_image(const AllocatedImage& image);
+
+	MaterialInstance defaultData;
+	GLTFMetallic_Roughness metalRoughMaterial;
 
 	//draw resources
 	AllocatedImage _drawImage;
+	AllocatedImage _depthImage;
 	VkExtent2D _drawExtent{};
 
 	// immediate submit structures
@@ -119,7 +199,17 @@ public:
 	VkCommandBuffer _immCommandBuffer;
 	VkCommandPool _immCommandPool;
 
+	AllocatedImage _whiteImage;
+	AllocatedImage _blackImage;
+	AllocatedImage _greyImage;
+	AllocatedImage _errorCheckerboardImage;
+
+	VkSampler _defaultSamplerLinear;
+	VkSampler _defaultSamplerNearest;
+
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
@@ -137,6 +227,8 @@ public:
 
 	//run main loop
 	void run();
+
+	bool resize_requested{ false };
 
 private: 
 
@@ -160,6 +252,7 @@ private:
 
 	void create_swapchain(uint32_t width, uint32_t height);
 	void destroy_swapchain();
+	void resize_swapchain();
 
 	void init_default_data();
 };

@@ -50,6 +50,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(volk)
 
+# FastGLTF
+FetchContent_Declare(
+    fastgltf
+    GIT_REPOSITORY  https://github.com/spnda/fastgltf.git
+    GIT_TAG         b5f0f79401cfc792f15f54e2c0e2c9848e8f9092
+)
+FetchContent_MakeAvailable(fastgltf)
+
 # IMGUI
 file(GLOB IMGUI_SRC
     "deps/imgui/*.cpp"
@@ -69,7 +77,7 @@ file(GLOB_RECURSE HEADERS "src/*.h")
 
 add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
 target_include_directories(Renderer PRIVATE src/)
-target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui)
+target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui fastgltf)
 
 if (WIN32)
     add_custom_command(TARGET Renderer POST_BUILD
