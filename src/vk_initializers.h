@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#pragma once
-
 #include <vk_types.h>
 
 namespace vkinit {
@@ -27,7 +25,7 @@ namespace vkinit {
 
 	VkSubmitInfo submit_info(VkCommandBuffer* cmd);
 
-	VkPresentInfoKHR present_info();
+	/*VkPresentInfoKHR present_info();*/
 
 	VkRenderPassBeginInfo renderpass_begin_info(VkRenderPass renderPass, VkExtent2D windowExtent, VkFramebuffer framebuffer);
 

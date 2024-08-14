@@ -100,7 +100,17 @@ struct RenderObject {
 };
 
 struct DrawContext {
-	std::vector<RenderObject> OpaqueSurfaces;
+	std::vector<RenderObject> OpaqueSurfaces;		
+	std::vector<RenderObject> TransparentSurfaces;
+	
+};
+
+struct EngineStats {
+	float frametime;
+	int triangle_count;
+	int drawcall_count;
+	float scene_update_time;
+	float mesh_draw_time;
 };
 
 struct MeshNode : public Node {
@@ -135,6 +145,8 @@ public:
 	void update_scene();
 
 	Camera mainCamera;
+
+	EngineStats stats;
 
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
