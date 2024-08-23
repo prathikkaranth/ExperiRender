@@ -18,7 +18,6 @@ public:
     VkPipelineLayout _pipelineLayout;
     VkPipelineDepthStencilStateCreateInfo _depthStencil;
     VkPipelineRenderingCreateInfo _renderInfo;
-    VkFormat _colorAttachmentformat;
 
     PipelineBuilder() { clear(); }
 
@@ -26,17 +25,27 @@ public:
 
     VkPipeline build_pipeline(VkDevice device);
 
+
+    enum BlendMode {
+        ALPHA_BLEND,
+        ADDITIVE_BLEND,
+        NO_BLEND,
+    };
+
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);
     void set_input_topology(VkPrimitiveTopology topology);
     void set_polygon_mode(VkPolygonMode mode);
     void set_cull_mode(VkCullModeFlags cullMode, VkFrontFace frontFace);
     void set_multisampling_none();
-    void disable_blending();
-    void set_color_attachment_format(VkFormat format);
+    void add_color_attachment(VkFormat format, BlendMode blendMode);
     void set_depth_format(VkFormat format);
     void disable_depthtest();
     void enable_depthtest(bool depthWriteEnable, VkCompareOp op);
-    void enable_blending_additive();
-    void enable_blending_alphablend();
+    void clear_attachments();
+
+private:
+    std::vector<VkFormat> _colorAttachmentFormats;
+    std::vector<VkPipelineColorBlendAttachmentState> _colorBlendAttachments;
+
 
 };

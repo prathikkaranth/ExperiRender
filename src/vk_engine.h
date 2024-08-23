@@ -242,6 +242,11 @@ public:
 
 	bool resize_requested{ false };
 
+
+	void init_ssao();
+	AllocatedImage _gbufferPosition;
+	AllocatedImage _gbufferNormal;
+
 private: 
 
 	void draw_background(VkCommandBuffer cmd);
@@ -252,8 +257,7 @@ private:
 
 	void init_pipelines();
 	void init_background_pipelines();
-	void init_triangle_pipeline();
-	void init_mesh_pipeline();
+
 
 	void init_descriptors();
 
