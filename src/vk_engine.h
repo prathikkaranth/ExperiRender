@@ -163,7 +163,8 @@ public:
 	}
 
 	VkQueue _graphicsQueue{};
-	uint32_t _graphicsQueueFamily;
+	uint32_t _graphicsQueueFamily
+;
 
 	struct SDL_Window* _window{ nullptr };
 
@@ -186,6 +187,9 @@ public:
 
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
+
+	VkPipelineLayout _ssaoPipelineLayout;
+	VkPipeline _ssaoPipeline;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;

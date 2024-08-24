@@ -687,10 +687,18 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 	//begin a render pass  connected to our draw image
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL);
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
+	std::array<VkRenderingAttachmentInfo, 3> colorAttachments = {
+		vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+		vkinit::attachment_info(_gbufferPosition.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+		vkinit::attachment_info(_gbufferNormal.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+	};
+
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);
+	renderInfo.colorAttachmentCount = colorAttachments.size();
+	renderInfo.pColorAttachments = colorAttachments.data();
+
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	//allocate a new uniform buffer for the scene data
@@ -1279,6 +1287,9 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
 	//render format
 	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+	pipelineBuilder.add_color_attachment(engine->_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+	pipelineBuilder.add_color_attachment(engine->_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+
 	pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
 
 	// use the triangle layout we created
@@ -1290,6 +1301,8 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	// create the transparent variant
 	pipelineBuilder.clear_attachments();
 	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
+	pipelineBuilder.add_color_attachment(engine->_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
+	pipelineBuilder.add_color_attachment(engine->_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
 
 	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -1352,4 +1365,5 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void VulkanEngine::init_ssao() {
 	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
 }

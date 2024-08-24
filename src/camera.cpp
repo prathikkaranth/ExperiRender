@@ -40,8 +40,8 @@ void Camera::processSDLEvent(SDL_Event& e)
     }
 
     if (e.type == SDL_MOUSEMOTION) {
-        yaw += (float)e.motion.xrel / 400.f;
-        pitch -= (float)e.motion.yrel / 400.f;
+        yaw += (float)e.motion.xrel / 600.f;
+        pitch -= (float)e.motion.yrel / 600.f;
     }
 }
 

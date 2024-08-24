@@ -9,8 +9,8 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec3 inWorldPos;
 
 layout (location = 0) out vec4 outFragColor;
-layout (location = 0) out vec4 outFragWorldPos;
-layout (location = 0) out vec4 outFragWorldNormal;
+layout (location = 1) out vec4 outFragWorldPos;
+layout (location = 2) out vec4 outFragWorldNormal;
 
 
 void main() 
