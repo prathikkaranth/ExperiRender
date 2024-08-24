@@ -66,11 +66,6 @@ void VulkanEngine::init()
 
 	init_sync_structures();
 
-	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
 	init_descriptors();
 
 	init_pipelines();
@@ -846,13 +841,6 @@ void VulkanEngine::init_descriptors()
 		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
-	// ssao 
-	{
-		DescriptorLayoutBuilder builder;
-		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		_ssaoInputDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
-	}
-
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -868,23 +856,14 @@ void VulkanEngine::init_descriptors()
 	//allocate a descriptor set for our draw image
 	_drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
 
-	//allocate a descriptor set for our ssao input
-	_ssaoInputDescriptors = globalDescriptorAllocator.allocate(_device, _ssaoInputDescriptorLayout);
-
 	DescriptorWriter writer;
 	writer.write_image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
 	writer.update_set(_device, _drawImageDescriptors);
 
-	DescriptorWriter ssao_writer;
-	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-
-	ssao_writer.update_set(_device, _ssaoInputDescriptors);
-
 	_mainDeletionQueue.push_function([&]() {
 		globalDescriptorAllocator.destroy_pools(_device);
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _ssaoInputDescriptorLayout, nullptr);
 	});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -1397,6 +1376,30 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 }
 
 void VulkanEngine::init_ssao() {
+
+	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+	// SSAO 
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		_ssaoInputDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+	}
+
+	//allocate a descriptor set for our SSAO input
+	_ssaoInputDescriptors = globalDescriptorAllocator.allocate(_device, _ssaoInputDescriptorLayout);
+
+	DescriptorWriter ssao_writer;
+	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+	ssao_writer.update_set(_device, _ssaoInputDescriptors);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyDescriptorSetLayout(_device, _ssaoInputDescriptorLayout, nullptr);
+		});
 
 	VkPipelineLayoutCreateInfo ssao_layout_info{};
 	ssao_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
