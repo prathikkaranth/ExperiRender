@@ -177,6 +177,9 @@ public:
 	VkDescriptorSet _drawImageDescriptors{};
 	VkDescriptorSetLayout _drawImageDescriptorLayout{};
 
+	VkDescriptorSet _ssaoInputDescriptors{};
+	VkDescriptorSetLayout _ssaoInputDescriptorLayout{};
+
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline{};
@@ -209,6 +212,11 @@ public:
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
 	VkExtent2D _drawExtent{};
+
+	//ssao resources
+	AllocatedImage _ssaoImage;
+	AllocatedImage _ssaoImageBlurred;
+	VkExtent2D _ssaoExtent{};
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -255,6 +263,7 @@ private:
 
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
+	void draw_ssao(VkCommandBuffer cmd);
 
 	void init_imgui();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);

@@ -66,9 +66,12 @@ void VulkanEngine::init()
 
 	init_sync_structures();
 
-	init_descriptors();
+	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	init_ssao();
+	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+	init_descriptors();
 
 	init_pipelines();
 
@@ -261,6 +264,10 @@ void VulkanEngine::draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
+	vkutil::transition_image(cmd, _ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+	draw_ssao(cmd);
+
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -274,9 +281,6 @@ void VulkanEngine::draw()
 
 	// execute a copy from the draw image into the swapchain
 	vkutil::copy_image_to_image(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent);
-
-	// set swapchain image layout to Present so we can show it on the screen
-	/*vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);*/
 
 	// set swapchain image layout to Attachment Optimal so we can draw it
 	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -672,9 +676,19 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
 
 	vkCmdPushConstants(cmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
-	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
+	// execute the compute pipeline dispatch. We are using 16x16 work group size so we need to divide by it
 	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
 
+}
+
+void VulkanEngine::draw_ssao(VkCommandBuffer cmd)
+{
+	// bind the SSAO pipeline
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoPipeline);
+	// bind the descriptor set containing the draw image for the compute pipeline
+	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoPipelineLayout, 0, 1, &_ssaoInputDescriptors, 0, nullptr);
+	// execute the compute pipeline dispatch. We are using 16x16 work group size so we need to divide by it
+	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
 }
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
@@ -831,6 +845,14 @@ void VulkanEngine::init_descriptors()
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		_drawImageDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
+
+	// ssao 
+	{
+		DescriptorLayoutBuilder builder;
+		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		_ssaoInputDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+	}
+
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -846,14 +868,23 @@ void VulkanEngine::init_descriptors()
 	//allocate a descriptor set for our draw image
 	_drawImageDescriptors = globalDescriptorAllocator.allocate(_device, _drawImageDescriptorLayout);
 
+	//allocate a descriptor set for our ssao input
+	_ssaoInputDescriptors = globalDescriptorAllocator.allocate(_device, _ssaoInputDescriptorLayout);
+
 	DescriptorWriter writer;
 	writer.write_image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
 	writer.update_set(_device, _drawImageDescriptors);
 
+	DescriptorWriter ssao_writer;
+	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+	ssao_writer.update_set(_device, _ssaoInputDescriptors);
+
 	_mainDeletionQueue.push_function([&]() {
 		globalDescriptorAllocator.destroy_pools(_device);
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _ssaoInputDescriptorLayout, nullptr);
 	});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -897,8 +928,11 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 
 void VulkanEngine::init_pipelines()
 {
-	// COMPUTE PIPELINES
+	// BACKGROUND GRADIENT PIPELINE
 	init_background_pipelines();
+
+	// SSAO PIPELINE
+	init_ssao();
 
 	metalRoughMaterial.build_pipelines(this);
 	
@@ -1363,7 +1397,41 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 }
 
 void VulkanEngine::init_ssao() {
-	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
+	VkPipelineLayoutCreateInfo ssao_layout_info{};
+	ssao_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	ssao_layout_info.pNext = nullptr;
+	ssao_layout_info.pSetLayouts = &_ssaoInputDescriptorLayout;
+	ssao_layout_info.setLayoutCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &ssao_layout_info, nullptr, &_ssaoPipelineLayout));
+
+	// layout code
+	VkShaderModule ssaoDrawShader;
+	if (!vkutil::load_shader_module("../shaders/ssao.comp.spv", _device, &ssaoDrawShader))
+	{
+		std::cout << "Error when building the compute shader \n";
+		
+	}
+
+	VkPipelineShaderStageCreateInfo ssaoStageInfo{};
+	ssaoStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	ssaoStageInfo.pNext = nullptr;
+	ssaoStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	ssaoStageInfo.module = ssaoDrawShader;
+	ssaoStageInfo.pName = "main";
+
+	VkComputePipelineCreateInfo ssaoPipelineInfo{};
+	ssaoPipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	ssaoPipelineInfo.pNext = nullptr;
+	ssaoPipelineInfo.layout = _ssaoPipelineLayout;
+	ssaoPipelineInfo.stage = ssaoStageInfo;
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &ssaoPipelineInfo, nullptr, &_ssaoPipeline));
+
+	vkDestroyShaderModule(_device, ssaoDrawShader, nullptr);
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _ssaoPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _ssaoPipeline, nullptr);
+		});
 }
