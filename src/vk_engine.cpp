@@ -342,7 +342,7 @@ void VulkanEngine::update_scene()
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
 
 	//// invert the Y direction on projection matrix so that we are more similar
-	//// to opengl and gltf axis
+	//// to OpenGL and gLTF axis
 	projection[1][1] *= -1;
 
 	sceneData.view = view;
@@ -359,6 +359,7 @@ void VulkanEngine::update_scene()
 	sceneData.view = view;
 	sceneData.proj = projection;
 	sceneData.viewproj = projection * view;
+	sceneData.cameraPosition = mainCamera.position;
 
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, mainDrawContext);

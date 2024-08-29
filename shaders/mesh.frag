@@ -16,11 +16,21 @@ layout (location = 2) out vec4 outFragWorldNormal;
 void main() 
 {
 	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
-
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
+
+	// Ambient light
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
-	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
+	// Diffuse light
+	vec3 diffuse = sceneData.sunlightColor.xyz * lightValue * color;
+
+	// Specular light
+	float specularStrength = 0.5f;
+	vec3 viewDir = normalize(sceneData.cameraPosition.xyz - inWorldPos);
+	vec3 reflectDir = reflect(-sceneData.sunlightDirection.xyz, inNormal);
+	float specular = pow(max(dot(viewDir, reflectDir), 0.0), 4);
+
+	outFragColor = vec4(diffuse + ambient + specular, 1.0f);
 	outFragWorldPos = vec4(inWorldPos,1.0f);
 	outFragWorldNormal = vec4(inNormal,1.0f);
 }
