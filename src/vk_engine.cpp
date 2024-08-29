@@ -53,7 +53,10 @@ void VulkanEngine::init()
 	);
 
 	mainCamera.velocity = glm::vec3(0.f);
-	mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
+
+	// camera position for 'structure' scene
+	/*mainCamera.position = glm::vec3(30.f, -00.f, -085.f);*/
+	mainCamera.position = glm::vec3(0.0f, 0.0f, -2.f);
 
 	mainCamera.pitch = 0;
 	mainCamera.yaw = 0;
@@ -74,12 +77,12 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\structure.glb" };
+	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
 	auto structureFile = loadGltf(this, structurePath);
 
 	assert(structureFile.has_value());
 
-	loadedScenes["structure"] = *structureFile;
+	loadedScenes["Sponza"] = *structureFile;
 
 	//everything went fine
 	_isInitialized = true;
@@ -151,7 +154,7 @@ void VulkanEngine::init_default_data() {
 		destroy_image(_greyImage);
 		destroy_image(_blackImage);
 		destroy_image(_errorCheckerboardImage);
-	});
+		});
 
 	GLTFMetallic_Roughness::MaterialResources materialResources;
 	//default the material textures
@@ -339,20 +342,18 @@ void VulkanEngine::update_scene()
 	glm::mat4 view = mainCamera.getViewMatrix();
 
 	//// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+	glm::mat4 projection = glm::perspective(glm::radians(100.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
 
 	//// invert the Y direction on projection matrix so that we are more similar
 	//// to OpenGL and gLTF axis
 	projection[1][1] *= -1;
 
-	sceneData.view = view;
-	sceneData.proj = projection;
-	sceneData.viewproj = projection * view;
-
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.1f);
 	sceneData.sunlightColor = glm::vec4(1.f);
-	sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1.f);
+	glm::vec4 sunDir = glm::vec4(0, 1, 0.5, 1.f); // this is the default value for 'structure' scene
+	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
+	sceneData.sunlightDirection = glm::normalize(sunDir);
 
 	mainCamera.update();
 
@@ -362,7 +363,7 @@ void VulkanEngine::update_scene()
 	sceneData.cameraPosition = mainCamera.position;
 
 	// for (int i = 0; i < 16; i++)         {
-	loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
 }
 
@@ -423,18 +424,6 @@ void VulkanEngine::run()
 		ImGui::Text("draws %i", stats.drawcall_count);
 		ImGui::End();
 
-		if (ImGui::Begin("background")) {
-
-			ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
-
-			ImGui::SliderFloat("Render Scale", &renderScale, 0.3f, 1.f);
-
-			ImGui::Text("Selected effect: ", selected.name);
-
-			ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
-
-			ImGui::End();
-		}
 		ImGui::Render();
 
 		//our draw function

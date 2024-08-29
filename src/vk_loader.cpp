@@ -16,7 +16,7 @@
 #include <fastgltf/core.hpp>
 
 //> loadimg
-std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
+std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, std::string baseDir)
 {
     AllocatedImage newImage {};
 
@@ -32,7 +32,8 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
 
                 const std::string path(filePath.uri.path().begin(),
                     filePath.uri.path().end()); // Thanks C++.
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+                const std::string fullPath = baseDir + path;
+                unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &nrChannels, 4);
                 if (data) {
                     VkExtent3D imagesize;
                     imagesize.width = width;
@@ -213,7 +214,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     // load all textures
     for (fastgltf::Image& image : gltf.images) {
-        std::optional<AllocatedImage> img = load_image(engine, gltf, image);
+        std::string baseDir = path.parent_path().string() + "\\";
+        std::optional<AllocatedImage> img = load_image(engine, gltf, image, baseDir);
 
         if (img.has_value()) {
             images.push_back(*img);
@@ -226,6 +228,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
+    
+    
 
     // create buffer to hold the material data
     file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),

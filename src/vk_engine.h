@@ -152,7 +152,7 @@ public:
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
 
-	VkExtent2D _windowExtent{ 1700 , 900 };
+	VkExtent2D _windowExtent{ 1920 , 1080 };
 
 	float renderScale = 1.f;
 
