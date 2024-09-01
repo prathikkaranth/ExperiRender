@@ -77,7 +77,10 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	/*std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };*/
+	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
+	std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };
+
 	auto structureFile = loadGltf(this, structurePath);
 
 	assert(structureFile.has_value());
@@ -119,6 +122,7 @@ void VulkanEngine::init_default_data() {
 	glm::vec4 sunDir = glm::vec4(3, 5, -5.5, 1.f); // this is the default value for 'structure' scene
 	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
 	sceneData.sunlightDirection = glm::normalize(sunDir);
+	sceneData.hasSpecular = false;
 
 	/*testMeshes = loadGltfMeshes(this, "..\\assets\\basicmesh.glb").value();	*/
 
@@ -433,8 +437,9 @@ void VulkanEngine::run()
 		ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
 		ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
 		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -10, 10);
-		/*ImGui::Checkbox("Specular", 0);
-		ImGui::Checkbox("Diffuse", 0);*/
+
+		// std::cout << "Has specular: " << sceneData.hasSpecular << "\n";
+		ImGui::Checkbox("Specular", reinterpret_cast<bool*>(&sceneData.hasSpecular));
 
 		ImGui::End();
 

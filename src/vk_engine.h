@@ -68,7 +68,7 @@ struct GLTFMetallic_Roughness {
 	struct MaterialConstants {
 		glm::vec4 colorFactors;
 		glm::vec4 metal_rough_factors;
-		bool hasMetalRoughTex;
+		int hasMetalRoughTex;
 
 		//padding, we need it anyway for uniform buffers
 		uint8_t padding[220];

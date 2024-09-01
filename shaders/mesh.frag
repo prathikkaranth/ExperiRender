@@ -28,11 +28,16 @@ void main()
 	vec3 color = inColor * texture(colorTex,inUV).xyz;
 
 	// Metallic
-	float metallic = materialData.metal_rough_factors.x;
+	float metallic = 0;
+	if(bool(materialData.hasMetalRoughTex))
+		metallic = texture(metalRoughTex, inUV).x * materialData.metal_rough_factors.x;
+	else
+		metallic = materialData.metal_rough_factors.x;
+
 
 	float roughness = 0;
 	// Roughness
-	if(materialData.hasMetalRoughTex)
+	if(bool(materialData.hasMetalRoughTex))
 		roughness = texture(metalRoughTex, inUV).y * materialData.metal_rough_factors.y;
 	else
 		roughness = materialData.metal_rough_factors.y;
@@ -64,11 +69,16 @@ void main()
 	vec3 halfwayDir = normalize(sceneData.sunlightDirection.xyz + viewDir);
 	// float spec = pow(max(dot(normal, halfwayDir), 0.0), 16.0);
 	vec3 specFresnel = fresnelFactor(specular, max(dot(normal, viewDir), 0.0));
-	vec3 spec = blinn_specular(max(dot(normal, halfwayDir), 0.0), specular, roughness);
+	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
+	if(bool(sceneData.hasSpecular))
+		spec = blinn_specular(max(dot(normal, halfwayDir), 0.0), specular, roughness);
+	// vec3 spec = blinn_specular(max(dot(normal, halfwayDir), 0.0), specular, roughness);
 	// vec3 specular = specularStrength * spec * sceneData.sunlightColor.xyz;
 
 
 	outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+	// outFragColor = vec4(spec, 1.0f);
+	// outFragColor = vec4(metallic, metallic, metallic, 1.0f);
 	outFragWorldPos = vec4(inWorldPos,1.0f);
 	outFragWorldNormal = vec4(normal,1.0f);
 }

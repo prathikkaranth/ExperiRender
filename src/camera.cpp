@@ -1,6 +1,7 @@
 #include "camera.h"
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtx/transform.hpp"
+#include <iostream>
 
 glm::mat4 Camera::getViewMatrix() const
 {
@@ -25,21 +26,31 @@ glm::mat4 Camera::getRotationMatrix() const
 
 void Camera::processSDLEvent(SDL_Event& e)
 {
-    if (e.type == SDL_KEYDOWN) {
-        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.15; }
-        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.15; }
-        if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.15; }
-        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.15; }
+
+	// Inside your event loop
+	if (e.type == SDL_KEYDOWN) {
+		// Toggle FPS camera on/off when 'F' key is pressed
+		if (e.key.keysym.sym == SDLK_f) {
+			fpsCameraEnabled = !fpsCameraEnabled;
+		}
+	}
+
+
+    if (e.type == SDL_KEYDOWN && fpsCameraEnabled) {
+        if (e.key.keysym.sym == SDLK_w) { velocity.z = -3.15; }
+        if (e.key.keysym.sym == SDLK_s) { velocity.z = 3.15; }
+        if (e.key.keysym.sym == SDLK_a) { velocity.x = -3.15; }
+        if (e.key.keysym.sym == SDLK_d) { velocity.x = 3.15; }
     }
 
-    if (e.type == SDL_KEYUP) {
+    if (e.type == SDL_KEYUP && fpsCameraEnabled) {
         if (e.key.keysym.sym == SDLK_w) { velocity.z = 0; }
         if (e.key.keysym.sym == SDLK_s) { velocity.z = 0; }
         if (e.key.keysym.sym == SDLK_a) { velocity.x = 0; }
         if (e.key.keysym.sym == SDLK_d) { velocity.x = 0; }
     }
 
-    if (e.type == SDL_MOUSEMOTION) {
+    if (e.type == SDL_MOUSEMOTION && fpsCameraEnabled) {
         yaw += (float)e.motion.xrel / 600.f;
         pitch -= (float)e.motion.yrel / 600.f;
     }
