@@ -220,6 +220,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         if (img.has_value()) {
             images.push_back(*img);
             file.images[image.name.c_str()] = *img;
+           
         }
         else {
             // we failed to load, so lets give the slot a default white texture to not
@@ -250,6 +251,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
+
+        constants.hasMetalRoughTex = mat.pbrData.metallicRoughnessTexture.has_value();
+
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 

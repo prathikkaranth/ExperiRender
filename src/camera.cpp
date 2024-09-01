@@ -26,10 +26,10 @@ glm::mat4 Camera::getRotationMatrix() const
 void Camera::processSDLEvent(SDL_Event& e)
 {
     if (e.type == SDL_KEYDOWN) {
-        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.35; }
-        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.35; }
-        if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.35; }
-        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.35; }
+        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.15; }
+        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.15; }
+        if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.15; }
+        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.15; }
     }
 
     if (e.type == SDL_KEYUP) {

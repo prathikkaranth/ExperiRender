@@ -54,12 +54,12 @@ void VulkanEngine::init()
 
 	mainCamera.velocity = glm::vec3(0.f);
 
-	// camera position for 'structure' scene
+	// camera position for 'structure' scene 
 	/*mainCamera.position = glm::vec3(30.f, -00.f, -085.f);*/
-	mainCamera.position = glm::vec3(0.0f, 0.0f, -2.f);
+	mainCamera.position = glm::vec3(7.186001f, 0.995692f, -1.103689f);
 
-	mainCamera.pitch = 0;
-	mainCamera.yaw = 0;
+	mainCamera.pitch = 0.135;
+	mainCamera.yaw = -1.939;
 
 	init_vulkan();
 
@@ -112,6 +112,13 @@ void VulkanEngine::init_default_data() {
 	rect_indices[5] = 3;
 
 	rectangle = uploadMesh(rect_indices, rect_vertices);
+
+	//some default lighting parameters
+	sceneData.ambientColor = glm::vec4(.25f);
+	sceneData.sunlightColor = glm::vec4(2.f);
+	glm::vec4 sunDir = glm::vec4(3, 5, -5.5, 1.f); // this is the default value for 'structure' scene
+	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
+	sceneData.sunlightDirection = glm::normalize(sunDir);
 
 	/*testMeshes = loadGltfMeshes(this, "..\\assets\\basicmesh.glb").value();	*/
 
@@ -170,6 +177,7 @@ void VulkanEngine::init_default_data() {
 	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*)materialConstants.allocation->GetMappedData();
 	sceneUniformData->colorFactors = glm::vec4{ 1,1,1,1 };
 	sceneUniformData->metal_rough_factors = glm::vec4{ 1,0.5,0,0 };
+	sceneUniformData->hasMetalRoughTex = 0;
 
 	_mainDeletionQueue.push_function([=, this]() {
 		destroy_buffer(materialConstants);
@@ -342,18 +350,11 @@ void VulkanEngine::update_scene()
 	glm::mat4 view = mainCamera.getViewMatrix();
 
 	//// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(100.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+	glm::mat4 projection = glm::perspective(glm::radians(75.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
 
 	//// invert the Y direction on projection matrix so that we are more similar
 	//// to OpenGL and gLTF axis
 	projection[1][1] *= -1;
-
-	//some default lighting parameters
-	sceneData.ambientColor = glm::vec4(.1f);
-	sceneData.sunlightColor = glm::vec4(1.f);
-	glm::vec4 sunDir = glm::vec4(0, 1, 0.5, 1.f); // this is the default value for 'structure' scene
-	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
-	sceneData.sunlightDirection = glm::normalize(sunDir);
 
 	mainCamera.update();
 
@@ -422,6 +423,19 @@ void VulkanEngine::run()
 		ImGui::Text("update time %f ms", stats.scene_update_time);
 		ImGui::Text("triangles %i", stats.triangle_count);
 		ImGui::Text("draws %i", stats.drawcall_count);
+		ImGui::Text("cam pos %f %f %f", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
+		ImGui::Text("cam pitch %f yaw %f", mainCamera.pitch, mainCamera.yaw);
+
+		ImGui::End();
+
+		ImGui::Begin("Lighting");
+
+		ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
+		ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
+		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -10, 10);
+		/*ImGui::Checkbox("Specular", 0);
+		ImGui::Checkbox("Diffuse", 0);*/
+
 		ImGui::End();
 
 		ImGui::Render();
