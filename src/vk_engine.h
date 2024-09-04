@@ -99,7 +99,7 @@ struct RenderObject {
 	VkBuffer indexBuffer;
 
 	MaterialInstance* material;
-
+	Bounds bounds;
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
 };
@@ -218,7 +218,7 @@ public:
 	AllocatedImage _depthImage;
 	VkExtent2D _drawExtent{};
 
-	//ssao resources
+	//SSAO resources
 	AllocatedImage _ssaoImage;
 	AllocatedImage _ssaoImageBlurred;
 	VkExtent2D _ssaoExtent{};
