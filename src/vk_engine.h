@@ -79,6 +79,8 @@ struct GLTFMetallic_Roughness {
 		VkSampler colorSampler;
 		AllocatedImage metalRoughImage;
 		VkSampler metalRoughSampler;
+		AllocatedImage normalImage;
+		VkSampler normalSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
 	};
@@ -155,7 +157,7 @@ public:
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
 
-	VkExtent2D _windowExtent{ 1920 , 1080 };
+	VkExtent2D _windowExtent{ 1280 , 720 };
 
 	float renderScale = 1.f;
 

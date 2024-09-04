@@ -37,7 +37,9 @@ struct Vertex {
 	float uv_x;
 	glm::vec3 normal;
 	float uv_y;
-	glm::vec4 color;
+	alignas(16) glm::vec4 color;
+	alignas(16) glm::vec3 tangent;
+	alignas(16) glm::vec3 bitangent;
 };
 
 // holds the resources needed for a mesh
