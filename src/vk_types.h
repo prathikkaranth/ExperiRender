@@ -65,7 +65,7 @@ struct GPUSceneData {
 	glm::vec4 sunlightColor;
 	glm::vec3 cameraPosition;
 	int hasSpecular;
-
+	int viewGbufferPos;
 };
 
 enum class MaterialPass :uint8_t {

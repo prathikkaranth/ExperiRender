@@ -316,6 +316,11 @@ void VulkanEngine::draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
+	vkutil::transition_image(cmd, _gbufferPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _gbufferNormal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	draw_gbuffer(cmd);
+
 	vkutil::transition_image(cmd, _ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	draw_ssao(cmd);
@@ -728,6 +733,139 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 
 }
 
+void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
+{
+
+	//reset counters
+	stats.drawcall_count = 0;
+	stats.triangle_count = 0;
+
+	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
+	//begin a render pass  connected to our draw image
+	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
+	std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
+		vkinit::attachment_info(_gbufferPosition.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+		vkinit::attachment_info(_gbufferNormal.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+	};
+
+	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);
+	renderInfo.colorAttachmentCount = colorAttachments.size();
+	renderInfo.pColorAttachments = colorAttachments.data();
+
+	vkCmdBeginRendering(cmd, &renderInfo);
+
+	//begin clock
+	auto start = std::chrono::system_clock::now();
+
+	std::vector<uint32_t> opaque_draws;
+	opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
+
+	for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+		if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {
+			opaque_draws.push_back(i);
+		}
+	}
+
+	// sort the opaque surfaces by material and mesh
+	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
+		const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
+		const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
+		if (A.material == B.material) {
+			return A.indexBuffer < B.indexBuffer;
+		}
+		else {
+			return A.material < B.material;
+		}
+		});
+
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(gpuSceneDataBuffer);
+		});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	auto draw = [&](const RenderObject& r) {
+		
+		vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gbufferPipeline);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gbufferPipelineLayout, 0, 1, &globalDescriptor, 0, nullptr);
+
+		VkViewport viewport = {};
+		viewport.x = 0;
+		viewport.y = 0;
+		viewport.width = (float)_windowExtent.width;
+		viewport.height = (float)_windowExtent.height;
+		viewport.minDepth = 0.f;
+		viewport.maxDepth = 1.f;
+
+		vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+		VkRect2D scissor = {};
+		scissor.offset.x = 0;
+		scissor.offset.y = 0;
+		scissor.extent.width = _windowExtent.width;
+		scissor.extent.height = _windowExtent.height;
+
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+		/*vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
+			&r.material->materialSet, 0, nullptr);*/
+		
+		if (r.indexBuffer != lastIndexBuffer) {
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+		// calculate final mesh matrix
+		GPUDrawPushConstants push_constants;
+		push_constants.worldMatrix = r.transform;
+		push_constants.vertexBuffer = r.vertexBufferAddress;
+
+		vkCmdPushConstants(cmd, _gbufferPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+		stats.drawcall_count++;
+		stats.triangle_count += r.indexCount / 3;
+		vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+	};
+
+	stats.drawcall_count = 0;
+	stats.triangle_count = 0;
+
+	for (auto& r : opaque_draws) {
+		draw(mainDrawContext.OpaqueSurfaces[r]);
+	}
+
+	for (auto& r : mainDrawContext.TransparentSurfaces) {
+		draw(r);
+	}
+
+	// we delete the draw commands now that we processed them
+	/*mainDrawContext.OpaqueSurfaces.clear();
+	mainDrawContext.TransparentSurfaces.clear();*/
+
+	vkCmdEndRendering(cmd);
+
+	auto end = std::chrono::system_clock::now();
+
+	//convert to microseconds (integer), and then come back to miliseconds
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	stats.mesh_draw_time = elapsed.count() / 1000.f;
+}
+
 void VulkanEngine::draw_ssao(VkCommandBuffer cmd)
 {
 	// bind the SSAO pipeline
@@ -748,10 +886,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	//begin a render pass  connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	std::array<VkRenderingAttachmentInfo, 3> colorAttachments = {
-		vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
-		vkinit::attachment_info(_gbufferPosition.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
-		vkinit::attachment_info(_gbufferNormal.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
+	std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
+		vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL)
 	};
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);
@@ -967,6 +1103,9 @@ void VulkanEngine::init_pipelines()
 {
 	// BACKGROUND GRADIENT PIPELINE
 	init_background_pipelines();
+
+	// GBuffer PIPELINE
+	init_gbuffer();
 
 	// SSAO PIPELINE
 	init_ssao();
@@ -1364,8 +1503,6 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
 	//render format
 	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
-	pipelineBuilder.add_color_attachment(engine->_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
-	pipelineBuilder.add_color_attachment(engine->_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
 
 	pipelineBuilder.set_depth_format(engine->_depthImage.imageFormat);
 
@@ -1378,8 +1515,6 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	// create the transparent variant
 	pipelineBuilder.clear_attachments();
 	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
-	pipelineBuilder.add_color_attachment(engine->_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
-	pipelineBuilder.add_color_attachment(engine->_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
 
 	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
@@ -1447,9 +1582,6 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void VulkanEngine::init_ssao() {
 
-	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
 	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	// SSAO 
@@ -1507,4 +1639,74 @@ void VulkanEngine::init_ssao() {
 		vkDestroyPipelineLayout(_device, _ssaoPipelineLayout, nullptr);
 		vkDestroyPipeline(_device, _ssaoPipeline, nullptr);
 		});
+}
+
+void VulkanEngine::init_gbuffer()
+{
+	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+	VkPushConstantRange matrixRange{};
+	matrixRange.offset = 0;
+	matrixRange.size = sizeof(GPUDrawPushConstants);
+	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayout layouts[] = { _gpuSceneDataDescriptorLayout };
+
+	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
+	mesh_layout_info.setLayoutCount = 1;
+	mesh_layout_info.pSetLayouts = layouts;
+	mesh_layout_info.pPushConstantRanges = &matrixRange;
+	mesh_layout_info.pushConstantRangeCount = 1;
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &mesh_layout_info, nullptr, &_gbufferPipelineLayout));
+
+	VkShaderModule gbufferFragShader;
+	if (!vkutil::load_shader_module("../shaders/GBuffer.frag.spv", _device, &gbufferFragShader)) {
+		std::cout << "Error when building the gbuffer fragment shader module" << std::endl;
+		throw std::runtime_error("Error when building the gbuffer fragment shader module");
+	}
+
+	VkShaderModule gbufferVertexShader;
+	if (!vkutil::load_shader_module("../shaders/GBuffer.vert.spv", _device, &gbufferVertexShader)) {
+		std::cout << "Error when building the gbuffer vertex shader module" << std::endl;
+		throw std::runtime_error("Error when building the gbuffer fragment shader module");
+	}
+
+	// build the stage-create-info for both vertex and fragment stages. This lets
+	// the pipeline know the shader modules per stage
+	PipelineBuilder pipelineBuilder;
+	pipelineBuilder.set_shaders(gbufferVertexShader, gbufferFragShader);
+	pipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+	pipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+	pipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+	pipelineBuilder.set_multisampling_none();
+	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	//render format
+	pipelineBuilder.add_color_attachment(_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+	pipelineBuilder.add_color_attachment(_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+
+	pipelineBuilder.set_depth_format(_depthImage.imageFormat);
+
+	// use the triangle layout we created
+	pipelineBuilder._pipelineLayout = _gbufferPipelineLayout;
+
+	// create the transparent variant
+	pipelineBuilder.clear_attachments();
+	pipelineBuilder.add_color_attachment(_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
+	pipelineBuilder.add_color_attachment(_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
+
+	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+	// create the pipeline
+	_gbufferPipeline = pipelineBuilder.build_pipeline(_device);
+
+	vkDestroyShaderModule(_device, gbufferFragShader, nullptr);
+	vkDestroyShaderModule(_device, gbufferVertexShader, nullptr);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyPipelineLayout(_device, _gbufferPipelineLayout, nullptr);
+		vkDestroyPipeline(_device, _gbufferPipeline, nullptr);
+	});
 }

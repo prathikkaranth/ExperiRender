@@ -196,6 +196,9 @@ public:
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
 
+	VkPipelineLayout _gbufferPipelineLayout;
+	VkPipeline _gbufferPipeline;
+
 	VkPipelineLayout _ssaoPipelineLayout;
 	VkPipeline _ssaoPipeline;
 
@@ -258,16 +261,21 @@ public:
 	void run();
 
 	bool resize_requested{ false };
+	bool drawGBufferPositions{ false };
 
-
-	void init_ssao();
+	// GBuffer
+	void init_gbuffer();
 	AllocatedImage _gbufferPosition;
 	AllocatedImage _gbufferNormal;
+
+	// SSAO
+	void init_ssao();
 
 private: 
 
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
+	void draw_gbuffer(VkCommandBuffer cmd);
 	void draw_ssao(VkCommandBuffer cmd);
 
 	void init_imgui();

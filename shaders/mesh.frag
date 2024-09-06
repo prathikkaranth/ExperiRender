@@ -93,9 +93,4 @@ void main()
 	// Final color
 	outFragColor = vec4(spec + ambient + diffuse, 1.0f);
 
-	// G buffer World position
-	outFragWorldPos = vec4(inWorldPos,1.0f);
-
-	// G buffer World normal
-	outFragWorldNormal = vec4(normal, 1.0f);
 }
