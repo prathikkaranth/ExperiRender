@@ -123,6 +123,7 @@ void VulkanEngine::init_default_data() {
 	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
 	sceneData.sunlightDirection = glm::normalize(sunDir);
 	sceneData.hasSpecular = false;
+	sceneData.viewGbufferPos = false;
 
 	/*testMeshes = loadGltfMeshes(this, "..\\assets\\basicmesh.glb").value();	*/
 
@@ -316,8 +317,8 @@ void VulkanEngine::draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-	vkutil::transition_image(cmd, _gbufferPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkutil::transition_image(cmd, _gbufferNormal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkutil::transition_image(cmd, _gbufferPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	vkutil::transition_image(cmd, _gbufferNormal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	draw_gbuffer(cmd);
 
@@ -486,8 +487,9 @@ void VulkanEngine::run()
 		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -10, 10);
 		ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
 
-		// std::cout << "Has specular: " << sceneData.hasSpecular << "\n";
 		ImGui::Checkbox("Specular", reinterpret_cast<bool*>(&sceneData.hasSpecular));
+		ImGui::Checkbox("View GBuffer Position", reinterpret_cast<bool*>(&sceneData.viewGbufferPos));
+
 
 		ImGui::End();
 
@@ -735,6 +737,14 @@ void VulkanEngine::draw_background(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 {
+	//allocate a descriptor set for our GBUFFER input
+	_gbufferInputDescriptors = globalDescriptorAllocator.allocate(_device, _gbufferInputDescriptorLayout);
+
+	DescriptorWriter gbuffer_writer;
+	gbuffer_writer.write_image(0, _gbufferPosition.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	gbuffer_writer.write_image(1, _gbufferNormal.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	gbuffer_writer.update_set(_device, _gbufferInputDescriptors);
 
 	//reset counters
 	stats.drawcall_count = 0;
@@ -861,7 +871,7 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 
 	auto end = std::chrono::system_clock::now();
 
-	//convert to microseconds (integer), and then come back to miliseconds
+	//convert to microseconds (integer), and then come back to milliseconds
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	stats.mesh_draw_time = elapsed.count() / 1000.f;
 }
@@ -937,6 +947,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	DescriptorWriter writer;
 	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
 	writer.update_set(_device, globalDescriptor);
 
 	//defined outside of the draw function, this is the state we will try to skip
@@ -954,6 +965,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1,
 					&globalDescriptor, 0, nullptr);
 
+				
 				VkViewport viewport = {};
 				viewport.x = 0;
 				viewport.y = 0;
@@ -975,6 +987,8 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1,
 				&r.material->materialSet, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 2, 1,
+				&_gbufferInputDescriptors, 0, nullptr);
 		}
 		if (r.indexBuffer != lastIndexBuffer) {
 			lastIndexBuffer = r.indexBuffer;
@@ -1468,19 +1482,27 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	matrixRange.size = sizeof(GPUDrawPushConstants);
 	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	// builder for colorMap, normalMap, metallicMap, roughnessMap .....
 	DescriptorLayoutBuilder layoutBuilder;
 	layoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
+	// builder for the gbuffer input
+	DescriptorLayoutBuilder gbufferLayoutBuilder;
+	gbufferLayoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	gbufferLayoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	engine->_gbufferInputDescriptorLayout = gbufferLayoutBuilder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+
 	materialLayout = layoutBuilder.build(engine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkDescriptorSetLayout layouts[] = { engine->_gpuSceneDataDescriptorLayout,
-		materialLayout };
+		materialLayout, engine->_gbufferInputDescriptorLayout };
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkinit::pipeline_layout_create_info();
-	mesh_layout_info.setLayoutCount = 2;
+	mesh_layout_info.setLayoutCount = 3;
 	mesh_layout_info.pSetLayouts = layouts;
 	mesh_layout_info.pPushConstantRanges = &matrixRange;
 	mesh_layout_info.pushConstantRangeCount = 1;

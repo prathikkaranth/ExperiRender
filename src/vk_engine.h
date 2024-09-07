@@ -182,6 +182,9 @@ public:
 	VkDescriptorSet _drawImageDescriptors{};
 	VkDescriptorSetLayout _drawImageDescriptorLayout{};
 
+	VkDescriptorSet _gbufferInputDescriptors{};
+	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
+
 	VkDescriptorSet _ssaoInputDescriptors{};
 	VkDescriptorSetLayout _ssaoInputDescriptorLayout{};
 

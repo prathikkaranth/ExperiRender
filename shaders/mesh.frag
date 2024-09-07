@@ -90,7 +90,16 @@ void main()
 	if(bool(sceneData.hasSpecular))
 		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 
-	// Final color
-	outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+	if(bool(sceneData.viewGbufferPos)){
+		// G buffer World position
+		vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
+		vec3 gbufferPos = texture(gbufferPosMap, screenUV).xyz;
+		outFragColor = vec4(gbufferPos, 1.0f);
+	}
+	else{
+		// Final color
+		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+	}
+	
 
 }

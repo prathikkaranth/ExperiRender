@@ -8,6 +8,7 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec4 sunlightColor;
 	vec3 cameraPosition;
 	int hasSpecular;
+	int viewGbufferPos;
 } sceneData;
 
 layout(set = 1, binding = 0) uniform GLTFMaterialData{   
@@ -21,3 +22,6 @@ layout(set = 1, binding = 0) uniform GLTFMaterialData{
 layout(set = 1, binding = 1) uniform sampler2D colorTex;
 layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
 layout(set = 1, binding = 3) uniform sampler2D normalTex;
+
+layout(set = 2, binding = 0) uniform sampler2D gbufferPosMap;
+layout(set = 2, binding = 1) uniform sampler2D gbufferNormalMap;
