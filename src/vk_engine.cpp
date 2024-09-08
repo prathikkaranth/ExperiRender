@@ -317,6 +317,7 @@ void VulkanEngine::draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
+	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	vkutil::transition_image(cmd, _gbufferPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	vkutil::transition_image(cmd, _gbufferNormal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -329,7 +330,7 @@ void VulkanEngine::draw()
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	// vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	draw_geometry(cmd);
 
@@ -893,6 +894,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	stats.triangle_count = 0;
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
+
 	//begin a render pass  connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
@@ -1714,12 +1716,7 @@ void VulkanEngine::init_gbuffer()
 	// use the triangle layout we created
 	pipelineBuilder._pipelineLayout = _gbufferPipelineLayout;
 
-	// create the transparent variant
-	pipelineBuilder.clear_attachments();
-	pipelineBuilder.add_color_attachment(_gbufferPosition.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
-	pipelineBuilder.add_color_attachment(_gbufferNormal.imageFormat, PipelineBuilder::BlendMode::ADDITIVE_BLEND);
-
-	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	// create the pipeline
 	_gbufferPipeline = pipelineBuilder.build_pipeline(_device);
