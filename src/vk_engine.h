@@ -143,6 +143,7 @@ public:
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
+	VkExtent2D _depthMapExtent;
 
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
@@ -227,6 +228,7 @@ public:
 	//SSAO resources
 	AllocatedImage _ssaoImage;
 	AllocatedImage _ssaoImageBlurred;
+	AllocatedImage _depthMap;
 	VkExtent2D _ssaoExtent{};
 
 	// immediate submit structures
