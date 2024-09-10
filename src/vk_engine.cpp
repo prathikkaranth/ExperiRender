@@ -285,7 +285,21 @@ void VulkanEngine::draw()
 {
 	update_scene();
 
-	// wait until the gpu has finished rendering the last frame. Timeout of 1
+	// Single buffering 
+	/*for (int i = 0; i < FRAME_OVERLAP; i++) {
+		FrameData& frame = _frames[i];
+
+		VK_CHECK(vkWaitForFences(_device, 1, &frame._renderFence, true, 1000000000));
+
+		frame._deletionQueue.flush();
+		frame._frameDescriptors.clear_pools(_device);
+
+		VK_CHECK(vkResetFences(_device, 1, &frame._renderFence));
+
+	}*/
+	
+	// Double buffering
+	// wait until the GPU has finished rendering the last frame. Timeout of 1
 	// second
 	VK_CHECK(vkWaitForFences(_device, 1, &get_current_frame()._renderFence, true, 1000000000));
 
@@ -293,6 +307,7 @@ void VulkanEngine::draw()
 	get_current_frame()._frameDescriptors.clear_pools(_device);
 
 	VK_CHECK(vkResetFences(_device, 1, &get_current_frame()._renderFence));
+	
 
 	//request image from the swapchain
 	uint32_t swapchainImageIndex;
@@ -887,6 +902,12 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_ssao(VkCommandBuffer cmd)
 {
+	DescriptorWriter ssao_writer;
+	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	ssao_writer.write_image(1, _depthMap.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+	ssao_writer.update_set(_device, _ssaoInputDescriptors);
+
 	// bind the SSAO pipeline
 	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoPipeline);
 	// bind the descriptor set containing the draw image for the compute pipeline
@@ -1622,16 +1643,12 @@ void VulkanEngine::init_ssao() {
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		builder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_ssaoInputDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
 	//allocate a descriptor set for our SSAO input
 	_ssaoInputDescriptors = globalDescriptorAllocator.allocate(_device, _ssaoInputDescriptorLayout);
-
-	DescriptorWriter ssao_writer;
-	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-
-	ssao_writer.update_set(_device, _ssaoInputDescriptors);
 
 	_mainDeletionQueue.push_function([&]() {
 		vkDestroyDescriptorSetLayout(_device, _ssaoInputDescriptorLayout, nullptr);

@@ -25,3 +25,4 @@ layout(set = 1, binding = 3) uniform sampler2D normalTex;
 
 layout(set = 2, binding = 0) uniform sampler2D gbufferPosMap;
 layout(set = 2, binding = 1) uniform sampler2D gbufferNormalMap;
+
