@@ -3,6 +3,13 @@
 #extension GL_GOOGLE_include_directive : require
 #include "input_structures.glsl"
 
+layout(set = 1, binding = 1) uniform sampler2D colorTex;
+layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
+layout(set = 1, binding = 3) uniform sampler2D normalTex;
+
+layout(set = 2, binding = 0) uniform sampler2D gbufferPosMap;
+layout(set = 2, binding = 1) uniform sampler2D gbufferNormalMap;
+
 layout (location = 0) in vec3 inNormal;
 layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec2 inUV;
