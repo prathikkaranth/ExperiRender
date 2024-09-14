@@ -6,6 +6,7 @@
 layout(set = 1, binding = 1) uniform sampler2D colorTex;
 layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
 layout(set = 1, binding = 3) uniform sampler2D normalTex;
+layout(set = 1, binding = 4) uniform sampler2D ssaoMap;
 
 layout(set = 2, binding = 0) uniform sampler2D gbufferPosMap;
 layout(set = 2, binding = 1) uniform sampler2D gbufferNormalMap;
@@ -65,7 +66,9 @@ void main()
 
 
 	// Ambient light
-	vec3 ambient = color *  sceneData.ambientColor.xyz;
+	vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
+	vec3 ssao = texture(ssaoMap, screenUV).xxx;
+	vec3 ambient = color *  sceneData.ambientColor.xyz * ssao;
 
 	// Normalized normal
 	vec4 normalFromTex = texture(normalTex, inUV);
@@ -99,13 +102,13 @@ void main()
 
 	if(bool(sceneData.viewGbufferPos)){
 		// G buffer World position
-		vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
 		vec3 gbufferPos = texture(gbufferPosMap, screenUV).xyz;
 		outFragColor = vec4(gbufferPos, 1.0f);
 	}
 	else{
 		// Final color
 		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+		outFragColor = vec4(ssao, 1.0f);
 	}
 	
 

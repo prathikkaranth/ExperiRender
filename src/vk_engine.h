@@ -56,7 +56,7 @@ struct FrameData {
 	DescriptorAllocatorGrowable _frameDescriptors;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 1;
 
 struct GLTFMetallic_Roughness {
 	MaterialPipeline opaquePipeline;
@@ -90,7 +90,7 @@ struct GLTFMetallic_Roughness {
 	void build_pipelines(VulkanEngine* engine);
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct RenderObject {

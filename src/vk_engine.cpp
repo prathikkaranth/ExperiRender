@@ -181,11 +181,13 @@ void VulkanEngine::init_default_data() {
 	// SSAO data
 	// ----------------------
 	for (int i = 0; i < 64; i++) {
-		ssaoData.samples[i] = ssaoKernel[i];
+		ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
 	}
 	ssaoData.kernelSize = 64;
 	ssaoData.radius = 0.5f;
 	ssaoData.bias = 0.025f;
+
+	std::cout << sizeof(ssaoData) << std::endl;
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -233,7 +235,7 @@ void VulkanEngine::init_default_data() {
 	materialResources.dataBuffer = materialConstants.buffer;
 	materialResources.dataBufferOffset = 0;
 
-	defaultData = metalRoughMaterial.write_material(_device, MaterialPass::MainColor, materialResources, globalDescriptorAllocator);
+	defaultData = metalRoughMaterial.write_material(this, _device, MaterialPass::MainColor, materialResources, globalDescriptorAllocator);
 
 	for (auto& m : testMeshes) {
 		std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
@@ -323,19 +325,6 @@ void VulkanEngine::cleanup()
 void VulkanEngine::draw()
 {
 	update_scene();
-
-	// Single buffering 
-	/*for (int i = 0; i < FRAME_OVERLAP; i++) {
-		FrameData& frame = _frames[i];
-
-		VK_CHECK(vkWaitForFences(_device, 1, &frame._renderFence, true, 1000000000));
-
-		frame._deletionQueue.flush();
-		frame._frameDescriptors.clear_pools(_device);
-
-		VK_CHECK(vkResetFences(_device, 1, &frame._renderFence));
-
-	}*/
 	
 	// Double buffering
 	// wait until the GPU has finished rendering the last frame. Timeout of 1
@@ -390,6 +379,8 @@ void VulkanEngine::draw()
 	vkutil::transition_image(cmd, _ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	draw_ssao(cmd);
+
+	vkutil::transition_image(cmd, _ssaoImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
@@ -1577,15 +1568,12 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	layoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	// builder for the gbuffer input
 	DescriptorLayoutBuilder gbufferLayoutBuilder;
 	gbufferLayoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	gbufferLayoutBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-	// builder for the ssao input
-	/*DescriptorLayoutBuilder ssaoLayoutBuilder;
-	ssaoLayoutBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);*/
 
 	engine->_gbufferInputDescriptorLayout = gbufferLayoutBuilder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -1639,7 +1627,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
 {
 	MaterialInstance matData;
 	matData.passType = pass;
@@ -1658,6 +1646,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VkDevice device, Materia
 	writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(4, engine->_ssaoImage.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
 
