@@ -7,6 +7,13 @@ layout(set = 0, binding = 2) uniform sampler2D GbufferPosition;
 layout(set = 0, binding = 3) uniform sampler2D GbufferNormal;
 layout(set = 0, binding = 4) uniform sampler2D texNoise;
 
+layout(set = 0, binding = 5) uniform SSAOData{
+    vec4 kernel[64];
+    float radius;
+    float bias;
+    float power;
+} ssaoData;
+
 layout(rgba16f,set = 0, binding = 0) uniform image2D image;
 
 

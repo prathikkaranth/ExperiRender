@@ -68,6 +68,13 @@ struct GPUSceneData {
 	int viewGbufferPos;
 };
 
+struct SSAOSceneData {
+	glm::vec3 samples[64];
+	int kernelSize;
+	float radius;
+	float bias;
+};
+
 enum class MaterialPass :uint8_t {
 	MainColor,
 	Transparent,

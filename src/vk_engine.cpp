@@ -178,6 +178,15 @@ void VulkanEngine::init_default_data() {
 
 	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
+	// SSAO data
+	// ----------------------
+	for (int i = 0; i < 64; i++) {
+		ssaoData.samples[i] = ssaoKernel[i];
+	}
+	ssaoData.kernelSize = 64;
+	ssaoData.radius = 0.5f;
+	ssaoData.bias = 0.025f;
+
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
 	sampl.magFilter = VK_FILTER_NEAREST;
@@ -935,12 +944,25 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 
 void VulkanEngine::draw_ssao(VkCommandBuffer cmd)
 {
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer ssaoSceneDataBuffer = create_buffer(sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=, this]() {
+		destroy_buffer(ssaoSceneDataBuffer);
+		});
+
+	//write the buffer
+	SSAOSceneData* sceneUniformData = (SSAOSceneData*)ssaoSceneDataBuffer.allocation->GetMappedData();
+	*sceneUniformData = ssaoData;
+
 	DescriptorWriter ssao_writer;
 	ssao_writer.write_image(0, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	ssao_writer.write_image(1, _depthMap.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(2, _gbufferPosition.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(3, _gbufferNormal.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(4, _ssaoNoiseImage.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	ssao_writer.write_buffer(5, ssaoSceneDataBuffer.buffer, sizeof(SSAOSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 	ssao_writer.update_set(_device, _ssaoInputDescriptors);
 
@@ -1683,6 +1705,7 @@ void VulkanEngine::init_ssao() {
 		builder.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		builder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		builder.add_binding(5, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		_ssaoInputDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
 
