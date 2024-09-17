@@ -92,6 +92,11 @@ void VulkanEngine::init()
 	_isInitialized = true;
 }
 
+float ssaolerp(float a, float b, float f)
+{
+	return a + f * (b - a);
+}
+
 void VulkanEngine::init_default_data() {
 	std::array<Vertex, 4> rect_vertices;
 
@@ -149,20 +154,26 @@ void VulkanEngine::init_default_data() {
 	}
 	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
+	// SSAO data
+	// ----------------------
+	ssaoData.kernelSize = 64;
+	ssaoData.radius = 0.5f;
+	ssaoData.bias = 0.025f;
+
 	// generate sample kernel
 	// ----------------------
 	std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
 	std::default_random_engine generator;
 	std::vector<glm::vec3> ssaoKernel;
-	for (unsigned int i = 0; i < 64; ++i)
+	for (unsigned int i = 0; i < ssaoData.kernelSize; ++i)
 	{
 		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
 		sample = glm::normalize(sample);
 		sample *= randomFloats(generator);
-		float scale = float(i) / 64.0f;
+		float scale = float(i) / float(ssaoData.kernelSize);
 
 		// scale samples s.t. they're more aligned to center of kernel
-		scale = lerp(0.1f, 1.0f, scale * scale);
+		scale = ssaolerp(0.1f, 1.0f, scale * scale);
 		sample *= scale;
 		ssaoKernel.push_back(sample);
 	}
@@ -178,16 +189,9 @@ void VulkanEngine::init_default_data() {
 
 	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	// SSAO data
-	// ----------------------
 	for (int i = 0; i < 64; i++) {
 		ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
 	}
-	ssaoData.kernelSize = 64;
-	ssaoData.radius = 0.5f;
-	ssaoData.bias = 0.025f;
-
-	std::cout << sizeof(ssaoData) << std::endl;
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -198,6 +202,7 @@ void VulkanEngine::init_default_data() {
 
 	sampl.magFilter = VK_FILTER_LINEAR;
 	sampl.minFilter = VK_FILTER_LINEAR;
+
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
 
 	_mainDeletionQueue.push_function([=]() {
@@ -208,6 +213,7 @@ void VulkanEngine::init_default_data() {
 		destroy_image(_greyImage);
 		destroy_image(_blackImage);
 		destroy_image(_errorCheckerboardImage);
+		destroy_image(_ssaoNoiseImage);
 		});
 
 	GLTFMetallic_Roughness::MaterialResources materialResources;
@@ -470,6 +476,7 @@ void VulkanEngine::update_scene()
 	sceneData.view = view;
 	sceneData.proj = projection;
 	sceneData.viewproj = projection * view;
+	ssaoData.viewproj = projection * view;
 	sceneData.cameraPosition = mainCamera.position;
 
 	// for (int i = 0; i < 16; i++)         {
@@ -547,6 +554,9 @@ void VulkanEngine::run()
 		ImGui::Checkbox("Specular", reinterpret_cast<bool*>(&sceneData.hasSpecular));
 		ImGui::Checkbox("View GBuffer Position", reinterpret_cast<bool*>(&sceneData.viewGbufferPos));
 
+		ImGui::SliderInt("SSAO Kernel Size", &ssaoData.kernelSize, 1, 256);
+		ImGui::SliderFloat("SSAO Radius", &ssaoData.radius, 0.0001f, 10.f);
+		ImGui::SliderFloat("SSAO Bias", &ssaoData.bias, 0.001f, 0.005f);
 
 		ImGui::End();
 

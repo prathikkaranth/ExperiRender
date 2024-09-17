@@ -70,6 +70,7 @@ struct GPUSceneData {
 
 struct SSAOSceneData {
 	alignas(16) glm::vec4 samples[64];
+	glm::mat4 viewproj;
 	int kernelSize;
 	float radius;
 	float bias;

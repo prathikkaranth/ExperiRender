@@ -44,6 +44,7 @@ void main()
 	mat4 invTransposeRenderMatrix = transpose(inverse(PushConstants.render_matrix));
 
 	outNormal = (invTransposeRenderMatrix * vec4(v.normal, 0.f)).xyz;
+	outNormal = outNormal * 0.5 + 0.5;
 
 	outWorldPos = worldPos.xyz / worldPos.w;
 }
