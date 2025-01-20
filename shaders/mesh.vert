@@ -54,5 +54,6 @@ void main()
 	outTangent = v.tangent;
 	outBitangent = v.bitangent;
 
+
 	outWorldPos = worldPos.xyz / worldPos.w;
 }

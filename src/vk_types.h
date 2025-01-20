@@ -70,10 +70,12 @@ struct GPUSceneData {
 
 struct SSAOSceneData {
 	alignas(16) glm::vec4 samples[64];
-	glm::mat4 viewproj;
+	alignas(16) glm::mat4 viewproj;
+	alignas(16) glm::mat4 view;
 	int kernelSize;
 	float radius;
 	float bias;
+	float intensity;
 };
 
 enum class MaterialPass :uint8_t {

@@ -107,7 +107,7 @@ void main()
 	}
 	else{
 		// Final color
-		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+		// outFragColor = vec4(spec + ambient + diffuse, 1.0f);
 		outFragColor = vec4(ssao, 1.0f);
 	}
 	

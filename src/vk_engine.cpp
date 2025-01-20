@@ -159,6 +159,7 @@ void VulkanEngine::init_default_data() {
 	ssaoData.kernelSize = 64;
 	ssaoData.radius = 0.5f;
 	ssaoData.bias = 0.025f;
+	ssaoData.intensity = 1.0f;
 
 	// generate sample kernel
 	// ----------------------
@@ -474,6 +475,7 @@ void VulkanEngine::update_scene()
 	mainCamera.update();
 
 	sceneData.view = view;
+	ssaoData.view = view;
 	sceneData.proj = projection;
 	sceneData.viewproj = projection * view;
 	ssaoData.viewproj = projection * view;
@@ -556,7 +558,8 @@ void VulkanEngine::run()
 
 		ImGui::SliderInt("SSAO Kernel Size", &ssaoData.kernelSize, 1, 256);
 		ImGui::SliderFloat("SSAO Radius", &ssaoData.radius, 0.0001f, 10.f);
-		ImGui::SliderFloat("SSAO Bias", &ssaoData.bias, 0.001f, 0.005f);
+		ImGui::SliderFloat("SSAO Bias", &ssaoData.bias, 0.001f, 0.055f);
+		ImGui::SliderFloat("SSAO Strength", &ssaoData.intensity, 0.1f, 10.f);
 
 		ImGui::End();
 
@@ -972,7 +975,7 @@ void VulkanEngine::draw_ssao(VkCommandBuffer cmd)
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoPipelineLayout, 0, 1, &_ssaoInputDescriptors, 0, nullptr);
 	// execute the compute pipeline dispatch. We are using 16x16 work group size so we need to divide by it
-	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 16.0), std::ceil(_drawExtent.height / 16.0), 1);
+	vkCmdDispatch(cmd, std::ceil(_drawExtent.width / 32.0), std::ceil(_drawExtent.height / 32.0), 1);
 }
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
@@ -1206,7 +1209,6 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 void VulkanEngine::init_pipelines()
 {
 	// BACKGROUND GRADIENT PIPELINE
-	init_background_pipelines();
 
 	// GBuffer PIPELINE
 	init_gbuffer();
@@ -1216,89 +1218,6 @@ void VulkanEngine::init_pipelines()
 
 	metalRoughMaterial.build_pipelines(this);
 	
-}
-
-
-void VulkanEngine::init_background_pipelines()
-{
-
-	VkPipelineLayoutCreateInfo computeLayout{};
-	computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	computeLayout.pNext = nullptr;
-	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
-	computeLayout.setLayoutCount = 1;
-
-	VkPushConstantRange pushConstant{};
-	pushConstant.offset = 0;
-	pushConstant.size = sizeof(ComputePushConstants);
-	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-	computeLayout.pPushConstantRanges = &pushConstant;
-	computeLayout.pushConstantRangeCount = 1;
-
-	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
-
-	VkShaderModule gradientShader;
-	if (!vkutil::load_shader_module("../shaders/gradient_color.comp.spv", _device, &gradientShader)) {
-		std::cout << "Error when building the compute shader \n";
-
-	}
-
-	VkShaderModule skyShader;
-	if (!vkutil::load_shader_module("../shaders/sky.comp.spv", _device, &skyShader)) {
-		std::cout << "Error when building the compute shader \n";
-
-	}
-
-	VkPipelineShaderStageCreateInfo stageinfo{};
-	stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stageinfo.pNext = nullptr;
-	stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageinfo.module = gradientShader;
-	stageinfo.pName = "main";
-
-	VkComputePipelineCreateInfo computePipelineCreateInfo{};
-	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = _gradientPipelineLayout;
-	computePipelineCreateInfo.stage = stageinfo;
-
-	ComputeEffect gradient;
-	gradient.layout = _gradientPipelineLayout;
-	gradient.name = "gradient";
-	gradient.data = {};
-
-	//default colors
-	gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
-
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
-
-	//change the shader module only to create the sky shader
-	computePipelineCreateInfo.stage.module = skyShader;
-
-	ComputeEffect sky;
-	sky.layout = _gradientPipelineLayout;
-	sky.name = "sky";
-	sky.data = {};
-	//default sky parameters
-	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
-
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-
-	//add the 2 background effects into the array
-	backgroundEffects.push_back(gradient);
-	backgroundEffects.push_back(sky);
-
-	//destroy structures properly
-	vkDestroyShaderModule(_device, gradientShader, nullptr);
-	vkDestroyShaderModule(_device, skyShader, nullptr);
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-		vkDestroyPipeline(_device, sky.pipeline, nullptr);
-		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
-		});
-
 }
 
 void VulkanEngine::immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function)
@@ -1557,13 +1476,13 @@ void VulkanEngine::destroy_image(const AllocatedImage& image)
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
 	VkShaderModule meshFragShader;
-	if (!vkutil::load_shader_module("../shaders/mesh.frag.spv", engine->_device, &meshFragShader)) {
+	if (!vkutil::load_shader_module("mesh.frag.spv", engine->_device, &meshFragShader)) {
 		std::cout << "Error when building the triangle fragment shader module" << std::endl;
 		throw std::runtime_error("Error when building the triangle fragment shader module");
 	}
 
 	VkShaderModule meshVertexShader;
-	if (!vkutil::load_shader_module("../shaders/mesh.vert.spv", engine->_device, &meshVertexShader)) {
+	if (!vkutil::load_shader_module("mesh.vert.spv", engine->_device, &meshVertexShader)) {
 		std::cout << "Error when building the triangle vertex shader module" << std::endl;
 	}
 
@@ -1729,7 +1648,7 @@ void VulkanEngine::init_ssao() {
 
 	// layout code
 	VkShaderModule ssaoDrawShader;
-	if (!vkutil::load_shader_module("../shaders/ssao.comp.spv", _device, &ssaoDrawShader))
+	if (!vkutil::load_shader_module("ssao.comp.spv", _device, &ssaoDrawShader))
 	{
 		std::cout << "Error when building the compute shader \n";
 		
@@ -1778,13 +1697,13 @@ void VulkanEngine::init_gbuffer()
 	VK_CHECK(vkCreatePipelineLayout(_device, &mesh_layout_info, nullptr, &_gbufferPipelineLayout));
 
 	VkShaderModule gbufferFragShader;
-	if (!vkutil::load_shader_module("../shaders/GBuffer.frag.spv", _device, &gbufferFragShader)) {
+	if (!vkutil::load_shader_module("GBuffer.frag.spv", _device, &gbufferFragShader)) {
 		std::cout << "Error when building the gbuffer fragment shader module" << std::endl;
 		throw std::runtime_error("Error when building the gbuffer fragment shader module");
 	}
 
 	VkShaderModule gbufferVertexShader;
-	if (!vkutil::load_shader_module("../shaders/GBuffer.vert.spv", _device, &gbufferVertexShader)) {
+	if (!vkutil::load_shader_module("GBuffer.vert.spv", _device, &gbufferVertexShader)) {
 		std::cout << "Error when building the gbuffer vertex shader module" << std::endl;
 		throw std::runtime_error("Error when building the gbuffer fragment shader module");
 	}

@@ -2,12 +2,14 @@
 #include <fstream>
 #include <iostream>
 
-bool vkutil::load_shader_module(const char* filePath,
+bool vkutil::load_shader_module(const char* spvFilename,
     VkDevice device,
     VkShaderModule* outShaderModule)
 {
+    std::string filePath = std::string("shaders/") + spvFilename;
+
     // open the file. With cursor at the end
-    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+    std::ifstream file(filePath.c_str(), std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
         return false;
