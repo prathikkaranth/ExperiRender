@@ -156,7 +156,7 @@ void VulkanEngine::init_default_data() {
 
 	// SSAO data
 	// ----------------------
-	ssaoData.kernelSize = 64;
+	ssaoData.kernelSize = 128;
 	ssaoData.radius = 0.5f;
 	ssaoData.bias = 0.025f;
 	ssaoData.intensity = 1.0f;
@@ -181,16 +181,16 @@ void VulkanEngine::init_default_data() {
 
 	// generate noise texture
 	// ----------------------
-	std::vector<glm::vec3> ssaoNoise;
+	std::vector<glm::vec4> ssaoNoise;
 	for (unsigned int i = 0; i < 16; i++)
 	{
-		glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+		glm::vec4 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f, 1.0f); // rotate around z-axis (in tangent space)
 		ssaoNoise.push_back(noise);
 	}
 
-	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	for (int i = 0; i < 64; i++) {
+	for (int i = 0; i < 128; i++) {
 		ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
 	}
 
@@ -544,6 +544,13 @@ void VulkanEngine::run()
 		ImGui::Text("cam pos %f %f %f", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
 		ImGui::Text("cam pitch %f yaw %f", mainCamera.pitch, mainCamera.yaw);
 
+		// print the view proj 4x4 matrix in imgui
+		ImGui::Text("viewproj matrix");
+		for (int i = 0; i < 4; i++) {
+			ImGui::Text("%f %f %f %f", sceneData.view[i][0], sceneData.view[i][1], sceneData.view[i][2], sceneData.view[i][3]);
+		}
+		
+
 		ImGui::End();
 
 		ImGui::Begin("Lighting");
@@ -842,9 +849,9 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 	opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
 
 	for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
-		if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {
+		/*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
 			opaque_draws.push_back(i);
-		}
+		/*}*/
 	}
 
 	// sort the opaque surfaces by material and mesh
@@ -1006,9 +1013,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
 
 	for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
-		if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {
+		/*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
 			opaque_draws.push_back(i);
-		}
+		/*}*/
 	}
 
 	// sort the opaque surfaces by material and mesh
@@ -1430,7 +1437,8 @@ AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkIm
 
 AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
-	size_t data_size = size.depth * size.width * size.height * 4;
+	const size_t pixel_size = format == VK_FORMAT_R32G32B32A32_SFLOAT ? 16 : 4;
+	size_t data_size = size.depth * size.width * size.height * pixel_size;
 	AllocatedBuffer uploadbuffer = create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 	memcpy(uploadbuffer.info.pMappedData, data, data_size);

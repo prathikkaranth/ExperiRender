@@ -69,7 +69,7 @@ struct GPUSceneData {
 };
 
 struct SSAOSceneData {
-	alignas(16) glm::vec4 samples[64];
+	alignas(16) glm::vec4 samples[128];
 	alignas(16) glm::mat4 viewproj;
 	alignas(16) glm::mat4 view;
 	int kernelSize;

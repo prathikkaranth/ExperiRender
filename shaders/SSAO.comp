@@ -13,7 +13,7 @@ layout(set = 0, binding = 3) uniform sampler2D GbufferNormal;
 layout(set = 0, binding = 4) uniform sampler2D texNoise;
 
 layout(set = 0, binding = 0) uniform SSAOData{
-    vec3 samples[64];
+    vec3 samples[128];
     mat4 viewproj;
     mat4 view;
     int kernelSize;
@@ -37,7 +37,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
 
     fragPosWS /= fragPosWS.w;
     vec3 normalWS = normalize(texture(GbufferNormal, fragCoord).xyz);
-    normalWS = normalWS * 2.0f - 1.0f;
 
     vec2 noiseUV = fragCoord * noiseScale;
     vec3 randomVec = normalize(texture(texNoise, noiseUV).rgb);
@@ -61,18 +60,19 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
 
         vec4 sampleVS = ssaoData.view * texture(GbufferPosition, uv);
         sampleVS /= sampleVS.w;
-        float sampleDepth = -sampleVS.z; 
+        float sampleDepth = -sampleVS.z;    
 
         // range check & accumulate
-        if(abs(fragDepth - sampleDepth) < ssaoData.radius) {
+        if(abs(fragDepth - sampleDepth) < ssaoData.radius)
+        {
             occlusion += sampleDepth < fragDepth - ssaoData.bias ? 1.0f : 0.0f;
         }
 
     }
-
     float visibility = 1.0f - occlusion / ssaoData.kernelSize;
     visibility = pow(visibility, ssaoData.intensity);
     fragColor = vec4(visibility, 0.0, 0.0, 1.0);
+
 }
 
 void main() 
