@@ -189,6 +189,9 @@ public:
 	VkDescriptorSet _ssaoInputDescriptors{};
 	VkDescriptorSetLayout _ssaoInputDescriptorLayout{};
 
+	VkDescriptorSet _ssaoBlurInputDescriptors{};
+	VkDescriptorSetLayout _ssaoBlurInputDescriptorLayout{};
+
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline{};
@@ -205,6 +208,9 @@ public:
 
 	VkPipelineLayout _ssaoPipelineLayout;
 	VkPipeline _ssaoPipeline;
+
+	VkPipelineLayout _ssaoBlurPipelineLayout;
+	VkPipeline _ssaoBlurPipeline;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
@@ -278,6 +284,7 @@ public:
 
 	// SSAO
 	void init_ssao();
+	void init_ssao_blur();
 
 private: 
 
@@ -285,6 +292,7 @@ private:
 	void draw_geometry(VkCommandBuffer cmd);
 	void draw_gbuffer(VkCommandBuffer cmd);
 	void draw_ssao(VkCommandBuffer cmd);
+	void draw_ssao_blur(VkCommandBuffer cmd);
 
 	void init_imgui();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);

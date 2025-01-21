@@ -65,6 +65,7 @@ struct GPUSceneData {
 	glm::vec4 sunlightColor;
 	glm::vec3 cameraPosition;
 	int hasSpecular;
+	int viewSSAOMAP;
 	int viewGbufferPos;
 };
 

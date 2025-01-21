@@ -105,10 +105,13 @@ void main()
 		vec3 gbufferPos = texture(gbufferPosMap, screenUV).xyz;
 		outFragColor = vec4(gbufferPos, 1.0f);
 	}
+	if(bool(sceneData.viewSSAOMAP)){
+		// SSAO Map
+		outFragColor = vec4(ssao, 1.0f);
+	}
 	else{
 		// Final color
 		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
-		// outFragColor = vec4(ssao, 1.0f);
 	}
 	
 
