@@ -1,0 +1,91 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#include "input_structures.glsl"
+
+layout (local_size_x = 32, local_size_y = 32) in;
+
+layout(r32f,set = 0, binding = 5) uniform image2D image;
+
+layout(set = 0, binding = 1) uniform sampler2D depthMap;
+layout(set = 0, binding = 2) uniform sampler2D GbufferPosition;
+layout(set = 0, binding = 3) uniform sampler2D GbufferNormal;
+layout(set = 0, binding = 4) uniform sampler2D texNoise;
+
+layout(set = 0, binding = 0) uniform SSAOData{
+    vec3 samples[128];
+    mat4 viewproj;
+    mat4 view;
+    int kernelSize;
+    float radius;
+    float bias;
+    float intensity;
+} ssaoData;
+
+// tile noise texture over screen based on screen dimensions divided by noise size
+const vec2 noiseScale = vec2(1280.0/4.0, 720.0/4.0); 
+
+// SSAO calculation
+void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
+
+    vec4 fragPosWS = texture(GbufferPosition, fragCoord);
+
+    // NOTE We use a RH coordinate system and therefore the Z decreases as depth increases
+    vec4 fragPosVS = ssaoData.view * fragPosWS;
+    fragPosVS /= fragPosVS.w;
+    float fragDepth = -fragPosVS.z;
+
+    fragPosWS /= fragPosWS.w;
+    vec3 normalWS = normalize(texture(GbufferNormal, fragCoord).xyz);
+
+    vec2 noiseUV = fragCoord * noiseScale;
+    vec3 randomVec = normalize(texture(texNoise, noiseUV).rgb);
+
+    vec3 tangent = normalize(randomVec - normalWS * dot(randomVec, normalWS));
+    vec3 bitangent = cross(normalWS, tangent);
+    mat3 TBN = mat3(tangent, bitangent, normalWS);
+
+    float occlusion = 0.0f;
+    for(int i = 0; i < ssaoData.kernelSize; i++) {
+        vec3 sampleOffset = TBN * ssaoData.samples[i];
+        vec3 samplePos = fragPosWS.xyz + sampleOffset * ssaoData.radius;
+
+        vec4 sampleCS = ssaoData.viewproj * vec4(samplePos, 1.0f);
+        sampleCS /= sampleCS.w;
+        vec2 uv = sampleCS.xy * 0.5f + 0.5f;
+
+        if(uv.x < 0.0f || uv.x > 1.0f || uv.y < 0.0f || uv.y > 1.0f) {
+            continue;
+        }
+
+        vec4 sampleVS = ssaoData.view * texture(GbufferPosition, uv);
+        sampleVS /= sampleVS.w;
+        float sampleDepth = -sampleVS.z;    
+
+        // range check & accumulate
+        if(abs(fragDepth - sampleDepth) < ssaoData.radius)
+        {
+            occlusion += sampleDepth < fragDepth - ssaoData.bias ? 1.0f : 0.0f;
+        }
+
+    }
+    float visibility = 1.0f - occlusion / ssaoData.kernelSize;
+    visibility = pow(visibility, ssaoData.intensity);
+    fragColor = vec4(visibility, 0.0, 0.0, 1.0);
+
+}
+
+void main() 
+{
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+	ivec2 size = imageSize(image);
+
+    if(texelCoord.x < size.x && texelCoord.y < size.y)
+    {
+        vec4 fragColor;
+        vec2 uv = vec2(texelCoord) / vec2(size);
+        mainImage(fragColor, uv);
+        imageStore(image, texelCoord, fragColor);
+    }
+}

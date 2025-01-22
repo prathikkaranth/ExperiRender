@@ -1,3 +1,8 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "cSpell.ignoreWords": [
+        "bitangent",
+        "glslc",
+        "ssao"
+    ]
 }

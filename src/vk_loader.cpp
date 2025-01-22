@@ -16,7 +16,7 @@
 #include <fastgltf/core.hpp>
 
 //> loadimg
-std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
+std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, std::string baseDir)
 {
     AllocatedImage newImage {};
 
@@ -32,14 +32,15 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
 
                 const std::string path(filePath.uri.path().begin(),
                     filePath.uri.path().end()); // Thanks C++.
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+                const std::string fullPath = baseDir + path;
+                unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &nrChannels, 4);
                 if (data) {
                     VkExtent3D imagesize;
                     imagesize.width = width;
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
                     stbi_image_free(data);
                 }
@@ -53,7 +54,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
                     stbi_image_free(data);
                 }
@@ -77,7 +78,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                                        imagesize.depth = 1;
 
                                        newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT,false);
+                                           VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
                                        stbi_image_free(data);
                                    }
@@ -213,11 +214,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     // load all textures
     for (fastgltf::Image& image : gltf.images) {
-        std::optional<AllocatedImage> img = load_image(engine, gltf, image);
+        std::string baseDir = path.parent_path().string() + "\\";
+        std::optional<AllocatedImage> img = load_image(engine, gltf, image, baseDir);
 
         if (img.has_value()) {
             images.push_back(*img);
             file.images[image.name.c_str()] = *img;
+           
         }
         else {
             // we failed to load, so lets give the slot a default white texture to not
@@ -226,6 +229,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
+    
+    
 
     // create buffer to hold the material data
     file.materialDataBuffer = engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
@@ -246,6 +251,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
+
+        constants.hasMetalRoughTex = mat.pbrData.metallicRoughnessTexture.has_value();
+
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 
@@ -260,11 +268,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materialResources.colorSampler = engine->_defaultSamplerLinear;
         materialResources.metalRoughImage = engine->_whiteImage;
         materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
+        materialResources.normalImage = engine->_greyImage;
+        materialResources.normalSampler = engine->_defaultSamplerLinear;
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
         materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
         // grab textures from gltf file
+        // albedo
         if (mat.pbrData.baseColorTexture.has_value()) {
             size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
             size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
@@ -272,8 +283,24 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             materialResources.colorImage = images[img];
             materialResources.colorSampler = file.samplers[sampler];
         }
+        // metallic roughness
+		if (mat.pbrData.metallicRoughnessTexture.has_value()) {
+            size_t img = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].imageIndex.value();
+            size_t sampler = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].samplerIndex.value();
+
+            materialResources.metalRoughImage = images[img];
+            materialResources.metalRoughSampler = file.samplers[sampler];
+		}
+        // normal
+        if (mat.normalTexture.has_value()) {
+			size_t img = gltf.textures[mat.normalTexture.value().textureIndex].imageIndex.value();
+			size_t sampler = gltf.textures[mat.normalTexture.value().textureIndex].samplerIndex.value();
+			materialResources.normalImage = images[img];
+			materialResources.normalSampler = file.samplers[sampler];
+		}
+        
         // build material
-        newMat->data = engine->metalRoughMaterial.write_material(engine->_device, passType, materialResources, file.descriptorPool);
+        newMat->data = engine->metalRoughMaterial.write_material(engine, engine->_device, passType, materialResources, file.descriptorPool);
 
         data_index++;
     }
@@ -328,6 +355,15 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                     });
             }
 
+            // load tangents
+            auto tangents = p.findAttribute("TANGENT");
+            if (tangents != p.attributes.end()) {
+				fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*tangents).second],
+                    [&](glm::vec4 v, size_t index) {
+						vertices[initial_vtx + index].tangent = v;
+					});
+			}
+
             // load vertex normals
             auto normals = p.findAttribute("NORMAL");
             if (normals != p.attributes.end()) {
@@ -337,6 +373,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                         vertices[initial_vtx + index].normal = v;
                     });
             }
+
+            // calculate bi-tangents from normals and tangents
+            for (size_t i = 0; i < vertices.size(); i++) {
+				Vertex& v = vertices[i];
+				v.bitangent = glm::cross(v.normal, v.tangent);
+			}
 
             // load UVs
             auto uv = p.findAttribute("TEXCOORD_0");
@@ -366,7 +408,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                 newSurface.material = materials[0];
             }
 
-            newmesh->surfaces.push_back(newSurface);
+			//loop the vertices of this surface, find min/max bounds
+			glm::vec3 minpos = vertices[initial_vtx].position;
+			glm::vec3 maxpos = vertices[initial_vtx].position;
+			for (int i = initial_vtx; i < vertices.size(); i++) {
+				minpos = glm::min(minpos, vertices[i].position);
+				maxpos = glm::max(maxpos, vertices[i].position);
+			}
+			// calculate origin and extents from the min/max, use extent length for radius
+			newSurface.bounds.origin = (maxpos + minpos) / 2.f;
+			newSurface.bounds.extents = (maxpos - minpos) / 2.f;
+			newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+
+			newmesh->surfaces.push_back(newSurface);
         }
 
         newmesh->meshBuffers = engine->uploadMesh(indices, vertices);

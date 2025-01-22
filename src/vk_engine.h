@@ -56,7 +56,7 @@ struct FrameData {
 	DescriptorAllocatorGrowable _frameDescriptors;
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 1;
 
 struct GLTFMetallic_Roughness {
 	MaterialPipeline opaquePipeline;
@@ -64,11 +64,14 @@ struct GLTFMetallic_Roughness {
 
 	VkDescriptorSetLayout materialLayout;
 
+
 	struct MaterialConstants {
 		glm::vec4 colorFactors;
 		glm::vec4 metal_rough_factors;
+		int hasMetalRoughTex;
+
 		//padding, we need it anyway for uniform buffers
-		glm::vec4 extra[14];
+		uint8_t padding[220];
 	};
 
 	struct MaterialResources {
@@ -76,6 +79,8 @@ struct GLTFMetallic_Roughness {
 		VkSampler colorSampler;
 		AllocatedImage metalRoughImage;
 		VkSampler metalRoughSampler;
+		AllocatedImage normalImage;
+		VkSampler normalSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
 	};
@@ -85,7 +90,7 @@ struct GLTFMetallic_Roughness {
 	void build_pipelines(VulkanEngine* engine);
 	void clear_resources(VkDevice device);
 
-	MaterialInstance write_material(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
+	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
 struct RenderObject {
@@ -94,7 +99,7 @@ struct RenderObject {
 	VkBuffer indexBuffer;
 
 	MaterialInstance* material;
-
+	Bounds bounds;
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
 };
@@ -138,6 +143,7 @@ public:
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
+	VkExtent2D _depthMapExtent;
 
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
@@ -152,7 +158,7 @@ public:
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
 
-	VkExtent2D _windowExtent{ 1700 , 900 };
+	VkExtent2D _windowExtent{ 1280 , 720 };
 
 	float renderScale = 1.f;
 
@@ -163,7 +169,8 @@ public:
 	}
 
 	VkQueue _graphicsQueue{};
-	uint32_t _graphicsQueueFamily;
+	uint32_t _graphicsQueueFamily
+;
 
 	struct SDL_Window* _window{ nullptr };
 
@@ -176,6 +183,15 @@ public:
 	VkDescriptorSet _drawImageDescriptors{};
 	VkDescriptorSetLayout _drawImageDescriptorLayout{};
 
+	VkDescriptorSet _gbufferInputDescriptors{};
+	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
+
+	VkDescriptorSet _ssaoInputDescriptors{};
+	VkDescriptorSetLayout _ssaoInputDescriptorLayout{};
+
+	VkDescriptorSet _ssaoBlurInputDescriptors{};
+	VkDescriptorSetLayout _ssaoBlurInputDescriptorLayout{};
+
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline{};
@@ -187,12 +203,23 @@ public:
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
 
+	VkPipelineLayout _gbufferPipelineLayout;
+	VkPipeline _gbufferPipeline;
+
+	VkPipelineLayout _ssaoPipelineLayout;
+	VkPipeline _ssaoPipeline;
+
+	VkPipelineLayout _ssaoBlurPipelineLayout;
+	VkPipeline _ssaoBlurPipeline;
+
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+
+	SSAOSceneData ssaoData;
 
 	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
@@ -206,6 +233,12 @@ public:
 	AllocatedImage _depthImage;
 	VkExtent2D _drawExtent{};
 
+	//SSAO resources
+	AllocatedImage _ssaoImage;
+	AllocatedImage _ssaoImageBlurred;
+	AllocatedImage _depthMap;
+	VkExtent2D _ssaoExtent{};
+
 	// immediate submit structures
 	VkFence _immFence;
 	VkCommandBuffer _immCommandBuffer;
@@ -215,6 +248,7 @@ public:
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
 	AllocatedImage _errorCheckerboardImage;
+	AllocatedImage _ssaoNoiseImage;
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
@@ -241,19 +275,31 @@ public:
 	void run();
 
 	bool resize_requested{ false };
+	bool drawGBufferPositions{ false };
+
+	// GBuffer
+	void init_gbuffer();
+	AllocatedImage _gbufferPosition;
+	AllocatedImage _gbufferNormal;
+
+	// SSAO
+	void init_ssao();
+	void init_ssao_blur();
 
 private: 
 
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
+	void draw_gbuffer(VkCommandBuffer cmd);
+	void draw_ssao(VkCommandBuffer cmd);
+	void draw_ssao_blur(VkCommandBuffer cmd);
 
 	void init_imgui();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();
 	void init_background_pipelines();
-	void init_triangle_pipeline();
-	void init_mesh_pipeline();
+
 
 	void init_descriptors();
 

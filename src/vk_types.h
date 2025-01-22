@@ -37,7 +37,9 @@ struct Vertex {
 	float uv_x;
 	glm::vec3 normal;
 	float uv_y;
-	glm::vec4 color;
+	alignas(16) glm::vec4 color;
+	alignas(16) glm::vec3 tangent;
+	alignas(16) glm::vec3 bitangent;
 };
 
 // holds the resources needed for a mesh
@@ -61,6 +63,20 @@ struct GPUSceneData {
 	glm::vec4 ambientColor;
 	glm::vec4 sunlightDirection; // w for sun power
 	glm::vec4 sunlightColor;
+	glm::vec3 cameraPosition;
+	int hasSpecular;
+	int viewSSAOMAP;
+	int viewGbufferPos;
+};
+
+struct SSAOSceneData {
+	alignas(16) glm::vec4 samples[128];
+	alignas(16) glm::mat4 viewproj;
+	alignas(16) glm::mat4 view;
+	int kernelSize;
+	float radius;
+	float bias;
+	float intensity;
 };
 
 enum class MaterialPass :uint8_t {

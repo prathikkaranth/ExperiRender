@@ -69,6 +69,39 @@ add_library(imgui STATIC ${IMGUI_SRC})
 target_link_libraries(imgui Vulkan::Vulkan SDL2::SDL2)
 target_include_directories(imgui PUBLIC deps/imgui)
 
+# Define paths for shaders
+set(GLSLC_PATH "C:/VulkanSDK/1.3.283.0/Bin/glslc.exe")
+set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+
+# List of shaders to compile
+file(GLOB SHADERS
+    "${SHADER_DIR}/*.frag"
+    "${SHADER_DIR}/*.vert"
+    "${SHADER_DIR}/*.comp"
+)
+
+
+# Loop through shaders and create custom commands for each
+# TODO Shader dependencies
+foreach(SHADER ${SHADERS})
+    set(SHADER_SRC ${SHADER})
+    get_filename_component(SHADER_NAME ${SHADER} NAME)
+    set(SHADER_SPV "${CMAKE_BINARY_DIR}/shaders/${SHADER_NAME}.spv")
+
+    add_custom_command(
+        OUTPUT ${SHADER_SPV}
+        COMMAND ${GLSLC_PATH} ${SHADER_SRC} -o ${SHADER_SPV}
+        DEPENDS ${SHADER_SRC}
+        COMMENT "Compiling shader: ${SHADER_SRC} -> ${SHADER_SPV}"
+    )
+
+    list(APPEND SPV_OUTPUTS ${SHADER_SPV})
+endforeach()
+
+# Create a target to compile all shaders
+add_custom_target(compile_shaders ALL DEPENDS ${SPV_OUTPUTS})
+
+
 # source and headers
 file(GLOB CPP_SRC
         "src/*.cpp"
@@ -76,6 +109,10 @@ file(GLOB CPP_SRC
 file(GLOB_RECURSE HEADERS "src/*.h")
 
 add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
+
+# Ensure the shader compilation runs before building the main target
+add_dependencies(Renderer compile_shaders)
+
 target_include_directories(Renderer PRIVATE src/)
 target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui fastgltf)
 
