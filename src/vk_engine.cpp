@@ -155,12 +155,12 @@ void VulkanEngine::init_default_data() {
 	}
 	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	// SSAO data
+	// SSAO data - Sponza scene
 	// ----------------------
 	ssaoData.kernelSize = 128;
-	ssaoData.radius = 0.5f;
-	ssaoData.bias = 0.025f;
-	ssaoData.intensity = 1.0f;
+	ssaoData.radius = 1.676f;
+	ssaoData.bias = 0.012f;
+	ssaoData.intensity = 2.647f;
 
 	// generate sample kernel
 	// ----------------------
@@ -573,8 +573,8 @@ void VulkanEngine::run()
 
 		ImGui::SliderInt("SSAO Kernel Size", &ssaoData.kernelSize, 1, 256);
 		ImGui::SliderFloat("SSAO Radius", &ssaoData.radius, 0.0001f, 10.f);
-		ImGui::SliderFloat("SSAO Bias", &ssaoData.bias, 0.001f, 0.055f);
-		ImGui::SliderFloat("SSAO Strength", &ssaoData.intensity, 0.1f, 10.f);
+		ImGui::SliderFloat("SSAO Bias", &ssaoData.bias, 0.001f, 1.055f);
+		ImGui::SliderFloat("SSAO Strength", &ssaoData.intensity, 0.0f, 10.f);
 
 		ImGui::End();
 
@@ -1649,7 +1649,7 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void VulkanEngine::init_ssao() {
 
 	_depthMapExtent = { _windowExtent.width, _windowExtent.height };
-	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	_depthMap = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
 	// SSAO 
@@ -1711,7 +1711,7 @@ void VulkanEngine::init_ssao() {
 
 void VulkanEngine::init_ssao_blur() {
 
-	_ssaoImageBlurred = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoImageBlurred = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	// SSAO Blur
 	{
