@@ -158,9 +158,9 @@ void VulkanEngine::init_default_data() {
 	// SSAO data - Sponza scene
 	// ----------------------
 	ssaoData.kernelSize = 128;
-	ssaoData.radius = 1.676f;
-	ssaoData.bias = 0.012f;
-	ssaoData.intensity = 2.647f;
+	ssaoData.radius = 0.382f;
+	ssaoData.bias = 0.006f;
+	ssaoData.intensity = 1.412f;
 
 	// generate sample kernel
 	// ----------------------

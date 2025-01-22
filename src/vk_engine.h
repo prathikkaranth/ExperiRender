@@ -298,8 +298,6 @@ private:
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();
-	void init_background_pipelines();
-
 
 	void init_descriptors();
 
