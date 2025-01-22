@@ -32,13 +32,13 @@ public:
 	AllocatedImage _ssaoImageBlurred;
 	AllocatedImage _depthMap;
 	VkExtent2D _ssaoExtent{};
+	VkExtent2D _depthMapExtent{};
 
 	// SSAO
-	void init_ssao(VulkanEngine& engine);
-	void init_ssao_blur(VkDevice _device);
+	void init_ssao(VulkanEngine* engine);
+	void init_ssao_blur(VulkanEngine* engine);
 
-private:
-	void draw_ssao(VkCommandBuffer cmd);
-	void draw_ssao_blur(VkCommandBuffer cmd);
+	void draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd);
+	void draw_ssao_blur(VulkanEngine* engine, VkCommandBuffer cmd);
 
 };

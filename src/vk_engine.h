@@ -6,6 +6,8 @@
 #include <vk_loader.h>	
 #include <functional>
 #include <camera.h>
+#include <vk_utils.h>
+#include <ssao.h>
 
 #include <glm/glm.hpp>
 
@@ -143,7 +145,6 @@ public:
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
-	VkExtent2D _depthMapExtent;
 
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
@@ -186,12 +187,6 @@ public:
 	VkDescriptorSet _gbufferInputDescriptors{};
 	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
 
-	VkDescriptorSet _ssaoInputDescriptors{};
-	VkDescriptorSetLayout _ssaoInputDescriptorLayout{};
-
-	VkDescriptorSet _ssaoBlurInputDescriptors{};
-	VkDescriptorSetLayout _ssaoBlurInputDescriptorLayout{};
-
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline{};
@@ -206,20 +201,12 @@ public:
 	VkPipelineLayout _gbufferPipelineLayout;
 	VkPipeline _gbufferPipeline;
 
-	VkPipelineLayout _ssaoPipelineLayout;
-	VkPipeline _ssaoPipeline;
-
-	VkPipelineLayout _ssaoBlurPipelineLayout;
-	VkPipeline _ssaoBlurPipeline;
-
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
-
-	SSAOSceneData ssaoData;
 
 	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
@@ -234,10 +221,8 @@ public:
 	VkExtent2D _drawExtent{};
 
 	//SSAO resources
-	AllocatedImage _ssaoImage;
-	AllocatedImage _ssaoImageBlurred;
-	AllocatedImage _depthMap;
-	VkExtent2D _ssaoExtent{};
+	ssao _ssao;
+
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -282,17 +267,11 @@ public:
 	AllocatedImage _gbufferPosition;
 	AllocatedImage _gbufferNormal;
 
-	// SSAO
-	void init_ssao();
-	void init_ssao_blur();
-
 private: 
 
 	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
 	void draw_gbuffer(VkCommandBuffer cmd);
-	void draw_ssao(VkCommandBuffer cmd);
-	void draw_ssao_blur(VkCommandBuffer cmd);
 
 	void init_imgui();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
