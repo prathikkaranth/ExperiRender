@@ -8,6 +8,7 @@
 #include <camera.h>
 #include <vk_utils.h>
 #include <ssao.h>
+#include <shadowmap.h>
 
 #include <glm/glm.hpp>
 
@@ -219,6 +220,9 @@ public:
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
 	VkExtent2D _drawExtent{};
+
+	// shadow resources
+	shadowMap _shadowMap;
 
 	//SSAO resources
 	ssao _ssao;

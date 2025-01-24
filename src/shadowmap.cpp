@@ -4,7 +4,15 @@
 #include "shadowmap.h"
 #include "vk_engine.h"
 
+void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
+	float near_plane = 1.0f, far_plane = 7.5f;
+	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(3, 5, -5.5), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;	
+}
+
 void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
+
 	_depthShadowMap = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 	VkPushConstantRange matrixRange{};
@@ -62,18 +70,9 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 }
 
-void shadowMap::init_shadowMap(VulkanEngine* engine) {
-
-}
-
 void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	//allocate a descriptor set for our GBUFFER input
 	_depthShadowMapInputDescriptors = engine->globalDescriptorAllocator.allocate(engine->_device, _depthShadowMapInputDescriptorLayout);
-
-	/*DescriptorWriter gbuffer_writer;
-	gbuffer_writer.write_image(0, _depthShadowMap.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-	gbuffer_writer.update_set(_device, _gbufferInputDescriptors);*/
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 	//begin a render pass  connected to our draw image
@@ -186,8 +185,4 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	mainDrawContext.TransparentSurfaces.clear();*/
 
 	vkCmdEndRendering(cmd);
-}
-
-void shadowMap::draw_shadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
-
 }

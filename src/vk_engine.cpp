@@ -155,6 +155,9 @@ void VulkanEngine::init_default_data() {
 	}
 	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
+	// Shadow light map
+	_shadowMap.init_lightSpaceMatrix(this);
+
 	// SSAO data - Sponza scene
 	// ----------------------
 	_ssao.ssaoData.kernelSize = 128;
@@ -1194,10 +1197,10 @@ void VulkanEngine::init_pipelines()
 	// GBuffer PIPELINE
 	init_gbuffer();
 
-	// SSAO PIPELINE
-	/*init_ssao();
-	init_ssao_blur();*/
+	// SHADOW PIPELINE
+	_shadowMap.init_depthShadowMap(this);
 
+	// SSAO PIPELINE
 	_ssao.init_ssao(this);
 	_ssao.init_ssao_blur(this);
 
