@@ -498,6 +498,7 @@ void VulkanEngine::update_scene()
 	_ssao.ssaoData.viewproj = projection * view;
 	sceneData.cameraPosition = mainCamera.position;
 
+
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}

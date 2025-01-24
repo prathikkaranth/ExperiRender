@@ -7,7 +7,7 @@
 void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
 	float near_plane = 0.1f, far_plane = 20.0f;
 	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 20.0f, 0.0f), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+	glm::mat4 lightView = glm::lookAt(glm::vec3(engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
 	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;	
 }
 
@@ -54,8 +54,6 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 	// use the triangle layout we created
 	pipelineBuilder._pipelineLayout = _depthShadowMapPipelineLayout;
-
-	pipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	// create the pipeline
 	_depthShadowMapPipeline = pipelineBuilder.build_pipeline(engine->_device);

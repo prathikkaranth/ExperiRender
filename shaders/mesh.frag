@@ -123,8 +123,10 @@ void main()
 	float shadow = shadowCalculation(inFragPosLightSpace);
 
 	if(bool(sceneData.hasSpecular)){
-		// spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
-		// outFragColor = vec4(spec + (ambient +(1.0 - shadow)) + diffuse, 1.0f);
+		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
+		spec *= 1.0f - shadow;
+		diffuse *= 1.0f - shadow;
+		// outFragColor = vec4(ambient + diffuse + specular, 1.0f);
 		vec3 shadowDepth = texture(depthShadowMap, screenUV).xyz;
 		outFragColor = vec4(shadowDepth, 1.0f);
 	}
