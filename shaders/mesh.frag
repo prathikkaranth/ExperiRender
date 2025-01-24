@@ -97,21 +97,23 @@ void main()
 	vec3 halfwayDir = normalize(sceneData.sunlightDirection.xyz + viewDir);
 	vec3 specFresnel = fresnelFactor(specular, max(dot(normalMap, viewDir), 0.0));
 	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
-	if(bool(sceneData.hasSpecular))
-		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 
-	if(bool(sceneData.viewGbufferPos)){
+	if(bool(sceneData.hasSpecular)){
+		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
+		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+	}
+	else if(bool(sceneData.viewSSAOMAP)){
+		// SSAO Map
+		outFragColor = vec4(ssao, 1.0f);
+	}
+	else if(bool(sceneData.viewGbufferPos)){
 		// G buffer World position
 		vec3 gbufferPos = texture(gbufferPosMap, screenUV).xyz;
 		outFragColor = vec4(gbufferPos, 1.0f);
 	}
-	if(bool(sceneData.viewSSAOMAP)){
-		// SSAO Map
-		outFragColor = vec4(ssao, 1.0f);
-	}
 	else{
 		// Final color
-		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+		outFragColor = vec4(ambient + diffuse, 1.0f);
 	}
 	
 

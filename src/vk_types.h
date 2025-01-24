@@ -79,6 +79,10 @@ struct SSAOSceneData {
 	float intensity;
 };
 
+struct ShadowmapSceneData {
+	glm::mat4 lightViewProj;
+};
+
 enum class MaterialPass :uint8_t {
 	MainColor,
 	Transparent,

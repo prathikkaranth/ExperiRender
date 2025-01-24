@@ -129,7 +129,7 @@ void VulkanEngine::init_default_data() {
 	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
 	sceneData.sunlightDirection = glm::normalize(sunDir);
 	sceneData.sunlightDirection.w = 1.24f; // sun intensity
-	sceneData.hasSpecular = false;
+	sceneData.hasSpecular = true;
 	sceneData.viewSSAOMAP = false;
 	sceneData.viewGbufferPos = false;
 
@@ -382,6 +382,8 @@ void VulkanEngine::draw()
 	// execute a copy from the depth image to the depth map
 	vkutil::copy_image_to_image(cmd, _depthImage.image, _ssao._depthMap.image, _drawExtent, _ssao._depthMapExtent, VK_FILTER_NEAREST, VK_IMAGE_ASPECT_DEPTH_BIT);
 
+	// shadow map code goes here
+
 	vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -548,15 +550,8 @@ void VulkanEngine::run()
 		ImGui::Text("update time %f ms", stats.scene_update_time);
 		ImGui::Text("triangles %i", stats.triangle_count);
 		ImGui::Text("draws %i", stats.drawcall_count);
-		ImGui::Text("cam pos %f %f %f", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
-		ImGui::Text("cam pitch %f yaw %f", mainCamera.pitch, mainCamera.yaw);
-
-		// print the view proj 4x4 matrix in imgui
-		ImGui::Text("viewproj matrix");
-		for (int i = 0; i < 4; i++) {
-			ImGui::Text("%f %f %f %f", sceneData.view[i][0], sceneData.view[i][1], sceneData.view[i][2], sceneData.view[i][3]);
-		}
-		
+		/*ImGui::Text("cam pos %f %f %f", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
+		ImGui::Text("cam pitch %f yaw %f", mainCamera.pitch, mainCamera.yaw);*/		
 
 		ImGui::End();
 
@@ -570,6 +565,10 @@ void VulkanEngine::run()
 		ImGui::Checkbox("Specular", reinterpret_cast<bool*>(&sceneData.hasSpecular));
 		ImGui::Checkbox("View SSAO Map", reinterpret_cast<bool*>(&sceneData.viewSSAOMAP));
 		ImGui::Checkbox("View GBuffer Position", reinterpret_cast<bool*>(&sceneData.viewGbufferPos));
+
+		ImGui::End();
+
+		ImGui::Begin("SSAO Settings");
 
 		ImGui::SliderInt("SSAO Kernel Size", &_ssao.ssaoData.kernelSize, 1, 256);
 		ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
