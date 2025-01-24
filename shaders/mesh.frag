@@ -8,6 +8,7 @@ layout(set = 1, binding = 1) uniform sampler2D colorTex;
 layout(set = 1, binding = 2) uniform sampler2D metalRoughTex;
 layout(set = 1, binding = 3) uniform sampler2D normalTex;
 layout(set = 1, binding = 4) uniform sampler2D ssaoMap;
+layout(set = 1, binding = 5) uniform sampler2D depthShadowMap;
 
 layout(set = 2, binding = 0) uniform sampler2D gbufferPosMap;
 layout(set = 2, binding = 1) uniform sampler2D gbufferNormalMap;
@@ -18,6 +19,7 @@ layout (location = 2) in vec2 inUV;
 layout (location = 3) in vec3 inWorldPos;
 layout (location = 4) in vec3 inTangent;
 layout (location = 5) in vec3 inBitangent;
+layout (location = 6) in vec4 inFragPosLightSpace;
 
 layout (location = 0) out vec4 outFragColor;
 layout (location = 1) out vec4 outFragWorldPos;
@@ -40,6 +42,24 @@ vec3 blinn_specular(in float Ndh, in vec3 specular, in float roughness) {
 	float k = 1.999f/ (roughness * roughness);
 
 	return min(1.0, 3.0 * 0.0398 * k) * pow(Ndh, min(10000.0, k)) * specular;
+}
+
+float shadowCalculation(vec4 fragPosLightSpace){
+	
+	// perform perspective divide
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	projCoords = projCoords * 0.5 + 0.5;
+
+	// get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+	float closestDepth = texture(depthShadowMap, projCoords.xy).r;
+
+	// get depth of current fragment from light's perspective
+	float currentDepth = projCoords.z;
+
+	// check whether current frag pos is in shadow
+	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+
+	return shadow;
 }
 
 
@@ -99,9 +119,14 @@ void main()
 	vec3 specFresnel = fresnelFactor(specular, max(dot(normalMap, viewDir), 0.0));
 	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
 
+	// Shadow calculation
+	float shadow = shadowCalculation(inFragPosLightSpace);
+
 	if(bool(sceneData.hasSpecular)){
-		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
-		outFragColor = vec4(spec + ambient + diffuse, 1.0f);
+		// spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
+		// outFragColor = vec4(spec + (ambient +(1.0 - shadow)) + diffuse, 1.0f);
+		vec3 shadowDepth = texture(depthShadowMap, screenUV).xyz;
+		outFragColor = vec4(shadowDepth, 1.0f);
 	}
 	else if(bool(sceneData.viewSSAOMAP)){
 		// SSAO Map
