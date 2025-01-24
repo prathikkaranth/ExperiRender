@@ -385,8 +385,6 @@ void VulkanEngine::draw()
 	// execute a copy from the depth image to the depth map
 	vkutil::copy_image_to_image(cmd, _depthImage.image, _ssao._depthMap.image, _drawExtent, _ssao._depthMapExtent, VK_FILTER_NEAREST, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-	// shadow map code goes here
-
 	vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -404,6 +402,13 @@ void VulkanEngine::draw()
 	// transition our main draw image into general layout so we can write into it
 	// we will overwrite it all so we dont care about what was the older layout
 	vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Shadow pass
+	vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	_shadowMap.draw_depthShadowMap(this, cmd);
+
+	vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 

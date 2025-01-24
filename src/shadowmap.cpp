@@ -71,20 +71,18 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 }
 
 void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
-	//allocate a descriptor set for our GBUFFER input
-	_depthShadowMapInputDescriptors = engine->globalDescriptorAllocator.allocate(engine->_device, _depthShadowMapInputDescriptorLayout);
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
-	//begin a render pass  connected to our draw image
+	//begin a render pass connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthShadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
+	/*std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
 		vkinit::attachment_info(_depthShadowMap.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
-	};
+	};*/
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_drawExtent, nullptr/*color attachments*/, &depthAttachment);
-	renderInfo.colorAttachmentCount = colorAttachments.size();
-	renderInfo.pColorAttachments = colorAttachments.data();
+	renderInfo.colorAttachmentCount = 0;
+	renderInfo.pColorAttachments = NULL;
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
