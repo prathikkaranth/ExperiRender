@@ -32,6 +32,10 @@ public:
 	AllocatedImage _shadowMapImage;
 	VkExtent2D _shadowMapExtent{};
 
+	float near_plane, far_plane;
+	float left, right, bottom, top;
+	glm::mat4 lightProjection;
+
 	// Shadowmap
 	void init_lightSpaceMatrix(VulkanEngine* engine);
 	void init_depthShadowMap(VulkanEngine* engine);

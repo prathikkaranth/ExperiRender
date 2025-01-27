@@ -125,10 +125,9 @@ void VulkanEngine::init_default_data() {
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.25f);
 	sceneData.sunlightColor = glm::vec4(2.f);
-	glm::vec4 sunDir = glm::vec4(3, 5, -5.5, 1.f); // this is the default value for 'structure' scene
-	/*glm::vec4 sunDir = glm::vec4(-2, 5, 0.5, 1.f);*/
-	sceneData.sunlightDirection = glm::normalize(sunDir);
-	sceneData.sunlightDirection.w = 1.24f; // sun intensity
+	 glm::vec3 sunDir = glm::vec3(0.01f, -10.0f, 0.01f); // this is the default value for 'structure' scene
+	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
+	sceneData.sunlightDirection.w = 0.8f; // sun intensity
 	sceneData.hasSpecular = true;
 	sceneData.viewSSAOMAP = false;
 	sceneData.viewGbufferPos = false;
@@ -498,6 +497,11 @@ void VulkanEngine::update_scene()
 	_ssao.ssaoData.viewproj = projection * view;
 	sceneData.cameraPosition = mainCamera.position;
 
+	// shadows
+	_shadowMap.lightProjection = glm::ortho(_shadowMap.left, _shadowMap.right, _shadowMap.bottom, _shadowMap.top, _shadowMap.near_plane, _shadowMap.far_plane);
+	glm::vec3 sunlightDirNorm = glm::normalize(sceneData.sunlightDirection);
+	glm::mat4 lightView = glm::lookAt(sunlightDirNorm, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+	sceneData.lightSpaceMatrix = _shadowMap.lightProjection * lightView;
 
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
@@ -583,6 +587,13 @@ void VulkanEngine::run()
 		ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
 		ImGui::SliderFloat("SSAO Bias", &_ssao.ssaoData.bias, 0.001f, 1.055f);
 		ImGui::SliderFloat("SSAO Strength", &_ssao.ssaoData.intensity, 0.0f, 10.f);
+
+		ImGui::End();
+
+		ImGui::Begin("Shadow Settings");
+
+		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.01f, 2.5f); 
+		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 0.1f, 20.f);
 
 		ImGui::End();
 

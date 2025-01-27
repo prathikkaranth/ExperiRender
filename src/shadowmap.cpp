@@ -5,9 +5,13 @@
 #include "vk_engine.h"
 
 void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
-	float near_plane = 0.1f, far_plane = 20.0f;
-	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+
+	near_plane = 0.001f, far_plane = 12.0f;
+	left = -10.0f, right = 10.0f;
+	bottom = -10.0f, top = 10.0f;
+	lightProjection = glm::ortho(left, left, bottom, top, near_plane, far_plane);
+	glm::vec3 sunlightDir = glm::normalize(glm::vec3((engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z)));
+	glm::mat4 lightView = glm::lookAt(sunlightDir, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
 	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;	
 }
 

@@ -31,5 +31,11 @@ void main()
 {
     Vertex v = PushConstants.vertexBuffer.vertices[gl_VertexIndex];
 
-    gl_Position = sceneData.lightSpaceMatrix * PushConstants.render_matrix * vec4(v.position, 1.0);
+	vec4 position = vec4(v.position, 1.0f);
+
+	vec4 worldPos = PushConstants.render_matrix * position;
+
+	gl_Position = sceneData.lightSpaceMatrix * worldPos;
+
+    // gl_Position = sceneData.lightSpaceMatrix * PushConstants.render_matrix * vec4(v.position, 1.0);
 }
