@@ -117,6 +117,13 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &ssaoBlurPipelineInfo, nullptr, &_ssaoBlurPipeline));
 
+	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+	sampl.magFilter = VK_FILTER_LINEAR;
+	sampl.minFilter = VK_FILTER_LINEAR;
+
+	vkCreateSampler(engine->_device, &sampl, nullptr, &_ssaoSampler);
+
 	vkDestroyShaderModule(engine->_device, ssaoBlurDrawShader, nullptr);
 	engine->_mainDeletionQueue.push_function([&]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);

@@ -1,20 +1,19 @@
 
 #include "vk_mem_alloc.h"
-#include "backends/imgui_impl_vulkan.h"
 
 #include "shadowmap.h"
 #include "vk_engine.h"
 
 void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
 
-	near_plane = 0.001f, far_plane = 12.573f;
+	near_plane = 0.0001f, far_plane = 12.573f;
 	left = -20.f, right = 20.f;
 	bottom = -20.f, top = 20.f;
 	lightProjection = glm::ortho(left, right, bottom, top, near_plane, far_plane);
 	lightProjection[1][1] *= -1.0f;
 	glm::vec3 sunlightDir = glm::normalize(glm::vec3((engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z)));
-	glm::mat4 lightView = glm::lookAt(sunlightDir, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
-	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;	
+	glm::mat4 lightView = glm::lookAt(sunlightDir, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;
 }
 
 void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
@@ -80,6 +79,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([&]() {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
+		vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
 	});
 
 }

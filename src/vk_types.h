@@ -65,9 +65,8 @@ struct GPUSceneData {
 	alignas(16) glm::vec4 sunlightDirection; // w for sun power
 	alignas(16) glm::vec4 sunlightColor;
 	alignas(16) glm::vec3 cameraPosition;
-	int hasSpecular;
-	int viewSSAOMAP;
-	int viewGbufferPos;
+	int enableShadows;
+	int enableSSAO;
 };
 
 struct SSAOSceneData {

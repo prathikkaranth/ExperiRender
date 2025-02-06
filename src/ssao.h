@@ -19,6 +19,9 @@ public:
 	VkDescriptorSet _ssaoBlurInputDescriptors{};
 	VkDescriptorSetLayout _ssaoBlurInputDescriptorLayout{};
 
+	// Descriptor set for the ImGui SSAO pass
+	VkDescriptorSet _ssaoDescriptorSet{};
+
 	VkPipelineLayout _ssaoPipelineLayout;
 	VkPipeline _ssaoPipeline;
 
@@ -30,6 +33,7 @@ public:
 	//SSAO resources
 	AllocatedImage _ssaoImage;
 	AllocatedImage _ssaoImageBlurred;
+	VkSampler _ssaoSampler;
 	AllocatedImage _depthMap;
 	VkExtent2D _ssaoExtent{};
 	VkExtent2D _depthMapExtent{};

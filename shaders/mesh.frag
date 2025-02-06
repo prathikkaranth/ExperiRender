@@ -102,7 +102,7 @@ void main()
 	// Ambient light
 	vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
 	vec3 ssao = texture(ssaoMap, screenUV).xxx;
-	vec3 ambient = color *  sceneData.ambientColor.xyz * ssao;
+	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
 	// Normalized normal
 	vec4 normalFromTex = texture(normalTex, inUV);
@@ -135,29 +135,25 @@ void main()
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normalMap, sunlightDir);
 
+	// Specular light
+	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 
-	if(bool(sceneData.hasSpecular)){
-		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
+	if(bool(sceneData.enableShadows) && bool(sceneData.enableSSAO == 0)){
 		vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular));
 		// vec3 lighting = ambient + diffuse + spec;
-		// outFragColor = vec4(lighting, 1.0f);
-		
-		vec3 shadowDepth = texture(depthShadowMap, screenUV).xxx * 10.0f;
-		outFragColor = vec4(shadowDepth, 1.0f);
+		outFragColor = vec4(lighting, 1.0f);
 	}
-	else if(bool(sceneData.viewSSAOMAP)){
-		// SSAO Map
-		outFragColor = vec4(ssao, 1.0f);
+	else if(bool(sceneData.enableSSAO) && bool(sceneData.enableShadows == 0)){
+		vec3 lighting = (ambient*ssao) + diffuse + spec;
+		outFragColor = vec4(lighting, 1.0f);
 	}
-	else if(bool(sceneData.viewGbufferPos)){
-		// G buffer World position
-		vec3 gbufferPos = texture(gbufferPosMap, screenUV).xyz;
-		outFragColor = vec4(gbufferPos, 1.0f);
+	else if(bool(sceneData.enableSSAO) && bool(sceneData.enableShadows)){
+		vec3 lighting = ((ambient*ssao) + (1.0 - shadow) * (diffuse + specular));
+		outFragColor = vec4(lighting, 1.0f);
 	}
 	else{
-		// Final color
-		outFragColor = vec4(ambient + diffuse, 1.0f);
+		vec3 lighting = ambient + diffuse + spec;
+		outFragColor = vec4(lighting, 1.0f);
 	}
-	
 
 }

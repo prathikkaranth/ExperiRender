@@ -187,6 +187,7 @@ public:
 
 	VkDescriptorSet _gbufferInputDescriptors{};
 	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
+	VkDescriptorSet _gbufferPosOutputDescriptor{};
 
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
@@ -242,6 +243,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	VkSampler _defaultSamplerShadowDepth;
+	VkSampler _gbufferSampler;
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 

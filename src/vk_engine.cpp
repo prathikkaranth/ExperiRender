@@ -129,9 +129,8 @@ void VulkanEngine::init_default_data() {
 	glm::vec3 sunDir = glm::vec3(-4.71f, -10.0f, 0.01f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
 	sceneData.sunlightDirection.w = 0.8f; // sun intensity
-	sceneData.hasSpecular = true;
-	sceneData.viewSSAOMAP = false;
-	sceneData.viewGbufferPos = false;
+	sceneData.enableShadows = true;
+	sceneData.enableSSAO = true;
 
 	/*testMeshes = loadGltfMeshes(this, "..\\assets\\basicmesh.glb").value();	*/
 
@@ -210,19 +209,9 @@ void VulkanEngine::init_default_data() {
 
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
 
-	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO , .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE };
-
-	sampl2.magFilter = VK_FILTER_LINEAR;
-	sampl2.minFilter = VK_FILTER_LINEAR;
-	sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-
-	vkCreateSampler(_device, &sampl2, nullptr, &_defaultSamplerShadowDepth);
-
 	_mainDeletionQueue.push_function([=]() {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
-		vkDestroySampler(_device, _defaultSamplerShadowDepth, nullptr);
 
 		destroy_image(_whiteImage);
 		destroy_image(_greyImage);
@@ -585,9 +574,8 @@ void VulkanEngine::run()
 		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -10, 10);
 		ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
 
-		ImGui::Checkbox("Specular", reinterpret_cast<bool*>(&sceneData.hasSpecular));
-		ImGui::Checkbox("View SSAO Map", reinterpret_cast<bool*>(&sceneData.viewSSAOMAP));
-		ImGui::Checkbox("View GBuffer Position", reinterpret_cast<bool*>(&sceneData.viewGbufferPos));
+		ImGui::Checkbox("Shadows", reinterpret_cast<bool*>(&sceneData.enableShadows));
+		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
 
 		ImGui::End();
 
@@ -602,15 +590,49 @@ void VulkanEngine::run()
 
 		ImGui::Begin("Shadow Settings");
 
-		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.01f, 2.5f); 
+		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, -2.5f, 2.5f); 
 		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 0.1f, 20.f);
 
 		ImGui::End();
 
-		ImGui::Begin("Shadow Map");
-		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-		ImGui::End();
+		// Dropdown for selecting the visual for debugging
+		const char* visuals[] = { "Shadow Map", "SSAO Map", "GBuffer Position" };
+		static const char* current_item = visuals[0];
+		if (ImGui::BeginCombo("Visuals", current_item)) // The second parameter is the label previewed before opening the combo.
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
+			{
+				bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(visuals[n], is_selected))
+					current_item = visuals[n];
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+			}
+			ImGui::EndCombo();
+		}	
 
+		if (strcmp(current_item, "Shadow Map") == 0)
+		{
+			ImGui::Begin("Shadow Map");
+			ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+		else if (strcmp(current_item, "SSAO Map") == 0)
+		{
+			ImGui::Begin("SSAO Map");
+			ImGui::Image((ImTextureID)_ssao._ssaoDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+		else if (strcmp(current_item, "GBuffer Position") == 0)
+		{
+			ImGui::Begin("GBuffer Position");
+			ImGui::Image((ImTextureID)_gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+
+		/*ImGui::Begin("Shadow Map");
+		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+		ImGui::End();*/
 
 		ImGui::Render();
 
@@ -860,8 +882,8 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 	_gbufferInputDescriptors = globalDescriptorAllocator.allocate(_device, _gbufferInputDescriptorLayout);
 
 	DescriptorWriter gbuffer_writer;
-	gbuffer_writer.write_image(0, _gbufferPosition.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	gbuffer_writer.write_image(1, _gbufferNormal.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	gbuffer_writer.write_image(0, _gbufferPosition.imageView, _gbufferSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	gbuffer_writer.write_image(1, _gbufferNormal.imageView, _gbufferSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	gbuffer_writer.update_set(_device, _gbufferInputDescriptors);
 
@@ -1326,6 +1348,12 @@ void VulkanEngine::init_imgui()
 	// For Drawing shadow depth map on ImGui
 	_shadowMap.shadowMapDescriptorSet = ImGui_ImplVulkan_AddTexture(_shadowMap._shadowDepthMapSampler, _shadowMap._depthShadowMap.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+	// For Drawing SSAO on ImGui
+	_ssao._ssaoDescriptorSet = ImGui_ImplVulkan_AddTexture(_ssao._ssaoSampler, _ssao._ssaoImageBlurred.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	// For Drawing Gbuffer Position on ImGui
+	_gbufferPosOutputDescriptor = ImGui_ImplVulkan_AddTexture(_gbufferSampler, _gbufferPosition.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 	// add the destroy the imgui created structures
 	_mainDeletionQueue.push_function([=]() {
 		ImGui_ImplVulkan_Shutdown();
@@ -1600,8 +1628,8 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.write_image(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(4, engine->_ssao._ssaoImageBlurred.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_defaultSamplerShadowDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(4, engine->_ssao._ssaoImageBlurred.imageView, engine->_ssao._ssaoSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_shadowMap._shadowDepthMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
 
@@ -1694,6 +1722,13 @@ void VulkanEngine::init_gbuffer()
 
 	// create the pipeline
 	_gbufferPipeline = pipelineBuilder.build_pipeline(_device);
+
+	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+	sampl.magFilter = VK_FILTER_LINEAR;
+	sampl.minFilter = VK_FILTER_LINEAR;
+
+	vkCreateSampler(_device, &sampl, nullptr, &_gbufferSampler);
 
 	vkDestroyShaderModule(_device, gbufferFragShader, nullptr);
 	vkDestroyShaderModule(_device, gbufferVertexShader, nullptr);

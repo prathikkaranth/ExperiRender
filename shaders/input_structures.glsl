@@ -8,9 +8,8 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec4 sunlightDirection; //w for sun power
 	vec4 sunlightColor;
 	vec3 cameraPosition;
-	int hasSpecular;
-	int viewSSAOMAP;
-	int viewGbufferPos;
+	int enableShadows;
+	int enableSSAO;
 } sceneData;
 
 layout(set = 1, binding = 0) uniform GLTFMaterialData{   
