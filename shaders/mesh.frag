@@ -140,10 +140,10 @@ void main()
 		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 		vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular));
 		// vec3 lighting = ambient + diffuse + spec;
-		// outFragColor = vec4(lighting, 1.0f);
+		outFragColor = vec4(lighting, 1.0f);
 		
-		vec3 shadowDepth = texture(depthShadowMap, screenUV).xxx * 10.0f;
-		outFragColor = vec4(shadowDepth, 1.0f);
+		// vec3 shadowDepth = texture(depthShadowMap, screenUV).xxx * 10.0f;
+		// outFragColor = vec4(shadowDepth, 1.0f);
 	}
 	else if(bool(sceneData.viewSSAOMAP)){
 		// SSAO Map

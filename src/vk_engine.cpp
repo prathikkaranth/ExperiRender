@@ -222,6 +222,7 @@ void VulkanEngine::init_default_data() {
 	_mainDeletionQueue.push_function([=]() {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+		vkDestroySampler(_device, _defaultSamplerShadowDepth, nullptr);
 
 		destroy_image(_whiteImage);
 		destroy_image(_greyImage);
@@ -574,8 +575,6 @@ void VulkanEngine::run()
 		ImGui::Text("update time %f ms", stats.scene_update_time);
 		ImGui::Text("triangles %i", stats.triangle_count);
 		ImGui::Text("draws %i", stats.drawcall_count);
-		/*ImGui::Text("cam pos %f %f %f", mainCamera.position.x, mainCamera.position.y, mainCamera.position.z);
-		ImGui::Text("cam pitch %f yaw %f", mainCamera.pitch, mainCamera.yaw);*/		
 
 		ImGui::End();
 
@@ -607,6 +606,11 @@ void VulkanEngine::run()
 		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 0.1f, 20.f);
 
 		ImGui::End();
+
+		ImGui::Begin("Shadow Map");
+		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256));
+		ImGui::End();
+
 
 		ImGui::Render();
 
@@ -1318,6 +1322,9 @@ void VulkanEngine::init_imgui()
 	ImGui_ImplVulkan_Init(&init_info);
 
 	ImGui_ImplVulkan_CreateFontsTexture();
+
+	// For Drawing shadow depth map on ImGui
+	_shadowMap.shadowMapDescriptorSet = ImGui_ImplVulkan_AddTexture(_shadowMap._shadowDepthMapSampler, _shadowMap._depthShadowMap.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	// add the destroy the imgui created structures
 	_mainDeletionQueue.push_function([=]() {

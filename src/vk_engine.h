@@ -264,6 +264,8 @@ public:
 	//run main loop
 	void run();
 
+	void RemoveTex();
+
 	bool resize_requested{ false };
 	bool drawGBufferPositions{ false };
 

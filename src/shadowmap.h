@@ -15,11 +15,7 @@ class VulkanEngine;
 class shadowMap {
 
 public:
-	VkDescriptorSet _depthShadowMapInputDescriptors{};
-	VkDescriptorSetLayout _depthShadowMapInputDescriptorLayout{};
-
-	VkDescriptorSet _shadowmapDescriptors{};
-	VkDescriptorSetLayout _shadowmapDescriptorLayout{};
+	VkDescriptorSet shadowMapDescriptorSet;
 
 	VkPipelineLayout _depthShadowMapPipelineLayout;
 	VkPipeline _depthShadowMapPipeline;
@@ -29,8 +25,8 @@ public:
 
 	//Shadowmap resources
 	AllocatedImage _depthShadowMap;
-	AllocatedImage _shadowMapImage;
 	VkExtent2D _shadowMapExtent{ 4096, 4096 };
+	VkSampler _shadowDepthMapSampler;
 
 	float near_plane, far_plane;
 	float left, right, bottom, top;

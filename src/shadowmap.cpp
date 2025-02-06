@@ -1,5 +1,6 @@
 
 #include "vk_mem_alloc.h"
+#include "backends/imgui_impl_vulkan.h"
 
 #include "shadowmap.h"
 #include "vk_engine.h"
@@ -19,6 +20,7 @@ void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
 void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 	_depthShadowMap = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
@@ -66,6 +68,15 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 	vkDestroyShaderModule(engine->_device, shadowDepthMapFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, shadowDepthMapVertShader, nullptr);
 
+	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO , .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE };
+
+	sampl2.magFilter = VK_FILTER_LINEAR;
+	sampl2.minFilter = VK_FILTER_LINEAR;
+	sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+
+	vkCreateSampler(engine->_device, &sampl2, nullptr, &_shadowDepthMapSampler);
+
 	engine->_mainDeletionQueue.push_function([&]() {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
@@ -77,7 +88,6 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
 	//begin a render pass connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthShadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
 
 	/*std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
 		vkinit::attachment_info(_depthShadowMap.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
@@ -181,9 +191,10 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 		draw(r);
 	}
 
+
 	// we delete the draw commands now that we processed them
 	/*mainDrawContext.OpaqueSurfaces.clear();
-	mainDrawContext.TransparentSurfaces.clear();*/
+	mainDrawContext.TransparentSurfaces.clear();*/	
 
 	vkCmdEndRendering(cmd);
 }
