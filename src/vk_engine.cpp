@@ -608,7 +608,7 @@ void VulkanEngine::run()
 		ImGui::End();
 
 		ImGui::Begin("Shadow Map");
-		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256));
+		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 		ImGui::End();
 
 
