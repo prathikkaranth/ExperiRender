@@ -6,10 +6,11 @@
 
 void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
 
-	near_plane = 0.001f, far_plane = 12.0f;
-	left = -10.0f, right = 10.0f;
-	bottom = -10.0f, top = 10.0f;
-	lightProjection = glm::ortho(left, left, bottom, top, near_plane, far_plane);
+	near_plane = 0.001f, far_plane = 12.573f;
+	left = -20.f, right = 20.f;
+	bottom = -20.f, top = 20.f;
+	lightProjection = glm::ortho(left, right, bottom, top, near_plane, far_plane);
+	lightProjection[1][1] *= -1.0f;
 	glm::vec3 sunlightDir = glm::normalize(glm::vec3((engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z)));
 	glm::mat4 lightView = glm::lookAt(sunlightDir, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
 	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;	
@@ -74,9 +75,9 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
-	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 	//begin a render pass connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthShadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
 
 	/*std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
 		vkinit::attachment_info(_depthShadowMap.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),

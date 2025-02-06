@@ -81,6 +81,7 @@ void VulkanEngine::init()
 	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
 	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
+	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
 
 	auto structureFile = loadGltf(this, structurePath);
 
@@ -125,7 +126,7 @@ void VulkanEngine::init_default_data() {
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.25f);
 	sceneData.sunlightColor = glm::vec4(2.f);
-	 glm::vec3 sunDir = glm::vec3(0.01f, -10.0f, 0.01f); // this is the default value for 'structure' scene
+	glm::vec3 sunDir = glm::vec3(-4.71f, -10.0f, 0.01f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
 	sceneData.sunlightDirection.w = 0.8f; // sun intensity
 	sceneData.hasSpecular = true;
@@ -208,6 +209,15 @@ void VulkanEngine::init_default_data() {
 	sampl.minFilter = VK_FILTER_LINEAR;
 
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
+
+	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO , .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE };
+
+	sampl2.magFilter = VK_FILTER_LINEAR;
+	sampl2.minFilter = VK_FILTER_LINEAR;
+	sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+
+	vkCreateSampler(_device, &sampl2, nullptr, &_defaultSamplerShadowDepth);
 
 	_mainDeletionQueue.push_function([=]() {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
@@ -499,8 +509,9 @@ void VulkanEngine::update_scene()
 
 	// shadows
 	_shadowMap.lightProjection = glm::ortho(_shadowMap.left, _shadowMap.right, _shadowMap.bottom, _shadowMap.top, _shadowMap.near_plane, _shadowMap.far_plane);
-	glm::vec3 sunlightDirNorm = glm::normalize(sceneData.sunlightDirection);
-	glm::mat4 lightView = glm::lookAt(sunlightDirNorm, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+	_shadowMap.lightProjection[1][1] *= -1;
+	glm::vec3 sunlightDirNorm = glm::normalize(glm::vec3(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z));
+	glm::mat4 lightView = glm::lookAt(sunlightDirNorm, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	sceneData.lightSpaceMatrix = _shadowMap.lightProjection * lightView;
 
 	// for (int i = 0; i < 16; i++)         {
@@ -1583,7 +1594,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, engine->_ssao._ssaoImageBlurred.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_defaultSamplerShadowDepth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
 

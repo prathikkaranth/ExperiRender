@@ -40,7 +40,7 @@ vec3 blinn_specular(in float Ndh, in vec3 specular, in float roughness) {
 	return min(1.0, 3.0 * 0.0398 * k) * pow(Ndh, min(10000.0, k)) * specular;
 }
 
-float shadowCalculation(vec4 fragPosLightSpace){
+float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 	
 	// perform perspective divide
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -53,7 +53,24 @@ float shadowCalculation(vec4 fragPosLightSpace){
 	float currentDepth = projCoords.z;
 
 	// check whether current frag pos is in shadow
-	float shadow = currentDepth < closestDepth ? 1.0 : 0.0;
+	// const float minBias = 0.005f;
+    // const float maxBias = 0.05f;
+	const float minBias = 0.0005f;
+    const float maxBias = 0.01f;
+    const float bias = max(maxBias * (1.0f - dot(normal, lightDir)), minBias);
+	float shadow = 0.0f;
+	vec2 texelSize = 1.0f / textureSize(depthShadowMap, 0);
+	for(int x = -1; x <= 1; ++x){
+		for(int y = -1; y <= 1; ++y){
+			float pcfDepth = texture(depthShadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+			shadow += (currentDepth - bias < pcfDepth) ? 1.0 : 0.0;
+		}
+	} 
+	shadow /= 9.0;
+	// float shadow = currentDepth - bias < closestDepth ? 1.0 : 0.0;
+
+	if(projCoords.z > 1.0)
+        shadow = 0.0;
 
 	return shadow;
 }
@@ -116,17 +133,17 @@ void main()
 	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
 
 	// Shadow calculation
-	float shadow = shadowCalculation(inFragPosLightSpace);
+	float shadow = shadowCalculation(inFragPosLightSpace, normalMap, sunlightDir);
 
 
 	if(bool(sceneData.hasSpecular)){
 		spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 		vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular));
 		// vec3 lighting = ambient + diffuse + spec;
-		outFragColor = vec4(lighting, 1.0f);
+		// outFragColor = vec4(lighting, 1.0f);
 		
-		// vec3 shadowDepth = texture(depthShadowMap, screenUV).xxx * 10.0f;
-		// outFragColor = vec4(shadowDepth, 1.0f);
+		vec3 shadowDepth = texture(depthShadowMap, screenUV).xxx * 10.0f;
+		outFragColor = vec4(shadowDepth, 1.0f);
 	}
 	else if(bool(sceneData.viewSSAOMAP)){
 		// SSAO Map

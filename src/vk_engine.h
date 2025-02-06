@@ -241,6 +241,7 @@ public:
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
+	VkSampler _defaultSamplerShadowDepth;
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
