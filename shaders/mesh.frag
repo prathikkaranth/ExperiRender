@@ -54,8 +54,8 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 	// float shadow = (currentDepth < closestDepth) ? 1.0f : 0.0f;
 	
 	// check whether current frag pos is in shadow
-	const float minBias = 0.005f;
-    const float maxBias = 0.05f;
+	const float minBias = 0.0001f;
+    const float maxBias = 0.001f;
 
 	// float bias = max(maxBias * (1.0 - dot(normal, lightDir)), minBias);  
 	// float shadow = currentDepth + bias < closestDepth  ? 1.0 : 0.0; 
