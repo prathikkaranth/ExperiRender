@@ -44,30 +44,31 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 	
 	// perform perspective divide
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-	projCoords = projCoords * 0.5 + 0.5;
+	vec2 shadowTexCoord = projCoords.xy * 0.5f + 0.5f;
 
 	// get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-	float closestDepth = texture(depthShadowMap, projCoords.xy).r;
+	float closestDepth = texture(depthShadowMap, shadowTexCoord).r;
 
 	// get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
-
+	// float shadow = (currentDepth < closestDepth) ? 1.0f : 0.0f;
+	
 	// check whether current frag pos is in shadow
-	// const float minBias = 0.005f;
-    // const float maxBias = 0.05f;
-	const float minBias = 0.0005f;
-    const float maxBias = 0.01f;
+	const float minBias = 0.005f;
+    const float maxBias = 0.05f;
+
+	// float bias = max(maxBias * (1.0 - dot(normal, lightDir)), minBias);  
+	// float shadow = currentDepth + bias < closestDepth  ? 1.0 : 0.0; 
     const float bias = max(maxBias * (1.0f - dot(normal, lightDir)), minBias);
 	float shadow = 0.0f;
 	vec2 texelSize = 1.0f / textureSize(depthShadowMap, 0);
 	for(int x = -1; x <= 1; ++x){
 		for(int y = -1; y <= 1; ++y){
-			float pcfDepth = texture(depthShadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-			shadow += (currentDepth - bias < pcfDepth) ? 1.0 : 0.0;
+			float pcfDepth = texture(depthShadowMap, shadowTexCoord + vec2(x, y) * texelSize).r;
+			shadow += (currentDepth + bias < pcfDepth) ? 1.0f : 0.0f;
 		}
 	} 
-	shadow /= 9.0;
-	// float shadow = currentDepth - bias < closestDepth ? 1.0 : 0.0;
+	shadow /= 9.0f;
 
 	if(projCoords.z > 1.0)
         shadow = 0.0;
@@ -133,7 +134,7 @@ void main()
 	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
 
 	// Shadow calculation
-	float shadow = shadowCalculation(inFragPosLightSpace, normalMap, sunlightDir);
+	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
 
 	// Specular light
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);

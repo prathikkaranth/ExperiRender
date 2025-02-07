@@ -4,21 +4,44 @@
 #include "shadowmap.h"
 #include "vk_engine.h"
 
+namespace {
+	constexpr int SHADOWMAP_SIZE = 4096;
+}
+
 void shadowMap::init_lightSpaceMatrix(VulkanEngine* engine) {
 
-	near_plane = 0.0001f, far_plane = 12.573f;
+	near_plane = 0.01f, far_plane = 90.0f;
 	left = -20.f, right = 20.f;
 	bottom = -20.f, top = 20.f;
-	lightProjection = glm::ortho(left, right, bottom, top, near_plane, far_plane);
-	lightProjection[1][1] *= -1.0f;
-	glm::vec3 sunlightDir = glm::normalize(glm::vec3((engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z)));
-	glm::mat4 lightView = glm::lookAt(sunlightDir, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	lightProjection = glm::ortho(left, right, bottom, top, far_plane, near_plane);
+	/*lightProjection[1][1] *= -1.0f;*/
+	glm::vec3 sunlightDir = glm::normalize(glm::vec3(
+		engine->sceneData.sunlightDirection.x,
+		engine->sceneData.sunlightDirection.y,
+		engine->sceneData.sunlightDirection.z
+	));
+	glm::vec3 lightPos = -sunlightDir * 25.0f;
+	glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;
+}
+
+void shadowMap::update_lightSpaceMatrix(VulkanEngine* engine) {
+
+	lightProjection = glm::ortho(left, right, bottom, top, far_plane, near_plane);
+	/*lightProjection[1][1] *= -1;*/
+	glm::vec3 sunlightDir = glm::normalize(glm::vec3(
+		engine->sceneData.sunlightDirection.x,
+		engine->sceneData.sunlightDirection.y,
+		engine->sceneData.sunlightDirection.z
+	));
+	glm::vec3 lightPos = -sunlightDir * 25.0f;
+	glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	engine->sceneData.lightSpaceMatrix = lightProjection * lightView;
 }
 
 void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
-	_depthShadowMap = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_depthShadowMap = engine->create_image(VkExtent3D{ SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
 
 	VkPushConstantRange matrixRange{};
@@ -67,16 +90,19 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 	vkDestroyShaderModule(engine->_device, shadowDepthMapFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, shadowDepthMapVertShader, nullptr);
 
-	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO , .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE };
+	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
-	sampl2.magFilter = VK_FILTER_LINEAR;
-	sampl2.minFilter = VK_FILTER_LINEAR;
+	sampl2.borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+	sampl2.magFilter = VK_FILTER_NEAREST;
+	sampl2.minFilter = VK_FILTER_NEAREST;
 	sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	sampl2.compareEnable = VK_TRUE;
+	sampl2.compareOp = VK_COMPARE_OP_LESS;
 
 	vkCreateSampler(engine->_device, &sampl2, nullptr, &_shadowDepthMapSampler);
 
-	engine->_mainDeletionQueue.push_function([&]() {
+	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
 		vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
@@ -93,7 +119,7 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 		vkinit::attachment_info(_depthShadowMap.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL),
 	};*/
 
-	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_drawExtent, nullptr/*color attachments*/, &depthAttachment);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{SHADOWMAP_SIZE, SHADOWMAP_SIZE}, nullptr/*color attachments*/, &depthAttachment);
 	renderInfo.colorAttachmentCount = 0;
 	renderInfo.pColorAttachments = NULL;
 
@@ -151,8 +177,8 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)engine->_windowExtent.width;
-		viewport.height = (float)engine->_windowExtent.height;
+		viewport.width = (float)SHADOWMAP_SIZE;
+		viewport.height = (float)SHADOWMAP_SIZE;
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 
@@ -161,8 +187,8 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 		VkRect2D scissor = {};
 		scissor.offset.x = 0;
 		scissor.offset.y = 0;
-		scissor.extent.width = engine->_windowExtent.width;
-		scissor.extent.height = engine->_windowExtent.height;
+		scissor.extent.width = SHADOWMAP_SIZE;
+		scissor.extent.height = SHADOWMAP_SIZE;
 
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 

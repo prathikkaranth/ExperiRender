@@ -25,7 +25,7 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	//allocate a descriptor set for our SSAO input
 	_ssaoInputDescriptors = engine->globalDescriptorAllocator.allocate(engine->_device, _ssaoInputDescriptorLayout);
 
-	engine->_mainDeletionQueue.push_function([&]() {
+	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyDescriptorSetLayout(engine->_device, _ssaoInputDescriptorLayout, nullptr);
 		});
 
@@ -61,7 +61,7 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &ssaoPipelineInfo, nullptr, &_ssaoPipeline));
 
 	vkDestroyShaderModule(engine->_device, ssaoDrawShader, nullptr);
-	engine->_mainDeletionQueue.push_function([&]() {
+	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoPipeline, nullptr);
 		});
@@ -82,7 +82,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 	//allocate a descriptor set for our SSAO Blur input
 	_ssaoBlurInputDescriptors = engine->globalDescriptorAllocator.allocate(engine->_device, _ssaoBlurInputDescriptorLayout);
 
-	engine->_mainDeletionQueue.push_function([&]() {
+	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyDescriptorSetLayout(engine->_device, _ssaoBlurInputDescriptorLayout, nullptr);
 		});
 
@@ -125,7 +125,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 	vkCreateSampler(engine->_device, &sampl, nullptr, &_ssaoSampler);
 
 	vkDestroyShaderModule(engine->_device, ssaoBlurDrawShader, nullptr);
-	engine->_mainDeletionQueue.push_function([&]() {
+	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoBlurPipeline, nullptr);
 		});

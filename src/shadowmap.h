@@ -34,6 +34,7 @@ public:
 
 	// Shadowmap
 	void init_lightSpaceMatrix(VulkanEngine* engine);
+	void update_lightSpaceMatrix(VulkanEngine* engine);
 	void init_depthShadowMap(VulkanEngine* engine);
 	void draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd);
 };

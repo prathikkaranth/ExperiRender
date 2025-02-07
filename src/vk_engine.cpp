@@ -126,7 +126,7 @@ void VulkanEngine::init_default_data() {
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.25f);
 	sceneData.sunlightColor = glm::vec4(2.f);
-	glm::vec3 sunDir = glm::vec3(-4.71f, -10.0f, 0.01f); // this is the default value for 'structure' scene
+	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
 	sceneData.sunlightDirection.w = 0.8f; // sun intensity
 	sceneData.enableShadows = true;
@@ -407,7 +407,7 @@ void VulkanEngine::draw()
 
 	_shadowMap.draw_depthShadowMap(this, cmd);
 
-	vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+	vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
@@ -498,11 +498,7 @@ void VulkanEngine::update_scene()
 	sceneData.cameraPosition = mainCamera.position;
 
 	// shadows
-	_shadowMap.lightProjection = glm::ortho(_shadowMap.left, _shadowMap.right, _shadowMap.bottom, _shadowMap.top, _shadowMap.near_plane, _shadowMap.far_plane);
-	_shadowMap.lightProjection[1][1] *= -1;
-	glm::vec3 sunlightDirNorm = glm::normalize(glm::vec3(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z));
-	glm::mat4 lightView = glm::lookAt(sunlightDirNorm, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-	sceneData.lightSpaceMatrix = _shadowMap.lightProjection * lightView;
+	_shadowMap.update_lightSpaceMatrix(this);
 
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
@@ -590,8 +586,12 @@ void VulkanEngine::run()
 
 		ImGui::Begin("Shadow Settings");
 
-		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, -2.5f, 2.5f); 
-		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 0.1f, 20.f);
+		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.f, 1.f); 
+		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 2.f, 150.f);
+		ImGui::SliderFloat("Left", &_shadowMap.left, -100.f, -1.f);
+		ImGui::SliderFloat("Right", &_shadowMap.right, 100.f, 1.f);
+		ImGui::SliderFloat("Top", &_shadowMap.top, 100.f, 1.f);
+		ImGui::SliderFloat("Bottom", &_shadowMap.bottom, -100.f, -1.f);
 
 		ImGui::End();
 
@@ -1346,7 +1346,7 @@ void VulkanEngine::init_imgui()
 	ImGui_ImplVulkan_CreateFontsTexture();
 
 	// For Drawing shadow depth map on ImGui
-	_shadowMap.shadowMapDescriptorSet = ImGui_ImplVulkan_AddTexture(_shadowMap._shadowDepthMapSampler, _shadowMap._depthShadowMap.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	_shadowMap.shadowMapDescriptorSet = ImGui_ImplVulkan_AddTexture(_shadowMap._shadowDepthMapSampler, _shadowMap._depthShadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL);
 
 	// For Drawing SSAO on ImGui
 	_ssao._ssaoDescriptorSet = ImGui_ImplVulkan_AddTexture(_ssao._ssaoSampler, _ssao._ssaoImageBlurred.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1629,7 +1629,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.write_image(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, engine->_ssao._ssaoImageBlurred.imageView, engine->_ssao._ssaoSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_shadowMap._shadowDepthMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_shadowMap._shadowDepthMapSampler, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
 
