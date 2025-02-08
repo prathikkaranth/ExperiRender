@@ -23,7 +23,7 @@ Currently Working on:
 
 Dependencies Required:
 
-- [Vulkan SDK 1.3] (https://vulkan.lunarg.com/sdk/home)
+- [Vulkan SDK 1.3](https://vulkan.lunarg.com/sdk/home)
 - [SDL](https://github.com/libsdl-org/SDL)
 - [GLFW](https://github.com/glfw/glfw)
 - [GLM](https://github.com/g-truc/glm)
