@@ -34,12 +34,14 @@ layout( push_constant ) uniform constants
 	Empty e[];
 } PushConstants;
 
+// blinn-phong specular
 vec3 blinn_specular(in float Ndh, in vec3 specular, in float roughness) {
 	float k = 1.999f/ (roughness * roughness);
 
 	return min(1.0, 3.0 * 0.0398 * k) * pow(Ndh, min(10000.0, k)) * specular;
 }
 
+// shadow calculation
 float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 	
 	// perform perspective divide
@@ -88,8 +90,8 @@ void main()
 	else
 		metallic = materialData.metal_rough_factors.x;
 
-	float roughness = 0;
 	// Roughness
+	float roughness = 0;
 	if(bool(materialData.hasMetalRoughTex))
 		roughness = texture(metalRoughTex, inUV).y * materialData.metal_rough_factors.y;
 	else
@@ -136,25 +138,18 @@ void main()
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
 
-	// Specular light
+	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
 
-	if(bool(sceneData.enableShadows) && bool(sceneData.enableSSAO == 0)){
-		vec3 lighting = (ambient + (1.0 - shadow) * (diffuse + specular));
-		// vec3 lighting = ambient + diffuse + spec;
-		outFragColor = vec4(lighting, 1.0f);
+	if(bool(sceneData.enableShadows == 0)) {
+		shadow = 0.0f;
 	}
-	else if(bool(sceneData.enableSSAO) && bool(sceneData.enableShadows == 0)){
-		vec3 lighting = (ambient*ssao) + diffuse + spec;
-		outFragColor = vec4(lighting, 1.0f);
+	if (bool(sceneData.enableSSAO == 0)) {
+		ssao = vec3(1.0f);
 	}
-	else if(bool(sceneData.enableSSAO) && bool(sceneData.enableShadows)){
-		vec3 lighting = ((ambient*ssao) + (1.0 - shadow) * (diffuse + specular));
-		outFragColor = vec4(lighting, 1.0f);
-	}
-	else{
-		vec3 lighting = ambient + diffuse + spec;
-		outFragColor = vec4(lighting, 1.0f);
-	}
+
+	// Final color
+	vec3 lighting = ((ambient*ssao) + (1.0 - shadow) * (diffuse + spec));
+	outFragColor = vec4(lighting, 1.0f);
 
 }
