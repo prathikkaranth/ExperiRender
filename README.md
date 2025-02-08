@@ -23,14 +23,14 @@ Currently Working on:
 
 Dependencies Required:
 
-- Vulkan SDK 1.3
-- SDL
-- GLFW
-- GLM
-- VK-Bootstrap
-- VMA
-- Volk
-- FastGLTF
-- IMGUI
+- [Vulkan SDK 1.3] (https://vulkan.lunarg.com/sdk/home)
+- [SDL] (https://github.com/libsdl-org/SDL)
+- [GLFW] (https://github.com/glfw/glfw)
+- [GLM] (https://github.com/g-truc/glm)
+- [VK-Bootstrap] (https://github.com/charles-lunarg/vk-bootstrap)
+- [VMA] (https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+- [Volk] (https://github.com/zeux/volk)
+- [FastGLTF] (https://github.com/spnda/fastgltf)
+- [DearImGui] (https://github.com/ocornut/imgui)
 
 
