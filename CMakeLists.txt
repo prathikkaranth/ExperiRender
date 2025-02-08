@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17. 20]
 
-project(RendererPK)
+project(ExperiRender)
 
 include(FetchContent)
 
@@ -12,7 +12,7 @@ include(FetchContent)
 find_package(Vulkan REQUIRED)
 
 # SDL
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.0.14/cmake")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/cmake")
 find_package(SDL2 CONFIG REQUIRED)
 
 # GLFW

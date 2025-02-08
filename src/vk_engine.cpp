@@ -45,7 +45,7 @@ void VulkanEngine::init()
 	SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
 	_window = SDL_CreateWindow(
-		"Renderer PK",
+		"ExperiRender",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		_windowExtent.width,
