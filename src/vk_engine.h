@@ -138,6 +138,9 @@ public:
 	VkDevice _device; // Vulkan device for commands
 	VkSurfaceKHR _surface; // Vulkan window surface
 
+	// Ray tracing features
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
+
 	VkSwapchainKHR _swapchain; // Swapchain handle
 	VkFormat _swapchainImageFormat; // Swapchain image format
 
@@ -246,6 +249,8 @@ public:
 	VkSampler _gbufferSampler;
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+
+	void init_ray_tracing();
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 

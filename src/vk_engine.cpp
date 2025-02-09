@@ -64,6 +64,8 @@ void VulkanEngine::init()
 
 	init_vulkan();
 
+	init_ray_tracing();
+
 	init_swapchain();
 
 	init_commands();
@@ -647,6 +649,15 @@ void VulkanEngine::run()
 
 }
 
+void VulkanEngine::init_ray_tracing() {
+
+	// Requesting ray tracing properties
+	VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+	prop2.pNext = &m_rtProperties;
+	vkGetPhysicalDeviceProperties2(_chosenGPU, &prop2);
+
+}
+
 void VulkanEngine::init_vulkan() {
 	vkb::InstanceBuilder builder;
 
@@ -674,6 +685,17 @@ void VulkanEngine::init_vulkan() {
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
 
+	// Raytracing
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
+	accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+	accelerationStructureFeatures.pNext = nullptr;
+	accelerationStructureFeatures.accelerationStructure = true;
+
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracingPipelineFeatures{};
+	raytracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+	raytracingPipelineFeatures.pNext = nullptr;
+	raytracingPipelineFeatures.rayTracingPipeline = true;
+
 	// use vkbootsrap to select a GPU
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
 	vkb::PhysicalDevice physicalDevice = selector
@@ -681,6 +703,11 @@ void VulkanEngine::init_vulkan() {
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
+		.add_required_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) // To build acceleration structures
+		.add_required_extension_features(accelerationStructureFeatures)
+		.add_required_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)	// To use vkCmdTraceRaysKHR
+		.add_required_extension_features(raytracingPipelineFeatures)
+		.add_required_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) // Required by ray tracing pipeline
 		.select()
 		.value();
 

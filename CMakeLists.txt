@@ -114,7 +114,9 @@ add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
 add_dependencies(Renderer compile_shaders)
 
 target_include_directories(Renderer PRIVATE src/)
-target_link_libraries(Renderer PRIVATE glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui fastgltf)
+target_link_libraries(Renderer PRIVATE
+    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui fastgltf)
+
 
 if (WIN32)
     add_custom_command(TARGET Renderer POST_BUILD
