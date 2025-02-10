@@ -53,4 +53,6 @@ namespace vkinit {
 		VkShaderModule shaderModule,
 		const char* entry = "main");
 
+	bool supports_device_extensions(VkPhysicalDevice device, const std::vector<const char*>& required_extensions);
+
 }

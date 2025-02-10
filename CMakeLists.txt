@@ -5,6 +5,7 @@ project(ExperiRender)
 
 include(FetchContent)
 
+
 ######################################
 # Dependencies
 
@@ -42,13 +43,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(VMA)
 
-# Volk
-FetchContent_Declare(
-    volk
-    GIT_REPOSITORY  https://github.com/zeux/volk.git
-    GIT_TAG         749f0ab4e9e69394f4d1d39cbb11b5fb6c9e31b1
-)
-FetchContent_MakeAvailable(volk)
+
 
 # FastGLTF
 FetchContent_Declare(
@@ -115,7 +110,7 @@ add_dependencies(Renderer compile_shaders)
 
 target_include_directories(Renderer PRIVATE src/)
 target_link_libraries(Renderer PRIVATE
-    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator volk imgui fastgltf)
+    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator  imgui fastgltf)
 
 
 if (WIN32)

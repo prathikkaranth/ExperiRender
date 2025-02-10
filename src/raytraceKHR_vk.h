@@ -19,6 +19,18 @@
 
 #pragma once
 
+#include <vulkan/vulkan_core.h>
+#include <cassert>
+
+
+namespace experirender::vk
+{
+
+	void load_raytracing_functions(VkInstance instance);
+
+} 
+
+
  /**
 
  \class nvvk::RaytracingBuilderKHR
@@ -64,7 +76,6 @@
  */
 
 #include <mutex>
-#include <vulkan/vulkan_core.h>
 
 #if VK_KHR_acceleration_structure
 

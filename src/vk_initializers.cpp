@@ -1,4 +1,5 @@
 ﻿#include <vk_initializers.h>
+#include <algorithm>
 
 VkCommandPoolCreateInfo vkinit::command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/)
 {
@@ -246,4 +247,29 @@ VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShad
 	// the entry point of the shader
 	info.pName = entry;
 	return info;
+}
+
+bool vkinit::supports_device_extensions(VkPhysicalDevice device, const std::vector<const char*>& required_extensions)
+{
+	uint32_t count;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr); // Get the number of extensions
+	std::vector<VkExtensionProperties> supported_extensions(count);
+	vkEnumerateDeviceExtensionProperties(device,
+		nullptr,
+		&count,
+		supported_extensions.data()); // Get the number of extensions
+
+	// O(n^2)
+	for (const auto& required_ext_name : required_extensions) {
+		bool found =
+			std::any_of(supported_extensions.begin(), supported_extensions.end(), [required_ext_name](const auto& ext) {
+			return std::strcmp(required_ext_name, ext.extensionName) == 0;
+				});
+
+		if (!found) {
+			return false;
+		}
+	}
+
+	return true;
 }

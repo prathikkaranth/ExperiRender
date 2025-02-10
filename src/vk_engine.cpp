@@ -16,6 +16,7 @@
 #include <vk_types.h>
 #include <vk_initializers.h>
 #include <vk_images.h>
+#include <raytraceKHR_vk.h>
 
 #include <glm/gtx/transform.hpp>
 
@@ -557,11 +558,14 @@ void VulkanEngine::run()
 
 		ImGui::Begin("Stats");
 
-		ImGui::Text("frametime %f ms", stats.frametime);
-		ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+		float fps = 1.f / stats.frametime;
+		fps = std::round(fps * 1000);
+
+		ImGui::Text("FPS %f", fps);
+		/*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
 		ImGui::Text("update time %f ms", stats.scene_update_time);
 		ImGui::Text("triangles %i", stats.triangle_count);
-		ImGui::Text("draws %i", stats.drawcall_count);
+		ImGui::Text("draws %i", stats.drawcall_count);*/
 
 		ImGui::End();
 
@@ -661,7 +665,7 @@ void VulkanEngine::init_ray_tracing() {
 void VulkanEngine::init_vulkan() {
 	vkb::InstanceBuilder builder;
 
-	auto inst_ret = builder.set_app_name("Renderer PK")
+	auto inst_ret = builder.set_app_name("ExperiRender")
 		.request_validation_layers(bUseValidationLayers)
 		.require_api_version(1, 3, 0)
 		.use_default_debug_messenger()
@@ -696,6 +700,17 @@ void VulkanEngine::init_vulkan() {
 	raytracingPipelineFeatures.pNext = nullptr;
 	raytracingPipelineFeatures.rayTracingPipeline = true;
 
+	const std::vector<const char*> raytracing_extensions{
+			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+			VK_KHR_RAY_QUERY_EXTENSION_NAME,
+			VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+			VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+	};
+
 	// use vkbootsrap to select a GPU
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
 	vkb::PhysicalDevice physicalDevice = selector
@@ -703,17 +718,22 @@ void VulkanEngine::init_vulkan() {
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
-		.add_required_extension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) // To build acceleration structures
-		.add_required_extension_features(accelerationStructureFeatures)
-		.add_required_extension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)	// To use vkCmdTraceRaysKHR
-		.add_required_extension_features(raytracingPipelineFeatures)
-		.add_required_extension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) // Required by ray tracing pipeline
+		.add_desired_extensions(raytracing_extensions)
 		.select()
 		.value();
 
 	// create the final vulkan device
 	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
 	vkb::Device vkbDevice = deviceBuilder.build().value();
+
+	if (vkinit::supports_device_extensions(physicalDevice.physical_device, raytracing_extensions)) {
+		std::cout << "Ray tracing enabled!!" << std::endl;
+		VkPhysicalDeviceProperties deviceProperties;
+		vkGetPhysicalDeviceProperties(physicalDevice.physical_device, &deviceProperties);
+		std::cout << "GPU: " << deviceProperties.deviceName << std::endl;
+		/*m_is_raytracing_enabled = true;*/
+		experirender::vk::load_raytracing_functions(_instance);
+	}
 
 	// get the VkDevice handle used in the rest of a Vulkan application
 	_device = vkbDevice.device;
@@ -1359,6 +1379,7 @@ void VulkanEngine::init_imgui()
 	init_info.MinImageCount = 3;
 	init_info.ImageCount = 3;
 	init_info.UseDynamicRendering = true;
+	init_info.CheckVkResultFn = [](VkResult res) { VK_CHECK(res); };
 
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
@@ -1369,7 +1390,7 @@ void VulkanEngine::init_imgui()
 	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&init_info);
-	assert(vkResetCommandPool);
+
 	ImGui_ImplVulkan_CreateFontsTexture();
 
 	// For Drawing shadow depth map on ImGui
