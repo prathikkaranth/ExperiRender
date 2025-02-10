@@ -422,6 +422,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
 			newmesh->surfaces.push_back(newSurface);
         }
+        newmesh->nbIndices = (uint32_t)indices.size();
+        newmesh->nbVertices = (uint32_t)vertices.size();
 
         newmesh->meshBuffers = engine->uploadMesh(indices, vertices);
     }

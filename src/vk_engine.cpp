@@ -17,6 +17,7 @@
 #include <vk_initializers.h>
 #include <vk_images.h>
 #include <raytraceKHR_vk.h>
+#include <VulkanGeometryKHR.h>
 
 #include <glm/gtx/transform.hpp>
 
@@ -102,7 +103,7 @@ float ssaolerp(float a, float b, float f)
 }
 
 void VulkanEngine::init_default_data() {
-	std::array<Vertex, 4> rect_vertices;
+	/*std::array<Vertex, 4> rect_vertices;
 
 	rect_vertices[0].position = { 0.5,-0.5, 0 };
 	rect_vertices[1].position = { 0.5,0.5, 0 };
@@ -124,7 +125,7 @@ void VulkanEngine::init_default_data() {
 	rect_indices[4] = 1;
 	rect_indices[5] = 3;
 
-	rectangle = uploadMesh(rect_indices, rect_vertices);
+	rectangle = uploadMesh(rect_indices, rect_vertices);*/
 
 	//some default lighting parameters
 	sceneData.ambientColor = glm::vec4(.25f);
@@ -653,12 +654,19 @@ void VulkanEngine::run()
 
 }
 
-void VulkanEngine::init_ray_tracing() {
+void VulkanEngine::createBottomLevelAS() {
+	// BLAS - Storing each primitive in a geometry
+	std::vector<nvvk::RaytracingBuilderKHR::BlasInput> blas_inputs;
 
-	// Requesting ray tracing properties
-	VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-	prop2.pNext = &m_rtProperties;
-	vkGetPhysicalDeviceProperties2(_chosenGPU, &prop2);
+	// for each model	
+	for (const auto& [name, scene] : loadedScenes) {
+		// for each mesh
+		for (const auto& [name, mesh] : scene->meshes) {
+			nvvk::RaytracingBuilderKHR::BlasInput input;
+			input = experirender::vk::objectToVkGeometryKHR(mesh);
+			blas_inputs.emplace_back(input);
+		}
+	}
 
 }
 
@@ -731,7 +739,7 @@ void VulkanEngine::init_vulkan() {
 		VkPhysicalDeviceProperties deviceProperties;
 		vkGetPhysicalDeviceProperties(physicalDevice.physical_device, &deviceProperties);
 		std::cout << "GPU: " << deviceProperties.deviceName << std::endl;
-		/*m_is_raytracing_enabled = true;*/
+		m_is_raytracing_supported = true;
 		experirender::vk::load_raytracing_functions(_instance);
 	}
 
@@ -755,6 +763,20 @@ void VulkanEngine::init_vulkan() {
 		vmaDestroyAllocator(_allocator);
 		});
 
+}
+
+void VulkanEngine::init_ray_tracing() {
+
+	// Requesting ray tracing properties
+	VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+	prop2.pNext = &m_rtProperties;
+	vkGetPhysicalDeviceProperties2(_chosenGPU, &prop2);
+
+	if (m_is_raytracing_supported) {
+		m_rt_builder = std::make_unique<nvvk::RaytracingBuilderKHR>(this, _graphicsQueueFamily);
+	}
+
+	createBottomLevelAS();
 }
 
 void VulkanEngine::init_commands() {
@@ -1439,6 +1461,9 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	//create index buffer
 	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
+
+	VkBufferDeviceAddressInfo deviceAdressInfo2{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = newSurface.indexBuffer.buffer };
+	newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
 
 	AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 

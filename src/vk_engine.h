@@ -154,6 +154,11 @@ public:
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 
+	// Ray tracing
+	bool m_is_raytracing_supported{ false };
+	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
+	void createBottomLevelAS();
+
 	void update_scene();
 
 	Camera mainCamera;
@@ -251,8 +256,6 @@ public:
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
-	void init_ray_tracing();
-
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
@@ -300,6 +303,7 @@ private:
 	void init_descriptors();
 
 	void init_vulkan();
+	void init_ray_tracing();
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();
