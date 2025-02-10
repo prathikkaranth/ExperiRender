@@ -66,8 +66,6 @@ void VulkanEngine::init()
 
 	init_vulkan();
 
-	init_ray_tracing();
-
 	init_swapchain();
 
 	init_commands();
@@ -82,10 +80,10 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	// std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
 	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
-	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
+	std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };
 
 	auto structureFile = loadGltf(this, structurePath);
 
@@ -95,6 +93,8 @@ void VulkanEngine::init()
 
 	//everything went fine
 	_isInitialized = true;
+
+	init_ray_tracing();
 }
 
 float ssaolerp(float a, float b, float f)
@@ -667,8 +667,22 @@ void VulkanEngine::createBottomLevelAS() {
 			blas_inputs.emplace_back(input);
 		}
 	}
+	m_rt_builder->buildBlas(blas_inputs, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 
 }
+
+//void VulkanEngine::createTopLevelAS() {
+//	// TLAS - Storing each BLAS
+//	std::vector<VkAccelerationStructureInstanceKHR> tlas;
+//	tlas.reserve(loadedScenes.size());
+//
+//	for (const auto& [name, scene] : loadedScenes) {
+//		for (const auto& [name, mesh] : scene->meshes) {
+//			
+//		}
+//		
+//	}
+//}
 
 void VulkanEngine::init_vulkan() {
 	vkb::InstanceBuilder builder;
@@ -726,7 +740,9 @@ void VulkanEngine::init_vulkan() {
 		.set_required_features_13(features)
 		.set_required_features_12(features12)
 		.set_surface(_surface)
-		.add_desired_extensions(raytracing_extensions)
+		.add_required_extensions(raytracing_extensions)
+		.add_required_extension_features(accelerationStructureFeatures)
+		.add_required_extension_features(raytracingPipelineFeatures)
 		.select()
 		.value();
 
@@ -1451,7 +1467,8 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	GPUMeshBuffers newSurface;
 
 	//create vertex buffer
-	newSurface.vertexBuffer = create_buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+	newSurface.vertexBuffer = create_buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT  | 
+		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
 
 	//find the address of the vertex buffer
@@ -1459,11 +1476,11 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
 
 	//create index buffer
-	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
 
 	VkBufferDeviceAddressInfo deviceAdressInfo2{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = newSurface.indexBuffer.buffer };
-	newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
+	newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo2);
 
 	AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 

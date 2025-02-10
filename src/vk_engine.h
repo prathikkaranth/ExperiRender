@@ -158,6 +158,7 @@ public:
 	bool m_is_raytracing_supported{ false };
 	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
 	void createBottomLevelAS();
+	void createTopLevelAS();
 
 	void update_scene();
 
