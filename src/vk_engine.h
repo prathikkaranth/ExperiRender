@@ -9,6 +9,7 @@
 #include <vk_utils.h>
 #include <ssao.h>
 #include <shadowmap.h>
+#include <raytraceKHR_vk.h>
 
 #include <glm/glm.hpp>
 
@@ -258,6 +259,10 @@ public:
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
+	void upload_to_vma_allocation(const void* src,
+		size_t size,
+		const AllocatedBuffer& dst_allocation,
+		size_t dst_offset = 0);
 
 	//initializes everything in the engine
 	void init();

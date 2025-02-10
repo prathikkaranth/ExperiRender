@@ -1369,7 +1369,7 @@ void VulkanEngine::init_imgui()
 	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&init_info);
-
+	assert(vkResetCommandPool);
 	ImGui_ImplVulkan_CreateFontsTexture();
 
 	// For Drawing shadow depth map on ImGui
@@ -1469,6 +1469,24 @@ void VulkanEngine::resize_swapchain()
 void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 {
 	vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
+}
+
+template <typename Fn> void run_with_mapped_memory(VmaAllocator allocator, VmaAllocation allocation, Fn&& fn)
+{
+	void* mapped_memory;
+	VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_memory));
+	fn(mapped_memory);
+	vmaUnmapMemory(allocator, allocation);
+}
+
+void VulkanEngine::upload_to_vma_allocation(const void* src,
+	size_t size,
+	const AllocatedBuffer& dst_allocation,
+	size_t dst_offset)
+{
+	run_with_mapped_memory(_allocator, dst_allocation.allocation, [&](void* dst) {
+		memcpy(static_cast<std::uint8_t*>(dst) + dst_offset, src, size);
+		});
 }
 
 AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)

@@ -34,6 +34,19 @@ VkCommandBufferBeginInfo vkinit::command_buffer_begin_info(VkCommandBufferUsageF
 	return info;
 }
 
+void vkinit::submit_command_buffer(VkQueue queue, VkCommandBuffer cmd_buffer)
+{
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .commandBufferCount = 1, .pCommandBuffers = &cmd_buffer };
+	vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+}
+
+void vkinit::submit_command_buffer_and_wait(VkQueue queue, VkCommandBuffer cmd_buffer)
+{
+	submit_command_buffer(queue, cmd_buffer);
+	vkQueueWaitIdle(queue);
+}
+
 VkFenceCreateInfo vkinit::fence_create_info(VkFenceCreateFlags flags /*= 0*/)
 {
 	VkFenceCreateInfo info = {};

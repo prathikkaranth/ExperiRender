@@ -10,6 +10,10 @@ namespace vkinit {
 
 	VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags flags = 0);
 
+	void submit_command_buffer(VkQueue queue, VkCommandBuffer cmd_buffer);
+
+	void submit_command_buffer_and_wait(VkQueue queue, VkCommandBuffer cmd_buffer);
+
 	VkFramebufferCreateInfo framebuffer_create_info(VkRenderPass renderPass, VkExtent2D extent);
 
 	VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags = 0);
