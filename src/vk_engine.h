@@ -112,6 +112,15 @@ struct EngineStats {
 	float mesh_draw_time;
 };
 
+// Push constant structure for the ray tracer
+struct PushConstantRay
+{
+	glm::vec4  clearColor;
+	glm::vec3  lightPosition;
+	float lightIntensity;
+	int   lightType;
+};
+
 struct MeshNode : public Node {
 
 	std::shared_ptr<MeshAsset> mesh;
@@ -209,6 +218,14 @@ public:
 	VkPipelineLayout _gbufferPipelineLayout;
 	VkPipeline _gbufferPipeline;
 
+	// Ray Tracing Pipeline
+	std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_rtShaderGroups;
+	VkPipelineLayout                                  m_rtPipelineLayout;
+	VkPipeline                                        m_rtPipeline;
+
+	// Push constant for ray tracer
+	PushConstantRay m_pcRay{};
+
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
@@ -236,6 +253,11 @@ public:
 
 	// Raytacing resources
 	AllocatedImage _rtOutputImage;
+	AllocatedBuffer m_rtSBTBuffer;
+	VkStridedDeviceAddressRegionKHR m_rgenRegion{};
+	VkStridedDeviceAddressRegionKHR m_missRegion{};
+	VkStridedDeviceAddressRegionKHR m_hitRegion{};
+	VkStridedDeviceAddressRegionKHR m_callRegion{};
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -259,8 +281,11 @@ public:
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
 
+	// Ray tracing funcs
 	void createRtDescriptorSet();
 	void updateRtDescriptorSet();
+	void createRtPipeline();
+	void createRtShaderBindingTable();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);

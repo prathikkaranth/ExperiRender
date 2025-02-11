@@ -73,6 +73,9 @@ file(GLOB SHADERS
     "${SHADER_DIR}/*.frag"
     "${SHADER_DIR}/*.vert"
     "${SHADER_DIR}/*.comp"
+    "${SHADER_DIR}/*.rgen"
+    "${SHADER_DIR}/*.rchit"
+    "${SHADER_DIR}/*.rmiss"
 )
 
 
@@ -85,7 +88,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT ${SHADER_SPV}
-        COMMAND ${GLSLC_PATH} ${SHADER_SRC} -o ${SHADER_SPV}
+        COMMAND ${GLSLC_PATH} ${SHADER_SRC} -o ${SHADER_SPV} --target-spv=spv1.6
         DEPENDS ${SHADER_SRC}
         COMMENT "Compiling shader: ${SHADER_SRC} -> ${SHADER_SPV}"
     )

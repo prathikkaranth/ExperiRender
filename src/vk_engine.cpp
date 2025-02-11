@@ -100,6 +100,7 @@ void VulkanEngine::init()
 	createBottomLevelAS();
 	createTopLevelAS();
 	createRtDescriptorSet();
+	createRtPipeline();
 }
 
 float ssaolerp(float a, float b, float f)
@@ -1597,6 +1598,142 @@ void VulkanEngine::updateRtDescriptorSet() {
 	DescriptorWriter rt_writer;
 	rt_writer.write_image(1, _rtOutputImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	rt_writer.update_set(_device, m_rtDescSet);
+
+}
+
+void VulkanEngine::createRtPipeline() {
+	enum StageIndices {
+		eRaygen,
+		eMiss,
+		eClosestHit,
+		eShaderGroupCount
+	};
+
+	// All stages
+	std::array<VkPipelineShaderStageCreateInfo, eShaderGroupCount> stages{};
+	VkPipelineShaderStageCreateInfo stage{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+	stage.pName = "main";
+
+	// Raygen
+	VkShaderModule rayTraceRaygen;
+	if (!vkutil::load_shader_module("raytrace.rgen.spv", _device, &rayTraceRaygen)) {
+		throw std::runtime_error("Error when building the rayTraceRaygen shader");
+	}
+	stage.module = rayTraceRaygen;
+	stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+	stages[eRaygen] = stage;
+
+	// Miss
+	VkShaderModule rayTraceMiss;
+	if (!vkutil::load_shader_module("raytrace.rmiss.spv", _device, &rayTraceMiss)) {
+		throw std::runtime_error("Error when building the rayTraceMiss shader");
+	}
+	stage.module = rayTraceMiss;
+	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+	stages[eMiss] = stage;
+
+	// Hit Group - Closest Hit
+	VkShaderModule rayTraceHit;
+	if (!vkutil::load_shader_module("raytrace.rchit.spv", _device, &rayTraceHit)) {
+		throw std::runtime_error("Error when building the rayTraceMiss shader");
+	}
+	stage.module = rayTraceHit;
+	stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+	stages[eClosestHit] = stage;
+
+	// Shader groups
+	VkRayTracingShaderGroupCreateInfoKHR group{ VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR };
+	group.anyHitShader = VK_SHADER_UNUSED_KHR;
+	group.closestHitShader = VK_SHADER_UNUSED_KHR;
+	group.generalShader = VK_SHADER_UNUSED_KHR;
+	group.intersectionShader = VK_SHADER_UNUSED_KHR;
+
+	// Raygen
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	group.generalShader = eRaygen;
+	m_rtShaderGroups.push_back(group);
+
+	// Miss
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	group.generalShader = eMiss;
+	m_rtShaderGroups.push_back(group);
+
+	// closest hit shader
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+	group.generalShader = VK_SHADER_UNUSED_KHR;
+	group.closestHitShader = eClosestHit;
+	m_rtShaderGroups.push_back(group);
+
+	// Push constant: we want to be able to update constants used by the shaders
+	VkPushConstantRange pushConstant{ VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
+									  0, sizeof(PushConstantRay) };
+
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+	pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+
+	// Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
+	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, _gpuSceneDataDescriptorLayout };
+	pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
+	pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
+
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipelineLayoutCreateInfo, nullptr, &m_rtPipelineLayout));
+
+	// Assemble the shader stages and recursion depth info into the ray tracing pipeline
+	VkRayTracingPipelineCreateInfoKHR rayPipelineInfo{ VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR };
+	rayPipelineInfo.stageCount = static_cast<uint32_t>(stages.size()); // stages are shaders
+	rayPipelineInfo.pStages = stages.data();
+
+	// In this case, m_rtShaderGroups.size() == 4: we have one raygen group,
+	// two miss shader groups, and one hit group.
+	rayPipelineInfo.groupCount = static_cast<uint32_t>(m_rtShaderGroups.size());
+	rayPipelineInfo.pGroups = m_rtShaderGroups.data();
+
+	// In this case, m_rtShaderGroups.size() == 3: we have one raygen group,
+	// one miss shader group, and one hit group.
+	rayPipelineInfo.maxPipelineRayRecursionDepth = 1; // Ray Depth
+	rayPipelineInfo.layout = m_rtPipelineLayout;
+
+	// Create the ray tracing pipeline
+	VK_CHECK(vkCreateRayTracingPipelinesKHR(_device, {}, {}, 1, &rayPipelineInfo, nullptr, &m_rtPipeline));
+
+	// Clean up the shader modules
+	for (auto& s : stages)
+		vkDestroyShaderModule(_device, s.module, nullptr);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyPipeline(_device, m_rtPipeline, nullptr);
+		vkDestroyPipelineLayout(_device, m_rtPipelineLayout, nullptr);
+		});
+}
+
+// The Shader Binding Table (SBT)
+void VulkanEngine::createRtShaderBindingTable() {
+	uint32_t missCount{ 1 };
+	uint32_t hitCount{ 1 };
+	auto handleCount = 1 + missCount + hitCount;
+	uint32_t handleSize = m_rtProperties.shaderGroupHandleSize;
+
+	// The SBT (buffer) need to have starting groups to be aligned and handles in the group to be handled
+	uint32_t handleSizeAligned = align_up(handleSize, m_rtProperties.shaderGroupBaseAlignment);
+
+	m_rgenRegion.stride = align_up(handleSizeAligned, m_rtProperties.shaderGroupBaseAlignment);
+	m_rgenRegion.size = m_rgenRegion.stride;
+	m_missRegion.stride = handleSizeAligned;
+	m_missRegion.size = align_up(missCount * handleSizeAligned, m_rtProperties.shaderGroupBaseAlignment);
+	m_hitRegion.stride = handleSizeAligned;
+	m_hitRegion.size = align_up(hitCount * handleSizeAligned, m_rtProperties.shaderGroupBaseAlignment);
+
+	// Get the shader group handles
+	uint32_t dataSize = handleCount * handleSize;
+	std::vector<uint8_t> handles(dataSize);
+	auto result = vkGetRayTracingShaderGroupHandlesKHR(_device, m_rtPipeline, 0, handleCount, dataSize, handles.data());
+	assert(result == VK_SUCCESS);
+
+	// Allocate the SBT buffer
+	VkDeviceSize sbtBufferSize = m_rgenRegion.size + m_missRegion.size + m_hitRegion.size + m_callRegion.size;
+	/*m_rtSBTBuffer = create_buffer(sbtBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+		| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);*/
 
 }
 
