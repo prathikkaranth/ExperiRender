@@ -101,6 +101,7 @@ void VulkanEngine::init()
 	createTopLevelAS();
 	createRtDescriptorSet();
 	createRtPipeline();
+	createRtShaderBindingTable();
 }
 
 float ssaolerp(float a, float b, float f)
@@ -1732,9 +1733,49 @@ void VulkanEngine::createRtShaderBindingTable() {
 
 	// Allocate the SBT buffer
 	VkDeviceSize sbtBufferSize = m_rgenRegion.size + m_missRegion.size + m_hitRegion.size + m_callRegion.size;
-	/*m_rtSBTBuffer = create_buffer(sbtBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-		| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);*/
+	m_rtSBTBuffer = create_buffer(sbtBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+		| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VMA_MEMORY_USAGE_CPU_ONLY);
+	
+	// Find the SBT addresses for each group
+	VkBufferDeviceAddressInfo info { VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_rtSBTBuffer.buffer };
+	VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(_device, &info);
+	m_rgenRegion.deviceAddress = sbtAddress;
+	m_missRegion.deviceAddress = sbtAddress + m_rgenRegion.size;
+	m_hitRegion.deviceAddress = sbtAddress + m_rgenRegion.size + m_missRegion.size;
 
+	// Helper to retrieve the handle data
+	auto getHandle = [&](int i) { return handles.data() + i * handleSize; };
+
+	// Map the SBT buffer and write the handles
+	uint8_t* pSBTBuffer;
+	VK_CHECK(vmaMapMemory(_allocator, m_rtSBTBuffer.allocation, reinterpret_cast<void**>(& pSBTBuffer)));
+	uint8_t* pData{nullptr};
+	uint32_t handleIdx{ 0 };
+
+	// Raygen
+	pData = pSBTBuffer;
+	memcpy(pData, getHandle(handleIdx++), handleSize);
+
+	// Miss
+	pData = pSBTBuffer + m_rgenRegion.size;
+	for (uint32_t c = 0; c < missCount; c++) {
+		memcpy(pData, getHandle(handleIdx++), handleSize);
+		pData += m_missRegion.stride;
+	}
+
+	// Hit
+	pData = pSBTBuffer + m_rgenRegion.size + m_missRegion.size;
+	for (uint32_t c = 0; c < hitCount; c++) {
+		memcpy(pData, getHandle(handleIdx++), handleSize);
+		pData += m_hitRegion.stride;
+	}
+
+	// Clean up
+	vmaUnmapMemory(_allocator, m_rtSBTBuffer.allocation);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyBuffer(_device, m_rtSBTBuffer.buffer, nullptr);
+		});
 }
 
 void VulkanEngine::resize_swapchain()
