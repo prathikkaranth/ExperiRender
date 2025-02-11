@@ -60,6 +60,7 @@ struct DescriptorWriter {
 
     void write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type);
     void write_buffer(int binding, VkBuffer buffer, size_t size, size_t offset, VkDescriptorType type);
+    void write_accel_struct(int binding, VkWriteDescriptorSetAccelerationStructureKHR asInfo, VkDescriptorType type);
 
     void clear();
     void update_set(VkDevice device, VkDescriptorSet set);

@@ -99,6 +99,7 @@ void VulkanEngine::init()
 	init_ray_tracing();
 	createBottomLevelAS();
 	createTopLevelAS();
+	createRtDescriptorSet();
 }
 
 float ssaolerp(float a, float b, float f)
@@ -556,6 +557,7 @@ void VulkanEngine::run()
 		}
 
 		if (resize_requested) {
+			updateRtDescriptorSet();
 			resize_swapchain();
 		}
 
@@ -1522,6 +1524,79 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	destroy_buffer(staging);
 
 	return newSurface;
+
+}
+
+void VulkanEngine::createRtDescriptorSet()
+{
+	// Create output image
+	_rtOutputImage = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+	{
+		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
+		m_rtDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);  // TLAS
+		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
+		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+	}
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = 0;
+	pool_info.maxSets = 1;
+
+	VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &m_rtDescPool));
+
+	VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	allocateInfo.descriptorPool = m_rtDescPool;
+	allocateInfo.descriptorSetCount = 1;
+	allocateInfo.pSetLayouts = &m_rtDescSetLayout;
+	VK_CHECK(vkAllocateDescriptorSets(_device, &allocateInfo, &m_rtDescSet));
+
+	VkAccelerationStructureKHR tlas = m_rt_builder->getAccelerationStructure();
+	VkWriteDescriptorSetAccelerationStructureKHR asInfo = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
+	asInfo.accelerationStructureCount = 1;
+	asInfo.pAccelerationStructures = &tlas;
+	VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
+
+	DescriptorWriter rt_writer;
+	rt_writer.write_accel_struct(0, asInfo, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+	rt_writer.write_image(1, _rtOutputImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+	rt_writer.update_set(_device, m_rtDescSet);
+
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once its been used
+	get_current_frame()._deletionQueue.push_function([=]() {
+		destroy_buffer(gpuSceneDataBuffer);
+	});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData;
+	VK_CHECK(vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, reinterpret_cast<void**>(&sceneUniformData)));
+	*sceneUniformData = sceneData;
+	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.update_set(_device, globalDescriptor);
+
+	_mainDeletionQueue.push_function([&]() {	
+		vkDestroyDescriptorPool(_device, m_rtDescPool, nullptr);
+		vkDestroyDescriptorSetLayout(_device, m_rtDescSetLayout, nullptr);
+		});
+}
+
+void VulkanEngine::updateRtDescriptorSet() {
+	// (1) Output buffer
+	VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
+	DescriptorWriter rt_writer;
+	rt_writer.write_image(1, _rtOutputImage.imageView, _defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	rt_writer.update_set(_device, m_rtDescSet);
 
 }
 

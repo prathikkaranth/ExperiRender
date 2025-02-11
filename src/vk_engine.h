@@ -144,7 +144,7 @@ public:
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 
-	// Ray tracing
+	// Ray tracing accel struct + variables
 	bool m_is_raytracing_supported{ false };
 	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
 	void traverseLoadedMeshNodesOnceForRT();
@@ -192,6 +192,11 @@ public:
 
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
+	// Ray tracing descriptors
+	VkDescriptorPool m_rtDescPool;
+	VkDescriptorSetLayout m_rtDescSetLayout;
+	VkDescriptorSet m_rtDescSet;
+
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};
 
@@ -229,6 +234,8 @@ public:
 	//SSAO resources
 	ssao _ssao;
 
+	// Raytacing resources
+	AllocatedImage _rtOutputImage;
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -251,6 +258,9 @@ public:
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+
+	void createRtDescriptorSet();
+	void updateRtDescriptorSet();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);

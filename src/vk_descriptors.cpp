@@ -222,6 +222,17 @@ void DescriptorWriter::write_buffer(int binding, VkBuffer buffer, size_t size, s
 	writes.push_back(write);
 }
 
+void DescriptorWriter::write_accel_struct(int binding, VkWriteDescriptorSetAccelerationStructureKHR asInfo, VkDescriptorType type)
+{
+	VkWriteDescriptorSet write = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+	write.pNext = &asInfo;
+	write.dstBinding = binding;
+	write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+	write.descriptorCount = 1;
+	write.descriptorType = type;
+	writes.push_back(write);
+}
+
 void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 {
 	VkDescriptorImageInfo& info = imageInfos.emplace_back(VkDescriptorImageInfo{
