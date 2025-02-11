@@ -94,7 +94,11 @@ void VulkanEngine::init()
 	//everything went fine
 	_isInitialized = true;
 
+	// Ray Tracing inititialization
+	traverseLoadedMeshNodesOnceForRT();
 	init_ray_tracing();
+	createBottomLevelAS();
+	createTopLevelAS();
 }
 
 float ssaolerp(float a, float b, float f)
@@ -305,6 +309,10 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	else {
 		return true;
 	}
+}
+
+void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
+	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 }
 
 void VulkanEngine::cleanup()
@@ -658,31 +666,37 @@ void VulkanEngine::createBottomLevelAS() {
 	// BLAS - Storing each primitive in a geometry
 	std::vector<nvvk::RaytracingBuilderKHR::BlasInput> blas_inputs;
 
-	// for each model	
-	for (const auto& [name, scene] : loadedScenes) {
-		// for each mesh
-		for (const auto& [name, mesh] : scene->meshes) {
-			nvvk::RaytracingBuilderKHR::BlasInput input;
-			input = experirender::vk::objectToVkGeometryKHR(mesh);
-			blas_inputs.emplace_back(input);
-		}
+	for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+		nvvk::RaytracingBuilderKHR::BlasInput input;
+		input = experirender::vk::objectToVkGeometryKHR(mainDrawContext.OpaqueSurfaces[i]);
+		blas_inputs.emplace_back(std::move(input));
 	}
 	m_rt_builder->buildBlas(blas_inputs, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 
 }
 
-//void VulkanEngine::createTopLevelAS() {
-//	// TLAS - Storing each BLAS
-//	std::vector<VkAccelerationStructureInstanceKHR> tlas;
-//	tlas.reserve(loadedScenes.size());
-//
-//	for (const auto& [name, scene] : loadedScenes) {
-//		for (const auto& [name, mesh] : scene->meshes) {
-//			
-//		}
-//		
-//	}
-//}
+void VulkanEngine::createTopLevelAS() {
+	// TLAS - Storing each BLAS
+	std::vector<VkAccelerationStructureInstanceKHR> tlas;
+	tlas.reserve(mainDrawContext.OpaqueSurfaces.size());
+
+	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+		glm::mat4 transform = mainDrawContext.OpaqueSurfaces[i].transform;
+		glm::mat3x4 transform3x4(transform);
+		VkTransformMatrixKHR vk_transform;
+		std::memcpy(&vk_transform, &transform3x4, sizeof(vk_transform));
+		VkAccelerationStructureInstanceKHR instance{
+				.transform = vk_transform,
+				.instanceCustomIndex = i,
+				.mask = 0xFF,
+				.instanceShaderBindingTableRecordOffset = 0,
+				.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+				.accelerationStructureReference = m_rt_builder->getBlasDeviceAddress(i),
+		};
+		tlas.emplace_back(std::move(instance));
+	}
+	m_rt_builder->buildTlas(tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+}
 
 void VulkanEngine::init_vulkan() {
 	vkb::InstanceBuilder builder;
@@ -791,8 +805,6 @@ void VulkanEngine::init_ray_tracing() {
 	if (m_is_raytracing_supported) {
 		m_rt_builder = std::make_unique<nvvk::RaytracingBuilderKHR>(this, _graphicsQueueFamily);
 	}
-
-	createBottomLevelAS();
 }
 
 void VulkanEngine::init_commands() {
@@ -996,10 +1008,10 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 
 	std::vector<uint32_t> opaque_draws;
 	opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
-
 	for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
 		/*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
 			opaque_draws.push_back(i);
+			
 		/*}*/
 	}
 
@@ -1762,6 +1774,8 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 		def.bounds = s.bounds;
 		def.transform = nodeMatrix;
 		def.vertexBufferAddress = mesh->meshBuffers.vertexBufferAddress;
+		def.indexBufferAddress = mesh->meshBuffers.indexBufferAddress;
+		def.vertexCount = mesh->nbVertices;
 
 		if (s.material->data.passType == MaterialPass::Transparent) {
 			ctx.TransparentSurfaces.push_back(def);

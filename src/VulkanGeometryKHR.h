@@ -8,8 +8,9 @@
 
 #include "vk_loader.h"
 #include "raytraceKHR_vk.h"
+#include "RenderObject.h"
 
 namespace experirender::vk
 {
-	nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const std::shared_ptr<MeshAsset>& mesh);
+	nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const RenderObject& mesh);
 }

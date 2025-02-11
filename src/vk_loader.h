@@ -26,8 +26,10 @@ struct GeoSurface {
 
 struct MeshAsset {
     std::string name;
+    uint32_t meshIndex;
     uint32_t nbIndices;
     uint32_t nbVertices;
+    glm::mat4 transform;
     std::vector<GeoSurface> surfaces;
     GPUMeshBuffers meshBuffers;
 };

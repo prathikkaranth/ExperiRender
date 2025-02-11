@@ -8,6 +8,7 @@
 #include <camera.h>
 #include <vk_utils.h>
 #include <ssao.h>
+#include <RenderObject.h>
 #include <shadowmap.h>
 #include <raytraceKHR_vk.h>
 
@@ -97,17 +98,6 @@ struct GLTFMetallic_Roughness {
 	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
-struct RenderObject {
-	uint32_t indexCount;
-	uint32_t firstIndex;
-	VkBuffer indexBuffer;
-
-	MaterialInstance* material;
-	Bounds bounds;
-	glm::mat4 transform;
-	VkDeviceAddress vertexBufferAddress;
-};
-
 struct DrawContext {
 	std::vector<RenderObject> OpaqueSurfaces;		
 	std::vector<RenderObject> TransparentSurfaces;
@@ -157,6 +147,7 @@ public:
 	// Ray tracing
 	bool m_is_raytracing_supported{ false };
 	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
+	void traverseLoadedMeshNodesOnceForRT();
 	void createBottomLevelAS();
 	void createTopLevelAS();
 

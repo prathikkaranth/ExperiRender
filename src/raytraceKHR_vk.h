@@ -102,7 +102,7 @@ namespace nvvk
 {
 
     struct AccelKHR {
-        VkAccelerationStructureKHR accel;
+        VkAccelerationStructureKHR accel{ nullptr };
         AllocatedBuffer buffer;
     };
 

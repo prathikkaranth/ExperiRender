@@ -6,15 +6,14 @@
 
 #include "VulkanGeometryKHR.h"
 #include "raytraceKHR_vk.h"
-#include "vk_types.h"
 
 namespace experirender::vk
 {
-	nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const std::shared_ptr<MeshAsset>& mesh) {
-		const VkDeviceAddress vertex_address = mesh->meshBuffers.vertexBufferAddress;
-		const VkDeviceAddress index_address = mesh->meshBuffers.indexBufferAddress;
+	nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const RenderObject& mesh) {
+		const VkDeviceAddress vertex_address = mesh.vertexBufferAddress;
+		const VkDeviceAddress index_address = mesh.indexBufferAddress;
 
-		const uint32_t max_primitive_count = mesh->nbIndices / 3;
+		const uint32_t max_primitive_count = mesh.indexCount / 3;
 
 		// Describe buffer as array of VertexObj
 		VkAccelerationStructureGeometryTrianglesDataKHR triangles{
@@ -23,7 +22,7 @@ namespace experirender::vk
 			.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
 			.vertexData = {.deviceAddress = vertex_address},
 			.vertexStride = sizeof(Vertex),
-			.maxVertex = static_cast<uint32_t>(mesh->nbVertices),
+			.maxVertex = mesh.vertexCount,
 			.indexType = VK_INDEX_TYPE_UINT32,
 			.indexData = {.deviceAddress = index_address},
 			.transformData = {}, // null implies identity transform
