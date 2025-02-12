@@ -53,6 +53,7 @@ struct DeletionQueue
 struct FrameData {
 	VkCommandPool _commandPool;
 	VkCommandBuffer _mainCommandBuffer;
+	VkCommandBuffer _rtCommandBuffer;
 
 	VkSemaphore _swapchainSemaphore , _renderSemaphore;
 	VkFence _renderFence;
@@ -169,6 +170,7 @@ public:
 	bool _isInitialized{ false };
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
+	bool useRaytracer{ false };
 
 	VkExtent2D _windowExtent{ 1280 , 720 };
 
@@ -205,6 +207,7 @@ public:
 	VkDescriptorPool m_rtDescPool;
 	VkDescriptorSetLayout m_rtDescSetLayout;
 	VkDescriptorSet m_rtDescSet;
+	VkDescriptorSet globalDescriptorForRT;
 
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};
@@ -286,6 +289,7 @@ public:
 	void updateRtDescriptorSet();
 	void createRtPipeline();
 	void createRtShaderBindingTable();
+	void raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
