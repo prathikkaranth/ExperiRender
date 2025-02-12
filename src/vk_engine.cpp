@@ -781,6 +781,9 @@ void VulkanEngine::init_vulkan() {
 	raytracingPipelineFeatures.pNext = nullptr;
 	raytracingPipelineFeatures.rayTracingPipeline = true;
 
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	deviceFeatures.shaderInt64 = true;
+
 	const std::vector<const char*> raytracing_extensions{
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
@@ -802,6 +805,7 @@ void VulkanEngine::init_vulkan() {
 		.add_required_extensions(raytracing_extensions)
 		.add_required_extension_features(accelerationStructureFeatures)
 		.add_required_extension_features(raytracingPipelineFeatures)
+		.set_required_features(deviceFeatures)
 		.select()
 		.value();
 
@@ -1607,30 +1611,48 @@ void VulkanEngine::createRtDescriptorSet()
 
 	rt_writer.update_set(_device, m_rtDescSet);
 
-	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	// Obj Descriptions
+	{
+		DescriptorLayoutBuilder m_objDescSetLayoutBind;
+		m_objDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);  // ObjDesc buffer	
+		m_objDescSetLayout = m_objDescSetLayoutBind.build(_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+	}
 
-	//add it to the deletion queue of this frame so it gets deleted once its been used
-	get_current_frame()._deletionQueue.push_function([=]() {
-		destroy_buffer(gpuSceneDataBuffer);
-	});
+	VkDescriptorPoolCreateInfo objPool = {};
+	objPool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	objPool.flags = 0;
+	objPool.maxSets = 1;
 
-	//write the buffer
-	GPUSceneData* sceneUniformData;
-	VK_CHECK(vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, reinterpret_cast<void**>(&sceneUniformData)));
-	*sceneUniformData = sceneData;
-	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
+	VK_CHECK(vkCreateDescriptorPool(_device, &objPool, nullptr, &m_objDescPool));
 
-	//create a descriptor set that binds that buffer and update it
-	globalDescriptorForRT = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
+	std::vector<ObjDesc> objDescs;
+	objDescs.reserve(mainDrawContext.OpaqueSurfaces.size());
+	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {	
+		ObjDesc desc = {
+			.vertexAddress = mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress,
+			.indexAddress = mainDrawContext.OpaqueSurfaces[i].indexBufferAddress,
+		};
+		objDescs.push_back(desc);
+	}
 
-	DescriptorWriter writer;
-	writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.update_set(_device, globalDescriptorForRT);
+	m_objDescSet = globalDescriptorAllocator.allocate(_device, m_objDescSetLayout);
+
+	AllocatedBuffer m_objDescSetBuffer = create_buffer(sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	ObjDesc* objDescsToMap;
+	VK_CHECK(vmaMapMemory(_allocator, m_objDescSetBuffer.allocation, reinterpret_cast<void**>(&objDescsToMap)));
+	memcpy(objDescsToMap, objDescs.data(), sizeof(ObjDesc) * objDescs.size());
+	vmaUnmapMemory(_allocator, m_objDescSetBuffer.allocation);
+
+	DescriptorWriter obj_writer;
+	obj_writer.write_buffer(0, m_objDescSetBuffer.buffer, sizeof(ObjDesc) * objDescs.size(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+    obj_writer.update_set(_device, m_objDescSet);
 
 	_mainDeletionQueue.push_function([&]() {	
 		vkDestroyDescriptorPool(_device, m_rtDescPool, nullptr);
 		vkDestroyDescriptorSetLayout(_device, m_rtDescSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, m_objDescSetLayout, nullptr); 
+		
 		});
 }
 
@@ -1715,7 +1737,7 @@ void VulkanEngine::createRtPipeline() {
 	pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
 	// Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
-	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, _gpuSceneDataDescriptorLayout };
+	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout };
 	pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
 	pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
 
@@ -1831,9 +1853,10 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	m_pcRay.lightIntensity = sceneData.sunlightDirection.w;
 	m_pcRay.lightType = 0; // Directional light
 
-	std::vector<VkDescriptorSet> descSets{ m_rtDescSet };
+	std::vector<VkDescriptorSet> descSets{ m_rtDescSet, m_objDescSet };
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
-	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, static_cast<uint32_t>(descSets.size()), descSets.data(), 0, nullptr);
+	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
+	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
 	
 	vkCmdPushConstants(cmdBuf, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 0, sizeof(PushConstantRay), &m_pcRay);
 

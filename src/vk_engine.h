@@ -209,7 +209,9 @@ public:
 	VkDescriptorPool m_rtDescPool;
 	VkDescriptorSetLayout m_rtDescSetLayout;
 	VkDescriptorSet m_rtDescSet;
-	VkDescriptorSet globalDescriptorForRT;
+	VkDescriptorPool m_objDescPool;
+	VkDescriptorSetLayout m_objDescSetLayout;
+	VkDescriptorSet m_objDescSet;
 
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};

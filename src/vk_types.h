@@ -80,6 +80,14 @@ struct SSAOSceneData {
 	float intensity;
 };
 
+// Information of a obj model when referenced in a shader
+struct alignas(16) ObjDesc
+{
+	uint64_t vertexAddress;         // Address of the Vertex buffer
+	uint64_t indexAddress;          // Address of the index buffer
+};
+
+
 enum class MaterialPass :uint8_t {
 	MainColor,
 	Transparent,
