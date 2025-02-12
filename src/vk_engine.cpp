@@ -467,64 +467,6 @@ void VulkanEngine::draw()
 		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
-	//vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-	//vkutil::transition_image(cmd, _gbufferPosition.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	//vkutil::transition_image(cmd, _gbufferNormal.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//draw_gbuffer(cmd);
-
-	//vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//// execute a copy from the depth image to the depth map
-	//vkutil::copy_image_to_image(cmd, _depthImage.image, _ssao._depthMap.image, _drawExtent, _ssao._depthMapExtent, VK_FILTER_NEAREST, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//_ssao.draw_ssao(this, cmd);
-
-	//vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//vkutil::transition_image(cmd, _ssao._ssaoImageBlurred.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//_ssao.draw_ssao_blur(this, cmd);
-
-	//vkutil::transition_image(cmd, _ssao._ssaoImageBlurred.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//// transition our main draw image into general layout so we can write into it
-	//// we will overwrite it all so we dont care about what was the older layout
-	//vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//// Shadow pass
-	//vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//_shadowMap.draw_depthShadowMap(this, cmd);
-
-	//vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-	//draw_geometry(cmd);
-
-	////transition the draw image and the swapchain image into their correct transfer layouts
-	//vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-	//vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//// execute a copy from the draw image into the swapchain
-	//vkutil::copy_image_to_image(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent, VK_FILTER_LINEAR, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	//// set swapchain image layout to Attachment Optimal so we can draw it
-	//vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-	////draw imgui into the swapchain image
-	//draw_imgui(cmd, _swapchainImageViews[swapchainImageIndex]);
-
-	//// set swapchain image layout to Present so we can draw it
-	//vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
-
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -1384,7 +1326,7 @@ void VulkanEngine::init_descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR );
 	}
 
 	{
@@ -1883,7 +1825,9 @@ void VulkanEngine::createRtShaderBindingTable() {
 void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
 	// Initializing the push constants
 	m_pcRay.clearColor = clearColor;
-	m_pcRay.lightPosition = glm::vec3(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z);
+	m_pcRay.lightPosition = glm::vec4(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z, 0.0f);
+	m_pcRay.viewInverse = glm::inverse(sceneData.view);
+	m_pcRay.projInverse = glm::inverse(sceneData.proj);
 	m_pcRay.lightIntensity = sceneData.sunlightDirection.w;
 	m_pcRay.lightType = 0; // Directional light
 

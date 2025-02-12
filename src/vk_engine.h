@@ -117,7 +117,9 @@ struct EngineStats {
 struct PushConstantRay
 {
 	glm::vec4  clearColor;
-	glm::vec3  lightPosition;
+	glm::vec4  lightPosition;
+	glm::mat4  viewInverse;
+	glm::mat4  projInverse;
 	float lightIntensity;
 	int   lightType;
 };
