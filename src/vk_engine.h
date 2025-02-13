@@ -212,6 +212,8 @@ public:
 	VkDescriptorPool m_objDescPool;
 	VkDescriptorSetLayout m_objDescSetLayout;
 	VkDescriptorSet m_objDescSet;
+	VkDescriptorSetLayout m_texSetLayout;
+	VkDescriptorSet m_texDescSet;
 
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};
@@ -260,6 +262,9 @@ public:
 
 	// Raytacing resources
 	AllocatedImage _rtOutputImage;
+	// Put all textures in loadScenes to a vector
+	std::vector<AllocatedImage> loadedTextures;
+
 	AllocatedBuffer m_rtSBTBuffer;
 	VkStridedDeviceAddressRegionKHR m_rgenRegion{};
 	VkStridedDeviceAddressRegionKHR m_missRegion{};

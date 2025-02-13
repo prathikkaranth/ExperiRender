@@ -23,6 +23,16 @@ void DescriptorLayoutBuilder::add_binding(uint32_t binding, VkDescriptorType typ
     bindings.push_back(newbind);
 }
 
+void DescriptorLayoutBuilder::add_bindings(uint32_t binding, VkDescriptorType type, uint32_t descCount)
+{
+	VkDescriptorSetLayoutBinding newbind{};
+	newbind.binding = binding;
+	newbind.descriptorCount = descCount;
+	newbind.descriptorType = type;
+
+	bindings.push_back(newbind);
+}
+
 void DescriptorLayoutBuilder::clear()
 {
     bindings.clear();
@@ -246,6 +256,20 @@ void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sam
 	write.dstBinding = binding;
 	write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
 	write.descriptorCount = 1;
+	write.descriptorType = type;
+	write.pImageInfo = &info;
+
+	writes.push_back(write);
+}
+
+void DescriptorWriter::write_images(int binding, VkDescriptorImageInfo& info, VkDescriptorType type, uint32_t descCount)
+{
+
+	VkWriteDescriptorSet write = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+
+	write.dstBinding = binding;
+	write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+	write.descriptorCount = descCount;
 	write.descriptorType = type;
 	write.pImageInfo = &info;
 

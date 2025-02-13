@@ -37,6 +37,8 @@ layout(set = 1, binding = 0, std430) buffer ObjDesc_ {
     ObjDesc i[]; 
 } m_objDesc;
 
+layout(set = 2, binding = 0) uniform sampler2D textures[];
+
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
 void main()
