@@ -4,5 +4,10 @@
         "bitangent",
         "glslc",
         "ssao"
-    ]
+    ],
+    "files.associations": {
+        "*.rgen": "glsl",
+        "*.rchit": "glsl",
+        "*.rmiss": "glsl"
+    }
 }

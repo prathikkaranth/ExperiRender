@@ -80,10 +80,10 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	/*std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
-	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
+	std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };
 
 	auto structureFile = loadGltf(this, structurePath);
 
@@ -271,6 +271,9 @@ void VulkanEngine::init_default_data() {
 
 		loadedNodes[m->name] = std::move(newNode);
 	}
+
+	// RT defaults
+	m_pcRay.samples_done = 0;
 
 }
 
@@ -527,6 +530,26 @@ void VulkanEngine::draw()
 
 }
 
+void VulkanEngine::rtSampleUpdates() {
+	// RT updates
+	if (mainCamera.isMoving) {
+		resetSamples();
+	}
+
+	static glm::vec4 prevSunDir = sceneData.sunlightDirection;
+	bool sunDirChanged = false;
+
+	if (sceneData.sunlightDirection != prevSunDir) {
+		sunDirChanged = true;
+		prevSunDir = sceneData.sunlightDirection; // Update previous value
+	}
+
+	if (sunDirChanged) {
+		resetSamples();
+	}
+
+}
+
 
 void VulkanEngine::update_scene()
 {
@@ -555,6 +578,9 @@ void VulkanEngine::update_scene()
 	// shadows
 	_shadowMap.update_lightSpaceMatrix(this);
 
+	// RT updates
+	rtSampleUpdates();
+	
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
@@ -1583,7 +1609,7 @@ void VulkanEngine::createRtDescriptorSet()
 		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
 		m_rtDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);  // TLAS
 		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
-		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 	}
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -1702,6 +1728,7 @@ void VulkanEngine::createRtPipeline() {
 	enum StageIndices {
 		eRaygen,
 		eMiss,
+		eMiss2,
 		eClosestHit,
 		eShaderGroupCount
 	};
@@ -1729,6 +1756,15 @@ void VulkanEngine::createRtPipeline() {
 	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
 	stages[eMiss] = stage;
 
+	// Miss 2
+	VkShaderModule rayTraceMiss2;
+	if (!vkutil::load_shader_module("raytraceShadow.rmiss.spv", _device, &rayTraceMiss2)) {
+		throw std::runtime_error("Error when building the rayTraceMiss2 shader");
+	}
+	stage.module = rayTraceMiss2;
+	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+	stages[eMiss2] = stage;
+
 	// Hit Group - Closest Hit
 	VkShaderModule rayTraceHit;
 	if (!vkutil::load_shader_module("raytrace.rchit.spv", _device, &rayTraceHit)) {
@@ -1753,6 +1789,11 @@ void VulkanEngine::createRtPipeline() {
 	// Miss
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 	group.generalShader = eMiss;
+	m_rtShaderGroups.push_back(group);
+
+	// Miss 2
+	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+	group.generalShader = eMiss2;
 	m_rtShaderGroups.push_back(group);
 
 	// closest hit shader
@@ -1793,7 +1834,7 @@ void VulkanEngine::createRtPipeline() {
 
 	// In this case, m_rtShaderGroups.size() == 3: we have one raygen group,
 	// one miss shader group, and one hit group.
-	rayPipelineInfo.maxPipelineRayRecursionDepth = 1; // Ray Depth
+	rayPipelineInfo.maxPipelineRayRecursionDepth = 2; // Ray Depth
 	rayPipelineInfo.layout = m_rtPipelineLayout;
 
 	// Create the ray tracing pipeline
@@ -1811,7 +1852,7 @@ void VulkanEngine::createRtPipeline() {
 
 // The Shader Binding Table (SBT)
 void VulkanEngine::createRtShaderBindingTable() {
-	uint32_t missCount{ 1 };
+	uint32_t missCount{ 2 };
 	uint32_t hitCount{ 1 };
 	auto handleCount = 1 + missCount + hitCount;
 	uint32_t handleSize = m_rtProperties.shaderGroupHandleSize;
@@ -1879,10 +1920,18 @@ void VulkanEngine::createRtShaderBindingTable() {
 		});
 }
 
+void VulkanEngine::resetSamples() {
+	
+	// Reset the sample index
+	m_pcRay.samples_done = 0;
+	
+}
+
 //--------------------------------------------------------------------------------------------------
 // Ray Tracing the scene
 //
 void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
+
 	// Initializing the push constants
 	m_pcRay.clearColor = clearColor;
 	m_pcRay.lightPosition = glm::vec4(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z, 0.0f);
@@ -1890,6 +1939,7 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	m_pcRay.projInverse = glm::inverse(sceneData.proj);
 	m_pcRay.lightIntensity = sceneData.sunlightDirection.w;
 	m_pcRay.lightType = 0; // Directional light
+	m_pcRay.seed = static_cast<std::uint32_t>(std::rand());
 
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 
@@ -1907,6 +1957,9 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	vkCmdPushConstants(cmdBuf, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 0, sizeof(PushConstantRay), &m_pcRay);
 
 	vkCmdTraceRaysKHR(cmdBuf, &m_rgenRegion, &m_missRegion, &m_hitRegion, &m_callRegion, _windowExtent.width, _windowExtent.height, 1);
+
+	m_pcRay.samples_done++;
+
 }
 
 void VulkanEngine::resize_swapchain()

@@ -122,6 +122,8 @@ struct PushConstantRay
 	glm::mat4  projInverse;
 	float lightIntensity;
 	int   lightType;
+	std::uint32_t seed;
+	std::uint32_t samples_done;
 };
 
 struct MeshNode : public Node {
@@ -299,6 +301,8 @@ public:
 	void createRtPipeline();
 	void createRtShaderBindingTable();
 	void raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
+	void resetSamples();
+	void rtSampleUpdates();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);

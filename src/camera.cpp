@@ -52,7 +52,7 @@ void Camera::processSDLEvent(SDL_Event& e)
 
     if (e.type == SDL_MOUSEMOTION && fpsCameraEnabled) {
         yaw += (float)e.motion.xrel / 600.f;
-        pitch -= (float)e.motion.yrel / 600.f;
+        pitch -= (float)e.motion.yrel / 600.f;	
     }
 }
 
@@ -60,4 +60,18 @@ void Camera::update()
 {
     glm::mat4 cameraRotation = getRotationMatrix();
     position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.f));
+    
+	// Detect rotation change
+	static float prevPitch = pitch;
+	static float prevYaw = yaw;
+	bool rotationChanged = (pitch != prevPitch || yaw != prevYaw);
+
+	// Update previous values
+	prevPitch = pitch;
+	prevYaw = yaw;
+
+	// Set isMoving based on position or rotation changes
+	isMoving = glm::length(velocity) > 0.0f || rotationChanged;
+
+    std::cout << "isMoving: " << isMoving << "\n";
 }

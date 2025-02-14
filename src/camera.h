@@ -10,6 +10,7 @@ public:
     float pitch{ 0.f };
     // horizontal rotation
     float yaw{ 0.f };
+    bool isMoving = false;
 
     glm::mat4 getViewMatrix() const;
     glm::mat4 getRotationMatrix() const;

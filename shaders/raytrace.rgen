@@ -4,6 +4,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 
 #include "raycommon.glsl"
+#include "random.glsl"
 
 layout(location = 0) rayPayloadEXT hitPayload prd;
 
@@ -11,32 +12,65 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
+vec3 tracePath() {
+    prd.color = vec4(0.0, 0.0, 0.0, 1.0);
+
+    // Compute Camera ray
+    const vec2 sample_coord = vec2(gl_LaunchIDEXT.xy) + vec2(rand1d(prd.seed), rand1d(prd.seed));
+    const vec2 inUV = sample_coord / vec2(gl_LaunchSizeEXT.xy);
+    const vec2 d = inUV * 2.0 - 1.0;
+
+    prd.next_origin = (pcRay.viewInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    const vec4 target = pcRay.projInverse * vec4(d.x, d.y, 1.0, 1.0);
+    prd.next_direction = (pcRay.viewInverse * vec4(normalize(target.xyz), 0.0)).xyz;
+    prd.strength = 1.0;
+
+    const uint RAY_FLAGS = gl_RayFlagsOpaqueEXT;
+    const uint CULL_MASK = 0xFF;
+    const uint SBT_RECORD_OFFSET = 0;
+    const uint SBT_RECORD_STRIDE = 0;
+    const uint MISS_INDEX = 0;
+    const float TMIN = 0.001;
+    const float TMAX = 10000.0;
+    const int PAYLOAD = 0;
+
+    int depth = 0;
+
+    while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < 16) {
+        const vec3 origin = prd.next_origin;
+        const vec3 direction = prd.next_direction;
+
+        // we're using this a proxy for "no intersection"
+        prd.next_direction = vec3(0.0, 0.0, 0.0);
+
+        traceRayEXT(topLevelAS, 
+                    RAY_FLAGS, 
+                    CULL_MASK, 
+                    SBT_RECORD_OFFSET, 
+                    SBT_RECORD_STRIDE, 
+                    MISS_INDEX, 
+                    origin,
+                    TMIN, 
+                    direction,
+                    TMAX, 
+                    PAYLOAD);
+
+        depth++;
+    }
+    const vec3 radiance = prd.color.rgb;
+    return radiance;
+}
+
 void main() 
 {
-    const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
-    const vec2 inUV = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
-    vec2 d = inUV * 2.0 - 1.0;
+    prd.seed = gl_LaunchIDEXT.x * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.y + (pcRay.seed * 0x9e3779b1);
+    
+    const vec3 radiance = tracePath();
 
-    vec4 origin = pcRay.viewInverse * vec4(0, 0, 0, 1);
-    vec4 target = pcRay.projInverse * vec4(d.x, d.y, 1, 1);
-    vec4 direction = pcRay.viewInverse * vec4(normalize(target.xyz), 0);
+    const ivec2 storePos = ivec2(gl_LaunchIDEXT.xy);
 
-    uint rayFlags = gl_RayFlagsOpaqueEXT;
-    float tMin = 0.001;
-    float tMax = 1000.0;
-
-    traceRayEXT(topLevelAS, // acceleration structure
-          rayFlags,       // rayFlags
-          0xFF,           // cullMask
-          0,              // sbtRecordOffset
-          0,              // sbtRecordStride
-          0,              // missIndex
-          origin.xyz,     // ray origin
-          tMin,           // ray min range
-          direction.xyz,  // ray direction
-          tMax,           // ray max range
-          0               // payload (location = 0)  
-    );
-
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(prd.hitValue, 1.0));
+    const vec4 old_radiance = imageLoad(image, storePos);
+    const float k = 1.0f / (float(pcRay.samples_done) + 1.0f);
+    const vec4 new_radiance = old_radiance * (1.0f - k) + vec4(radiance, 1.0f) * k;
+    imageStore(image, storePos, new_radiance);
 }
