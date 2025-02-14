@@ -80,7 +80,7 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	 std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
 	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
 	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
@@ -728,9 +728,6 @@ void VulkanEngine::createTopLevelAS() {
 	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
 		glm::mat4 transform = mainDrawContext.OpaqueSurfaces[i].transform;
 		glm::mat3x4 transform3x4(transform);
-		std::cout << "Vertex Address" << mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress
-			<< "  Index Address" << mainDrawContext.OpaqueSurfaces[i].indexBufferAddress
-			<< std::endl;
 		VkTransformMatrixKHR vk_transform;
 		std::memcpy(&vk_transform, &transform3x4, sizeof(vk_transform));
 		VkAccelerationStructureInstanceKHR instance{
@@ -1627,6 +1624,7 @@ void VulkanEngine::createRtDescriptorSet()
 		ObjDesc desc = {
 			.vertexAddress = mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress,
 			.indexAddress = mainDrawContext.OpaqueSurfaces[i].indexBufferAddress,
+			.firstIndex = mainDrawContext.OpaqueSurfaces[i].firstIndex,
 		};
 		objDescs.push_back(desc);
 	}
@@ -1652,37 +1650,42 @@ void VulkanEngine::createRtDescriptorSet()
 		}
 	}
 
-	auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
+	// if textures are not empty
+	if (!loadedTextures.empty()) {
+		auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
 
-	{
-		DescriptorLayoutBuilder m_texSetLayoutBind;
-		m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images	
-		m_texSetLayout = m_texSetLayoutBind.build(_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+		{
+			DescriptorLayoutBuilder m_texSetLayoutBind;
+			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images	
+			m_texSetLayout = m_texSetLayoutBind.build(_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+		}
+
+		m_texDescSet = globalDescriptorAllocator.allocate(_device, m_texSetLayout);
+
+		std::vector<VkDescriptorImageInfo> texDescs;
+		texDescs.reserve(nbTxt);
+		for (int i = 0; i < nbTxt; i++) {
+			VkDescriptorImageInfo imageInfo{
+				.sampler = _defaultSamplerLinear,
+				.imageView = loadedTextures[i].imageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			};
+			texDescs.push_back(imageInfo);
+		}
+
+		DescriptorWriter tex_writer;
+		tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
+		tex_writer.update_set(_device, m_texDescSet);
+
+		_mainDeletionQueue.push_function([&]() {
+			vkDestroyDescriptorSetLayout(_device, m_texSetLayout, nullptr);
+			});
 	}
-
-	m_texDescSet = globalDescriptorAllocator.allocate(_device, m_texSetLayout);
-
-	std::vector<VkDescriptorImageInfo> texDescs;
-	texDescs.reserve(nbTxt);
-	for (int i = 0; i < nbTxt; i++) {
-		VkDescriptorImageInfo imageInfo{ 
-			.sampler = _defaultSamplerLinear, 
-			.imageView = loadedTextures[i].imageView,
-			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL 
-		};
-		texDescs.push_back(imageInfo);
-	}
-
-	DescriptorWriter tex_writer;
-	tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
-	tex_writer.update_set(_device, m_texDescSet);
 
 	_mainDeletionQueue.push_function([&]() {	
 		vkDestroyDescriptorPool(_device, m_rtDescPool, nullptr);
 		vkDestroyDescriptorSetLayout(_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, m_objDescSetLayout, nullptr); 
-		vkDestroyDescriptorSetLayout(_device, m_texSetLayout, nullptr);
-		
 		});
 }
 
@@ -1767,7 +1770,12 @@ void VulkanEngine::createRtPipeline() {
 	pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
 	// Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
-	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout, m_texSetLayout };
+	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout };
+
+	if (!loadedTextures.empty())
+	{
+		rtDescSetLayouts.push_back(m_texSetLayout);
+	}
 	pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
 	pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
 
@@ -1883,11 +1891,18 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	m_pcRay.lightIntensity = sceneData.sunlightDirection.w;
 	m_pcRay.lightType = 0; // Directional light
 
-	std::vector<VkDescriptorSet> descSets{ m_rtDescSet, m_objDescSet, m_texDescSet };
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
-	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
-	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
-	vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_texDescSet, 0, nullptr);
+
+	// if textures are empty, we don't bind the texture descriptor set
+	if ( loadedTextures.empty() ) {
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
+	}
+	else {
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_texDescSet, 0, nullptr);
+	}
 	
 	vkCmdPushConstants(cmdBuf, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 0, sizeof(PushConstantRay), &m_pcRay);
 

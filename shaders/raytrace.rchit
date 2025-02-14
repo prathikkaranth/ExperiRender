@@ -23,7 +23,9 @@ struct Vertex {
 
 struct ObjDesc {
   uint64_t vertexAddress;         
-	uint64_t indexAddress;          
+	uint64_t indexAddress;   
+  uint firstIndex;
+  uint padding;       
 };
 
 
@@ -45,7 +47,7 @@ void main()
 {
   // Object Data
   ObjDesc objResource  = m_objDesc.i[gl_InstanceCustomIndexEXT];
-  Indices    indices     = Indices(objResource.indexAddress);
+  Indices    indices     = Indices(objResource.indexAddress + objResource.firstIndex * 4);
   Vertices   vertices    = Vertices(objResource.vertexAddress);
 
   // Indices of the triangle

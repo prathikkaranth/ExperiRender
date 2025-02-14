@@ -81,10 +81,12 @@ struct SSAOSceneData {
 };
 
 // Information of a obj model when referenced in a shader
-struct alignas(16) ObjDesc
+struct alignas(8) ObjDesc
 {
 	uint64_t vertexAddress;         // Address of the Vertex buffer
 	uint64_t indexAddress;          // Address of the index buffer
+	uint32_t firstIndex;            // First index of the mesh
+	uint32_t padding;
 };
 
 
