@@ -1,6 +1,6 @@
 # ExperiRender
 
-![image](https://github.com/prathikkaranth/ExperiRender/blob/main/ExperiRender_Sponza.png)
+![image](docs/images/ExperiRender_Sponza.png)
 
 A Graphics Renderer written in Vulkan mainly for visualization purposes required in research fields. Current iteration has support for: 
 
@@ -10,16 +10,24 @@ A Graphics Renderer written in Vulkan mainly for visualization purposes required
 - Blinn-phong lighting support for
     - textures (normal maps, roughness maps) 
     - metallic materials.
+- Ray Tracing pipeline for,
+    - Shadows
+    - Ambient Occlusion (AO)
 
 Currently Working on:
 
 - Ray Tracing pipeline for,
-    - Shadows
-    - Ambient Occlusion (AO)
+    - Texture, metallic materials, PBR
     - Reflections
-- A PBR Path Tracer
 - Screen Space Reflections
 - Parallax Mapping
+
+## Showcase
+
+Showcase | Details
+---------|--------
+![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | Ray Traced Geometry, AO <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
+![small](docs/images/TheTravelingWagon-RT_Mat.png) | Ray Traced Shadows and Vertex Colors <br>Implements shadows using ray tracing and shading using vertex colors.
 
 Dependencies Required:
 
