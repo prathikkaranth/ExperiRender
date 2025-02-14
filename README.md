@@ -26,8 +26,9 @@ Currently Working on:
 
 Showcase | Details
 ---------|--------
-![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | Ray Traced Geometry, AO <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
-![small](docs/images/TheTravelingWagon-RT_Mat.png) | Ray Traced Shadows and Vertex Colors <br>Implements shadows using ray tracing and shading using vertex colors.
+![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | <b> Ray Traced Geometry, AO </b> <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions. This work is based on "The Traveling Wagon - Cheeeeeeeeeese" (https://sketchfab.com/3d-models/the-traveling-wagon-cheeeeeeeeeese-d9761a00e1f34d7ab4e83cc92e94d6f3) by Sophie Becker (https://sketchfab.com/sophiebecker) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+![small](docs/images/TheTravelingWagon-RT_Mat.png) | <b> Ray Traced Shadows and Vertex Colors </b> <br>Implements shadows using ray tracing and shading using vertex colors. This work is based on "The Traveling Wagon - Cheeeeeeeeeese" (https://sketchfab.com/3d-models/the-traveling-wagon-cheeeeeeeeeese-d9761a00e1f34d7ab4e83cc92e94d6f3) by Sophie Becker (https://sketchfab.com/sophiebecker) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+![small](docs/images/TheTravelingWagon-SSAO_ON.png) ![small](docs/images/TheTravelingWagon-SSAO_OFF.png) | <b> Screen Space Ambient Occlusion </b> <br>Implements screen space ambient occlusion. This work is based on "The Traveling Wagon - Cheeeeeeeeeese" (https://sketchfab.com/3d-models/the-traveling-wagon-cheeeeeeeeeese-d9761a00e1f34d7ab4e83cc92e94d6f3) by Sophie Becker (https://sketchfab.com/sophiebecker) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 Dependencies Required:
 
