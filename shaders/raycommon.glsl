@@ -1,10 +1,10 @@
 struct hitPayload
 {
-    vec4 color;
+    vec3 color;
     vec3 next_origin;
     vec3 next_direction;
     uint seed;
-    float strength;
+    vec3 strength;
 };
 
 // Push constant structure for the ray tracer

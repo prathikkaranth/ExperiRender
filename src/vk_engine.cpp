@@ -553,6 +553,7 @@ void VulkanEngine::rtSampleUpdates() {
 
 void VulkanEngine::update_scene()
 {
+
 	mainDrawContext.OpaqueSurfaces.clear();
 
 	mainCamera.update();
@@ -577,13 +578,13 @@ void VulkanEngine::update_scene()
 
 	// shadows
 	_shadowMap.update_lightSpaceMatrix(this);
-
-	// RT updates
-	rtSampleUpdates();
 	
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
+
+	// RT updates
+	rtSampleUpdates();
 }
 
 void VulkanEngine::run()

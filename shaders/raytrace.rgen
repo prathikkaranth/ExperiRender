@@ -13,7 +13,7 @@ layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
 vec3 tracePath() {
-    prd.color = vec4(0.0, 0.0, 0.0, 1.0);
+    prd.color = vec3(0.0, 0.0, 0.0);
 
     // Compute Camera ray
     const vec2 sample_coord = vec2(gl_LaunchIDEXT.xy) + vec2(rand1d(prd.seed), rand1d(prd.seed));
@@ -23,20 +23,20 @@ vec3 tracePath() {
     prd.next_origin = (pcRay.viewInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
     const vec4 target = pcRay.projInverse * vec4(d.x, d.y, 1.0, 1.0);
     prd.next_direction = (pcRay.viewInverse * vec4(normalize(target.xyz), 0.0)).xyz;
-    prd.strength = 1.0;
+    prd.strength = vec3(1.0f);
 
     const uint RAY_FLAGS = gl_RayFlagsOpaqueEXT;
     const uint CULL_MASK = 0xFF;
     const uint SBT_RECORD_OFFSET = 0;
     const uint SBT_RECORD_STRIDE = 0;
     const uint MISS_INDEX = 0;
-    const float TMIN = 0.001;
+    const float TMIN = 0.0001;
     const float TMAX = 10000.0;
     const int PAYLOAD = 0;
 
     int depth = 0;
 
-    while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < 16) {
+    while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < 32) {
         const vec3 origin = prd.next_origin;
         const vec3 direction = prd.next_direction;
 

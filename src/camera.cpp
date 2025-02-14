@@ -60,10 +60,10 @@ void Camera::update()
 {
     glm::mat4 cameraRotation = getRotationMatrix();
     position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.f));
+
+	// clamp pitch to prevent flipping
+	pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
     
-	// Detect rotation change
-	static float prevPitch = pitch;
-	static float prevYaw = yaw;
 	bool rotationChanged = (pitch != prevPitch || yaw != prevYaw);
 
 	// Update previous values
@@ -73,5 +73,4 @@ void Camera::update()
 	// Set isMoving based on position or rotation changes
 	isMoving = glm::length(velocity) > 0.0f || rotationChanged;
 
-    std::cout << "isMoving: " << isMoving << "\n";
 }
