@@ -26,9 +26,9 @@ Currently Working on:
 
 Showcase | Details
 ---------|--------
-![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | <b> Ray Traced Geometry, AO </b> <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
-![small](docs/images/TheTravelingWagon-RT_Mat.png) | <b> Ray Traced Shadows and Vertex Colors </b> <br>Implements shadows using ray tracing and shading using vertex colors.
-![small](docs/images/TheTravelingWagon-SSAO_ON.png) ![small](docs/images/TheTravelingWagon-SSAO_OFF.png) | <b> Screen Space Ambient Occlusion </b> <br>Implements screen space ambient occlusion.
+![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | ### Ray Traced Geometry, AO  <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
+![small](docs/images/TheTravelingWagon-RT_Mat.png) | ### Ray Traced Shadows and Vertex Colors <br> Implements shadows using ray tracing and shading using vertex colors.
+![small](docs/images/TheTravelingWagon-SSAO_ON.png) ![small](docs/images/TheTravelingWagon-SSAO_OFF.png) | ### Screen Space Ambient Occlusion <br>Implements screen space ambient occlusion.
 
 ## Models Used
 
