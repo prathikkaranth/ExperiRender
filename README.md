@@ -34,7 +34,7 @@ Showcase | Details
 
 Model - "The Traveling Wagon - Cheeeeeeeeeese" (https://sketchfab.com/3d-models/the-traveling-wagon-cheeeeeeeeeese-d9761a00e1f34d7ab4e83cc92e94d6f3) by Sophie Becker (https://sketchfab.com/sophiebecker) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
 
-Dependencies Required:
+## Dependencies Required:
 
 - [Vulkan SDK 1.3](https://vulkan.lunarg.com/sdk/home)
 - [SDL](https://github.com/libsdl-org/SDL)
