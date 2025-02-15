@@ -14,6 +14,7 @@
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
 #include <fastgltf/core.hpp>
+#include <spdlog/spdlog.h>
 
 //> loadimg
 std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image, std::string baseDir)
@@ -132,8 +133,7 @@ VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter filter)
 
 std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath)
 {
-
-    std::cout << "Loading GLTF: " << filePath << std::endl;
+    spdlog::info("Loading GLTF: {}", filePath);
 
 
     std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();

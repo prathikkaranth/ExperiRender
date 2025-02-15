@@ -53,6 +53,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fastgltf)
 
+# Spdlog
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY  https://github.com/gabime/spdlog.git
+    GIT_TAG         f355b3d58f7067eee1706ff3c801c2361011f3d5
+)
+FetchContent_MakeAvailable(spdlog)
+
 # IMGUI
 file(GLOB IMGUI_SRC
     "deps/imgui/*.cpp"
@@ -113,7 +121,7 @@ add_dependencies(Renderer compile_shaders)
 
 target_include_directories(Renderer PRIVATE src/)
 target_link_libraries(Renderer PRIVATE
-    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator  imgui fastgltf)
+    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator  imgui fastgltf spdlog::spdlog)
 
 
 if (WIN32)
