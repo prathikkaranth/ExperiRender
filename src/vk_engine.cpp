@@ -12,6 +12,7 @@
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <spdlog/spdlog.h>
 
 #include <vk_types.h>
 #include <vk_initializers.h>
@@ -841,10 +842,10 @@ void VulkanEngine::init_vulkan() {
 	vkb::Device vkbDevice = deviceBuilder.build().value();
 
 	if (vkinit::supports_device_extensions(physicalDevice.physical_device, raytracing_extensions)) {
-		std::cout << "Ray tracing enabled!!" << std::endl;
+		spdlog::info("Ray tracing support available!!");
 		VkPhysicalDeviceProperties deviceProperties;
 		vkGetPhysicalDeviceProperties(physicalDevice.physical_device, &deviceProperties);
-		std::cout << "GPU: " << deviceProperties.deviceName << std::endl;
+		spdlog::info("GPU: {}", deviceProperties.deviceName);
 		m_is_raytracing_supported = true;
 		experirender::vk::load_raytracing_functions(_instance);
 	}
