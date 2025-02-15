@@ -88,7 +88,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
         },
         image.data);
 
-    // if any of the attempts to load the data failed, we havent written the image
+    // if any of the attempts to load the data failed, we haven't written the image
     // so handle is null
     if (newImage.image == VK_NULL_HANDLE) {
         return {};
