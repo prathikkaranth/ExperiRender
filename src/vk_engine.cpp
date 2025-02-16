@@ -638,7 +638,8 @@ void VulkanEngine::run()
 
 		ImGui::NewFrame();
 
-		ImGui::Begin("Stats");
+		constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
+		ImGui::Begin("Debug Tools", nullptr, window_flags);
 
 		float fps = 1.f / stats.frametime;
 		fps = std::round(fps * 1000);
@@ -651,41 +652,49 @@ void VulkanEngine::run()
 
 		ImGui::End();
 
-		ImGui::Begin("Lighting");
-
-		ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
-		ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
-		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -10, 10);
-		ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
-
-		ImGui::Checkbox("Shadows", reinterpret_cast<bool*>(&sceneData.enableShadows));
-		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
+		ImGui::Begin("Settings");
+		ImGui::Checkbox("Lighting Settings", &guiSettings.showLightSettings);
 		ImGui::Checkbox("Ray Tracer mode", &useRaytracer); // Switch between raster and ray tracing
-
+		ImGui::Checkbox("SSAO Settings", &guiSettings.showSSAOSettings);
+		ImGui::Checkbox("ShadowMap Settings", &guiSettings.showShadowSettings);
 		ImGui::End();
 
-		ImGui::Begin("SSAO Settings");
+		ImGui::ShowDemoWindow();
 
-		ImGui::SliderInt("SSAO Kernel Size", &_ssao.ssaoData.kernelSize, 1, 256);
-		ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
-		ImGui::SliderFloat("SSAO Bias", &_ssao.ssaoData.bias, 0.001f, 1.055f);
-		ImGui::SliderFloat("SSAO Strength", &_ssao.ssaoData.intensity, 0.0f, 10.f);
+		if (guiSettings.showLightSettings) {
+			ImGui::Begin("Lighting");
+			ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
+			ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
+			ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -50, 50);
+			ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
 
-		ImGui::End();
+			ImGui::Checkbox("Shadows", reinterpret_cast<bool*>(&sceneData.enableShadows));
+			ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
+			ImGui::End();
+		}
 
-		ImGui::Begin("Shadow Settings");
+		if (guiSettings.showSSAOSettings) {
+			ImGui::Begin("SSAO Settings");
+			ImGui::SliderInt("SSAO Kernel Size", &_ssao.ssaoData.kernelSize, 1, 256);
+			ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
+			ImGui::SliderFloat("SSAO Bias", &_ssao.ssaoData.bias, 0.001f, 1.055f);
+			ImGui::SliderFloat("SSAO Strength", &_ssao.ssaoData.intensity, 0.0f, 10.f);
+			ImGui::End();
+		}
 
-		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.f, 1.f); 
-		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 2.f, 150.f);
-		ImGui::SliderFloat("Left", &_shadowMap.left, -100.f, -1.f);
-		ImGui::SliderFloat("Right", &_shadowMap.right, 100.f, 1.f);
-		ImGui::SliderFloat("Top", &_shadowMap.top, 100.f, 1.f);
-		ImGui::SliderFloat("Bottom", &_shadowMap.bottom, -100.f, -1.f);
-
-		ImGui::End();
+		if (guiSettings.showShadowSettings) {
+			ImGui::Begin("Shadow Settings");
+			ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.f, 1.f);
+			ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 2.f, 150.f);
+			ImGui::SliderFloat("Left", &_shadowMap.left, -100.f, -1.f);
+			ImGui::SliderFloat("Right", &_shadowMap.right, 100.f, 1.f);
+			ImGui::SliderFloat("Top", &_shadowMap.top, 100.f, 1.f);
+			ImGui::SliderFloat("Bottom", &_shadowMap.bottom, -100.f, -1.f);
+			ImGui::End();
+		}
 
 		// Dropdown for selecting the visual for debugging
-		const char* visuals[] = { "Shadow Map", "SSAO Map", "GBuffer Position" };
+		const char* visuals[] = { "Image Buffers", "Shadow Map", "SSAO Map", "GBuffer Position" };
 		static const char* current_item = visuals[0];
 		if (ImGui::BeginCombo("Visuals", current_item)) // The second parameter is the label previewed before opening the combo.
 		{
@@ -699,6 +708,12 @@ void VulkanEngine::run()
 			}
 			ImGui::EndCombo();
 		}	
+
+		if (strcmp(current_item, "Image Buffers") == 0)
+		{
+		
+		}
+		else
 
 		if (strcmp(current_item, "Shadow Map") == 0)
 		{
@@ -718,10 +733,6 @@ void VulkanEngine::run()
 			ImGui::Image((ImTextureID)_gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 			ImGui::End();
 		}
-
-		/*ImGui::Begin("Shadow Map");
-		ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-		ImGui::End();*/
 
 		ImGui::Render();
 
@@ -1744,7 +1755,7 @@ void VulkanEngine::createRtPipeline() {
 	// Raygen
 	VkShaderModule rayTraceRaygen;
 	if (!vkutil::load_shader_module("raytrace.rgen.spv", _device, &rayTraceRaygen)) {
-		throw std::runtime_error("Error when building the rayTraceRaygen shader");
+		spdlog::error("Error when building the rayTraceRaygen shader");
 	}
 	stage.module = rayTraceRaygen;
 	stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
@@ -1753,7 +1764,7 @@ void VulkanEngine::createRtPipeline() {
 	// Miss
 	VkShaderModule rayTraceMiss;
 	if (!vkutil::load_shader_module("raytrace.rmiss.spv", _device, &rayTraceMiss)) {
-		throw std::runtime_error("Error when building the rayTraceMiss shader");
+		spdlog::error("Error when building the rayTraceMiss shader");
 	}
 	stage.module = rayTraceMiss;
 	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
@@ -1762,7 +1773,7 @@ void VulkanEngine::createRtPipeline() {
 	// Miss 2
 	VkShaderModule rayTraceMiss2;
 	if (!vkutil::load_shader_module("raytraceShadow.rmiss.spv", _device, &rayTraceMiss2)) {
-		throw std::runtime_error("Error when building the rayTraceMiss2 shader");
+		spdlog::error("Error when building the rayTraceMiss2 shader");
 	}
 	stage.module = rayTraceMiss2;
 	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
@@ -1771,7 +1782,7 @@ void VulkanEngine::createRtPipeline() {
 	// Hit Group - Closest Hit
 	VkShaderModule rayTraceHit;
 	if (!vkutil::load_shader_module("raytrace.rchit.spv", _device, &rayTraceHit)) {
-		throw std::runtime_error("Error when building the rayTraceMiss shader");
+		spdlog::error("Error when building the rayTraceHit shader");
 	}
 	stage.module = rayTraceHit;
 	stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
@@ -1837,6 +1848,10 @@ void VulkanEngine::createRtPipeline() {
 
 	// In this case, m_rtShaderGroups.size() == 3: we have one raygen group,
 	// one miss shader group, and one hit group.
+	// Spec only guarantees 1 level of "recursion". Check for that sad possibility here.
+	if (m_rtProperties.maxRayRecursionDepth <= 1) {
+		spdlog::error("Device fails to support ray recursion");
+	}
 	rayPipelineInfo.maxPipelineRayRecursionDepth = 2; // Ray Depth
 	rayPipelineInfo.layout = m_rtPipelineLayout;
 
@@ -2089,13 +2104,12 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
 	VkShaderModule meshFragShader;
 	if (!vkutil::load_shader_module("mesh.frag.spv", engine->_device, &meshFragShader)) {
-		std::cout << "Error when building the triangle fragment shader module" << std::endl;
-		throw std::runtime_error("Error when building the triangle fragment shader module");
+		spdlog::error("Error when building the triangle fragment shader module");
 	}
 
 	VkShaderModule meshVertexShader;
 	if (!vkutil::load_shader_module("mesh.vert.spv", engine->_device, &meshVertexShader)) {
-		std::cout << "Error when building the triangle vertex shader module" << std::endl;
+		spdlog::error("Error when building the triangle vertex shader module");
 	}
 
 	VkPushConstantRange matrixRange{};
@@ -2251,14 +2265,12 @@ void VulkanEngine::init_gbuffer()
 
 	VkShaderModule gbufferFragShader;
 	if (!vkutil::load_shader_module("GBuffer.frag.spv", _device, &gbufferFragShader)) {
-		std::cout << "Error when building the gbuffer fragment shader module" << std::endl;
-		throw std::runtime_error("Error when building the gbuffer fragment shader module");
+		spdlog::error("Error when building the Gbuffer fragment shader module");
 	}
 
 	VkShaderModule gbufferVertexShader;
 	if (!vkutil::load_shader_module("GBuffer.vert.spv", _device, &gbufferVertexShader)) {
-		std::cout << "Error when building the gbuffer vertex shader module" << std::endl;
-		throw std::runtime_error("Error when building the gbuffer fragment shader module");
+		spdlog::error("Error when building the Gbuffer vertex shader module");
 	}
 
 	// build the stage-create-info for both vertex and fragment stages. This lets

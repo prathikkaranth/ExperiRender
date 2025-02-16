@@ -106,9 +106,10 @@ float traceShadows(vec3 normal, vec3 L) {
    // Tracing shadow ray only if the light is visible from the surface
   if(dot(normal, L) > 0)
   {
-    float tMin   = 0.0001;
-    float tMax   = 2000.0;
-    vec3  origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    float tMin   = 0.001;
+    float tMax   = 1000.0;
+    float bias = 1e-4f;
+    vec3  origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * bias;
     vec3  rayDir = L;
     uint  flags =
         gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
@@ -143,17 +144,17 @@ void main()
   prd.next_direction = normalize(normal + random_unit_vector(prd.seed));
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * 1e-6f;
 
-  // Compute the color
-  vec3 vertex_color = compute_color();
-  prd.strength *= vertex_color * 0.9f;
-
   // direction light
   float lr = max(dot(-pcRay.lightPosition, normal), 0.0f);
   vec3 L = vec3(lr, lr, lr) * pcRay.lightIntensity;
 
   // Shadow ray
   float attenuation = traceShadows(normal, L);
+
+  // Compute the color
+  vec3 vertex_color = compute_color();
+  prd.strength *= vertex_color * 0.9f * attenuation;
   
-  prd.color = attenuation * prd.strength;
+  prd.color = prd.strength;
   
 }

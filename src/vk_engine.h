@@ -126,6 +126,13 @@ struct PushConstantRay
 	std::uint32_t samples_done;
 };
 
+struct imguiSettings {
+	bool showLightSettings = false;
+	bool showSSAOSettings = false;
+	bool showRaytracingSettings = false;
+	bool showShadowSettings = false;
+};
+
 struct MeshNode : public Node {
 
 	std::shared_ptr<MeshAsset> mesh;
@@ -236,6 +243,9 @@ public:
 
 	// Push constant for ray tracer
 	PushConstantRay m_pcRay{};
+
+	// Imgui settings
+	imguiSettings guiSettings;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
