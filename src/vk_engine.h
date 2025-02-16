@@ -124,13 +124,7 @@ struct PushConstantRay
 	int   lightType;
 	std::uint32_t seed;
 	std::uint32_t samples_done;
-};
-
-struct imguiSettings {
-	bool showLightSettings = false;
-	bool showSSAOSettings = false;
-	bool showRaytracingSettings = false;
-	bool showShadowSettings = false;
+	int enableShadows;
 };
 
 struct MeshNode : public Node {
@@ -244,13 +238,12 @@ public:
 	// Push constant for ray tracer
 	PushConstantRay m_pcRay{};
 
-	// Imgui settings
-	imguiSettings guiSettings;
-
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
+	glm::vec4 prevSunDir;
+	bool prevEnableShadows = false;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
@@ -350,6 +343,7 @@ private:
 	void draw_gbuffer(VkCommandBuffer cmd);
 
 	void init_imgui();
+	void setup_imgui_panel();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();

@@ -151,6 +151,11 @@ void main()
   // Shadow ray
   float attenuation = traceShadows(normal, L);
 
+  if (pcRay.enableShadows == 0)
+  {
+    attenuation = 1.0f;
+  }
+
   // Compute the color
   vec3 vertex_color = compute_color();
   prd.strength *= vertex_color * 0.9f * attenuation;

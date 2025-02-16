@@ -141,6 +141,7 @@ void VulkanEngine::init_default_data() {
 	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
 	sceneData.sunlightDirection.w = 0.8f; // sun intensity
+	prevSunDir = glm::vec4(sunDir, sceneData.sunlightDirection.w);
 	sceneData.enableShadows = true;
 	sceneData.enableSSAO = true;
 
@@ -274,6 +275,7 @@ void VulkanEngine::init_default_data() {
 	}
 
 	// RT defaults
+	m_pcRay.enableShadows = 0;
 	m_pcRay.samples_done = 0;
 
 }
@@ -537,7 +539,6 @@ void VulkanEngine::rtSampleUpdates() {
 		resetSamples();
 	}
 
-	static glm::vec4 prevSunDir = sceneData.sunlightDirection;
 	bool sunDirChanged = false;
 
 	if (sceneData.sunlightDirection != prevSunDir) {
@@ -546,6 +547,17 @@ void VulkanEngine::rtSampleUpdates() {
 	}
 
 	if (sunDirChanged) {
+		resetSamples();
+	}
+
+	bool shadowsChanged = false;
+
+	if (m_pcRay.enableShadows != prevEnableShadows) {
+		shadowsChanged = true;
+		prevEnableShadows = m_pcRay.enableShadows; // Update previous value
+	}
+
+	if (shadowsChanged) {
 		resetSamples();
 	}
 
@@ -586,6 +598,102 @@ void VulkanEngine::update_scene()
 
 	// RT updates
 	rtSampleUpdates();
+}
+
+void VulkanEngine::setup_imgui_panel() {
+	// imgui new frame
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL2_NewFrame();
+
+	ImGui::NewFrame();
+
+	constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
+	ImGui::Begin("Settings", nullptr, window_flags);
+
+	float fps = 1.f / stats.frametime;
+	fps = std::round(fps * 1000);
+
+	ImGui::Text("FPS %f", fps);
+	/*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+	ImGui::Text("update time %f ms", stats.scene_update_time);
+	ImGui::Text("triangles %i", stats.triangle_count);
+	ImGui::Text("draws %i", stats.drawcall_count);*/
+	ImGui::Checkbox("Ray Tracer mode", &useRaytracer); // Switch between raster and ray tracing
+
+	if (ImGui::CollapsingHeader("Lighting Settings")) {
+		ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
+		ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
+		ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -50, 50);
+		ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
+
+		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&sceneData.enableShadows));
+		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
+	}
+
+	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
+		ImGui::Checkbox("Ray Traced Shadows", reinterpret_cast<bool*>(&m_pcRay.enableShadows));
+	}
+
+	if (ImGui::CollapsingHeader("SSAO Settings")) {
+		ImGui::SliderInt("SSAO Kernel Size", &_ssao.ssaoData.kernelSize, 1, 256);
+		ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
+		ImGui::SliderFloat("SSAO Bias", &_ssao.ssaoData.bias, 0.001f, 1.055f);
+		ImGui::SliderFloat("SSAO Strength", &_ssao.ssaoData.intensity, 0.0f, 10.f);
+	}
+
+	if (ImGui::CollapsingHeader("ShadowMap Settings")) {
+		ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.f, 1.f);
+		ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 2.f, 150.f);
+		ImGui::SliderFloat("Left", &_shadowMap.left, -100.f, -1.f);
+		ImGui::SliderFloat("Right", &_shadowMap.right, 100.f, 1.f);
+		ImGui::SliderFloat("Top", &_shadowMap.top, 100.f, 1.f);
+		ImGui::SliderFloat("Bottom", &_shadowMap.bottom, -100.f, -1.f);
+	}
+
+	if (ImGui::CollapsingHeader("Debug Tools")) {
+		// Dropdown for selecting the visual for debugging
+		const char* visuals[] = { "--------", "Shadow Map", "SSAO Map", "GBuffer Position" };
+		static const char* current_item = visuals[0];
+		if (ImGui::BeginCombo("Image Buffers", current_item)) // The second parameter is the label previewed before opening the combo.
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
+			{
+				bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(visuals[n], is_selected))
+					current_item = visuals[n];
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+			}
+			ImGui::EndCombo();
+		}
+
+		if (strcmp(current_item, "--------") == 0)
+		{
+
+		}
+		else if (strcmp(current_item, "Shadow Map") == 0)
+		{
+			ImGui::Begin("Shadow Map");
+			ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+		else if (strcmp(current_item, "SSAO Map") == 0)
+		{
+			ImGui::Begin("SSAO Map");
+			ImGui::Image((ImTextureID)_ssao._ssaoDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+		else if (strcmp(current_item, "GBuffer Position") == 0)
+		{
+			ImGui::Begin("GBuffer Position");
+			ImGui::Image((ImTextureID)_gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::End();
+		}
+	}
+
+	ImGui::End();
+
+	ImGui::Render();
 }
 
 void VulkanEngine::run()
@@ -632,109 +740,7 @@ void VulkanEngine::run()
 			resize_swapchain();
 		}
 
-		// imgui new frame
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplSDL2_NewFrame();
-
-		ImGui::NewFrame();
-
-		constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
-		ImGui::Begin("Debug Tools", nullptr, window_flags);
-
-		float fps = 1.f / stats.frametime;
-		fps = std::round(fps * 1000);
-
-		ImGui::Text("FPS %f", fps);
-		/*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-		ImGui::Text("update time %f ms", stats.scene_update_time);
-		ImGui::Text("triangles %i", stats.triangle_count);
-		ImGui::Text("draws %i", stats.drawcall_count);*/
-
-		ImGui::End();
-
-		ImGui::Begin("Settings");
-		ImGui::Checkbox("Lighting Settings", &guiSettings.showLightSettings);
-		ImGui::Checkbox("Ray Tracer mode", &useRaytracer); // Switch between raster and ray tracing
-		ImGui::Checkbox("SSAO Settings", &guiSettings.showSSAOSettings);
-		ImGui::Checkbox("ShadowMap Settings", &guiSettings.showShadowSettings);
-		ImGui::End();
-
-		ImGui::ShowDemoWindow();
-
-		if (guiSettings.showLightSettings) {
-			ImGui::Begin("Lighting");
-			ImGui::ColorEdit3("Ambient Color", &sceneData.ambientColor.x);
-			ImGui::ColorEdit3("Sunlight Color", &sceneData.sunlightColor.x);
-			ImGui::SliderFloat3("Sunlight Direction", &sceneData.sunlightDirection.x, -50, 50);
-			ImGui::SliderFloat("Sunlight Intensity", &sceneData.sunlightDirection.w, 0, 10);
-
-			ImGui::Checkbox("Shadows", reinterpret_cast<bool*>(&sceneData.enableShadows));
-			ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
-			ImGui::End();
-		}
-
-		if (guiSettings.showSSAOSettings) {
-			ImGui::Begin("SSAO Settings");
-			ImGui::SliderInt("SSAO Kernel Size", &_ssao.ssaoData.kernelSize, 1, 256);
-			ImGui::SliderFloat("SSAO Radius", &_ssao.ssaoData.radius, 0.0001f, 10.f);
-			ImGui::SliderFloat("SSAO Bias", &_ssao.ssaoData.bias, 0.001f, 1.055f);
-			ImGui::SliderFloat("SSAO Strength", &_ssao.ssaoData.intensity, 0.0f, 10.f);
-			ImGui::End();
-		}
-
-		if (guiSettings.showShadowSettings) {
-			ImGui::Begin("Shadow Settings");
-			ImGui::SliderFloat("Near Plane", &_shadowMap.near_plane, 0.f, 1.f);
-			ImGui::SliderFloat("Far Plane", &_shadowMap.far_plane, 2.f, 150.f);
-			ImGui::SliderFloat("Left", &_shadowMap.left, -100.f, -1.f);
-			ImGui::SliderFloat("Right", &_shadowMap.right, 100.f, 1.f);
-			ImGui::SliderFloat("Top", &_shadowMap.top, 100.f, 1.f);
-			ImGui::SliderFloat("Bottom", &_shadowMap.bottom, -100.f, -1.f);
-			ImGui::End();
-		}
-
-		// Dropdown for selecting the visual for debugging
-		const char* visuals[] = { "Image Buffers", "Shadow Map", "SSAO Map", "GBuffer Position" };
-		static const char* current_item = visuals[0];
-		if (ImGui::BeginCombo("Visuals", current_item)) // The second parameter is the label previewed before opening the combo.
-		{
-			for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
-			{
-				bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
-				if (ImGui::Selectable(visuals[n], is_selected))
-					current_item = visuals[n];
-				if (is_selected)
-					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-			}
-			ImGui::EndCombo();
-		}	
-
-		if (strcmp(current_item, "Image Buffers") == 0)
-		{
-		
-		}
-		else
-
-		if (strcmp(current_item, "Shadow Map") == 0)
-		{
-			ImGui::Begin("Shadow Map");
-			ImGui::Image((ImTextureID)_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-			ImGui::End();
-		}
-		else if (strcmp(current_item, "SSAO Map") == 0)
-		{
-			ImGui::Begin("SSAO Map");
-			ImGui::Image((ImTextureID)_ssao._ssaoDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-			ImGui::End();
-		}
-		else if (strcmp(current_item, "GBuffer Position") == 0)
-		{
-			ImGui::Begin("GBuffer Position");
-			ImGui::Image((ImTextureID)_gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-			ImGui::End();
-		}
-
-		ImGui::Render();
+		setup_imgui_panel();
 
 		//our draw function
 		draw();

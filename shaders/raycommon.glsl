@@ -18,4 +18,5 @@ struct PushConstantRay
 	int   lightType;
 	uint seed;
 	uint samples_done;
+	int enableShadows;
 };
