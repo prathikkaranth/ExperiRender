@@ -10,6 +10,7 @@ public:
     float pitch{ 0.f };
     // horizontal rotation
     float yaw{ 0.f };
+    bool isRotating = false;
     bool isMoving = false;
 	// To track rotation change
 	float prevPitch;

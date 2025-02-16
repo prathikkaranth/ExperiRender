@@ -2,6 +2,7 @@
 #include "glm/gtx/quaternion.hpp"
 #include "glm/gtx/transform.hpp"
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 glm::mat4 Camera::getViewMatrix() const
 {
@@ -37,10 +38,11 @@ void Camera::processSDLEvent(SDL_Event& e)
 
 
     if (e.type == SDL_KEYDOWN && fpsCameraEnabled) {
-		if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.15; }
+        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.15; }
         if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.15; }
         if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.15; }
         if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.15; }
+
     }
 
     if (e.type == SDL_KEYUP && fpsCameraEnabled) {
@@ -53,7 +55,16 @@ void Camera::processSDLEvent(SDL_Event& e)
     if (e.type == SDL_MOUSEMOTION && fpsCameraEnabled) {
         yaw += (float)e.motion.xrel / 600.f;
         pitch -= (float)e.motion.yrel / 600.f;	
+
+		// Clamp the pitch to prevent flipping
+		pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
+
+        if (e.motion.xrel != 0.0f || e.motion.yrel != 0)
+        {
+			isRotating = true;
+		}
     }
+
 }
 
 void Camera::update()
@@ -61,16 +72,6 @@ void Camera::update()
     glm::mat4 cameraRotation = getRotationMatrix();
     position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.f));
 
-	// clamp pitch to prevent flipping
-	pitch = glm::clamp(pitch, -glm::half_pi<float>(), glm::half_pi<float>());
-    
-	bool rotationChanged = (pitch != prevPitch || yaw != prevYaw);
-
-	// Update previous values
-	prevPitch = pitch;
-	prevYaw = yaw;
-
 	// Set isMoving based on position or rotation changes
-	isMoving = glm::length(velocity) > 0.0f || rotationChanged;
-
+	isMoving = glm::length(velocity) > 0.0f || isRotating;
 }
