@@ -241,6 +241,7 @@ public:
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
+	glm::vec4 prevSunDir;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
@@ -340,6 +341,7 @@ private:
 	void draw_gbuffer(VkCommandBuffer cmd);
 
 	void init_imgui();
+	void setup_imgui_panel();
 	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();

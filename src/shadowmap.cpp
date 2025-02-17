@@ -1,5 +1,6 @@
 
 #include "vk_mem_alloc.h"
+#include <spdlog/spdlog.h>
 
 #include "shadowmap.h"
 #include "vk_engine.h"
@@ -61,12 +62,12 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 	VkShaderModule shadowDepthMapFragShader;
 	if (!vkutil::load_shader_module("ShadowDepthMap.frag.spv", engine->_device, &shadowDepthMapFragShader)) {
-		throw std::runtime_error("Error when building the ShadowDepthMap fragment shader module");
+		spdlog::error("Error when building the ShadowDepthMap fragment shader module");
 	}
 
 	VkShaderModule shadowDepthMapVertShader;
 	if (!vkutil::load_shader_module("ShadowDepthMap.vert.spv", engine->_device, &shadowDepthMapVertShader)) {
-		throw std::runtime_error("Error when building the ShadowDepthMap fragment shader module");
+		spdlog::error("Error when building the ShadowDepthMap vertex shader module");
 	}
 
 	// build the stage-create-info for both vertex and fragment stages. This lets

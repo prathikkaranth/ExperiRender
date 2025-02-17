@@ -1,5 +1,6 @@
 
 #include "vk_mem_alloc.h"
+#include <spdlog/spdlog.h>
 
 #include "ssao.h"
 #include "vk_engine.h"
@@ -41,7 +42,7 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	VkShaderModule ssaoDrawShader;
 	if (!vkutil::load_shader_module("ssao.comp.spv", engine->_device, &ssaoDrawShader))
 	{
-		std::cout << "Error when building the compute shader \n";
+		spdlog::error ("Error when building the ssao compute shader");
 
 	}
 
@@ -98,7 +99,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 	VkShaderModule ssaoBlurDrawShader;
 	if (!vkutil::load_shader_module("SSAO_BLUR.comp.spv", engine->_device, &ssaoBlurDrawShader))
 	{
-		std::cout << "Error when building the compute shader \n";
+		spdlog::error("Error when building the ssao blur compute shader");
 
 	}
 
