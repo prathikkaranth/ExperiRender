@@ -124,7 +124,6 @@ struct PushConstantRay
 	int   lightType;
 	std::uint32_t seed;
 	std::uint32_t samples_done;
-	int enableShadows;
 };
 
 struct MeshNode : public Node {
@@ -243,7 +242,6 @@ public:
 
 	GPUSceneData sceneData;
 	glm::vec4 prevSunDir;
-	bool prevEnableShadows = false;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 

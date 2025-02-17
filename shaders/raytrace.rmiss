@@ -14,5 +14,10 @@ layout(push_constant) uniform _PushConstantRay
 
 void main()
 {
-  // prd.color += vec3(1.0f) * prd.strength;
+  // Sky color
+	const float t = 0.5*(normalize(gl_WorldRayDirectionEXT).y + 1);
+	const vec3 skyColor = mix(vec3(1.0), vec3(0.5, 0.7, 1.0), t);
+
+	prd.color = vec3(skyColor) * prd.strength;
+
 }

@@ -252,7 +252,6 @@ void VulkanEngine::init_default_data() {
 	}
 
 	// RT defaults
-	m_pcRay.enableShadows = 0;
 	m_pcRay.samples_done = 0;
 
 }
@@ -510,12 +509,14 @@ void VulkanEngine::draw()
 
 }
 
+// RT updates
 void VulkanEngine::rtSampleUpdates() {
-	// RT updates
+	// Camera movement
 	if (mainCamera.isMoving) {
 		resetSamples();
 	}
 
+	// Sunlight direction change
 	bool sunDirChanged = false;
 
 	if (sceneData.sunlightDirection != prevSunDir) {
@@ -524,17 +525,6 @@ void VulkanEngine::rtSampleUpdates() {
 	}
 
 	if (sunDirChanged) {
-		resetSamples();
-	}
-
-	bool shadowsChanged = false;
-
-	if (m_pcRay.enableShadows != prevEnableShadows) {
-		shadowsChanged = true;
-		prevEnableShadows = m_pcRay.enableShadows; // Update previous value
-	}
-
-	if (shadowsChanged) {
 		resetSamples();
 	}
 
@@ -605,10 +595,6 @@ void VulkanEngine::setup_imgui_panel() {
 
 		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&sceneData.enableShadows));
 		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
-	}
-
-	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
-		ImGui::Checkbox("Ray Traced Shadows", reinterpret_cast<bool*>(&m_pcRay.enableShadows));
 	}
 
 	if (ImGui::CollapsingHeader("SSAO Settings")) {
@@ -1606,7 +1592,7 @@ void VulkanEngine::createRtDescriptorSet()
 		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
 		m_rtDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);  // TLAS
 		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
-		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 	}
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -1725,7 +1711,6 @@ void VulkanEngine::createRtPipeline() {
 	enum StageIndices {
 		eRaygen,
 		eMiss,
-		eMiss2,
 		eClosestHit,
 		eShaderGroupCount
 	};
@@ -1753,15 +1738,6 @@ void VulkanEngine::createRtPipeline() {
 	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
 	stages[eMiss] = stage;
 
-	// Miss 2
-	VkShaderModule rayTraceMiss2;
-	if (!vkutil::load_shader_module("raytraceShadow.rmiss.spv", _device, &rayTraceMiss2)) {
-		spdlog::error("Error when building the rayTraceMiss2 shader");
-	}
-	stage.module = rayTraceMiss2;
-	stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
-	stages[eMiss2] = stage;
-
 	// Hit Group - Closest Hit
 	VkShaderModule rayTraceHit;
 	if (!vkutil::load_shader_module("raytrace.rchit.spv", _device, &rayTraceHit)) {
@@ -1786,11 +1762,6 @@ void VulkanEngine::createRtPipeline() {
 	// Miss
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 	group.generalShader = eMiss;
-	m_rtShaderGroups.push_back(group);
-
-	// Miss 2
-	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-	group.generalShader = eMiss2;
 	m_rtShaderGroups.push_back(group);
 
 	// closest hit shader
@@ -1831,11 +1802,7 @@ void VulkanEngine::createRtPipeline() {
 
 	// In this case, m_rtShaderGroups.size() == 3: we have one raygen group,
 	// one miss shader group, and one hit group.
-	// Spec only guarantees 1 level of "recursion". Check for that sad possibility here.
-	if (m_rtProperties.maxRayRecursionDepth <= 1) {
-		spdlog::error("Device fails to support ray recursion");
-	}
-	rayPipelineInfo.maxPipelineRayRecursionDepth = 2; // Ray Depth
+	rayPipelineInfo.maxPipelineRayRecursionDepth = 1; // Ray Depth
 	rayPipelineInfo.layout = m_rtPipelineLayout;
 
 	// Create the ray tracing pipeline
@@ -1853,7 +1820,7 @@ void VulkanEngine::createRtPipeline() {
 
 // The Shader Binding Table (SBT)
 void VulkanEngine::createRtShaderBindingTable() {
-	uint32_t missCount{ 2 };
+	uint32_t missCount{ 1 };
 	uint32_t hitCount{ 1 };
 	auto handleCount = 1 + missCount + hitCount;
 	uint32_t handleSize = m_rtProperties.shaderGroupHandleSize;

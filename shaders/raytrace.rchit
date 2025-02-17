@@ -10,7 +10,6 @@
 #include "random.glsl"
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
-layout(location = 1) rayPayloadEXT bool isShadowed;
 hitAttributeEXT vec2 attribs;
 
 struct Vertex {
@@ -34,8 +33,6 @@ struct ObjDesc {
 struct Index {
   uint elems[3];
 };
-
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; // Positions of an object
 layout(buffer_reference,  std430) buffer Indices {Index i[]; }; // Triangle indices
@@ -99,43 +96,6 @@ vec3 compute_color() {
   return color.rgb;
 }
 
-float traceShadows(vec3 normal, vec3 L) {  
-  float attenuation = 1.0f;
-
-  // Shadow ray
-   // Tracing shadow ray only if the light is visible from the surface
-  if(dot(normal, L) > 0)
-  {
-    float tMin   = 0.001;
-    float tMax   = 1000.0;
-    float bias = 1e-4f;
-    vec3  origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * bias;
-    vec3  rayDir = L;
-    uint  flags =
-        gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-    isShadowed = true;
-    traceRayEXT(topLevelAS,  // acceleration structure
-            flags,       // rayFlags
-            0xFF,        // cullMask
-            0,           // sbtRecordOffset
-            0,           // sbtRecordStride
-            1,           // missIndex
-            origin,      // ray origin
-            tMin,        // ray min range
-            rayDir,      // ray direction
-            tMax,        // ray max range
-            1            // payload (location = 1)
-    );
-
-    if(isShadowed)
-    {
-      attenuation = 0.3;
-    }
-  }
-
-  return attenuation;
-}
-
 void main()
 {
   // Compute the normal
@@ -144,23 +104,10 @@ void main()
   prd.next_direction = normalize(normal + random_unit_vector(prd.seed));
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * 1e-6f;
 
-  // direction light
-  vec3 lightDir = - normalize(pcRay.lightPosition);
-  float lr = max(dot(lightDir, normal), 0.0f);
-  vec3 L = vec3(lr, lr, lr) * pcRay.lightIntensity;
-
-  // Shadow ray
-  float attenuation = traceShadows(normal, L);
-
-  if (pcRay.enableShadows == 0)
-  {
-    attenuation = 1.0f;
-  }
-
   // Compute the color
   vec3 vertex_color = compute_color();
-  prd.strength *= (lr * pcRay.lightIntensity) * vertex_color * 0.9f * attenuation;
-  
+ 
+  prd.strength *= 0.9f;
   prd.color = prd.strength;
   
 }
