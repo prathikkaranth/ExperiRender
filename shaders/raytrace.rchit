@@ -159,7 +159,7 @@ void main()
 
   // Compute the color
   vec3 vertex_color = compute_color();
-  prd.strength *= vertex_color * 0.9f * attenuation;
+  prd.strength *= (lr * pcRay.lightIntensity) * vertex_color * 0.9f * attenuation;
   
   prd.color = prd.strength;
   
