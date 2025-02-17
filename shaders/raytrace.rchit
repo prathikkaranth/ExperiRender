@@ -145,7 +145,8 @@ void main()
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * 1e-6f;
 
   // direction light
-  float lr = max(dot(-pcRay.lightPosition, normal), 0.0f);
+  vec3 lightDir = - normalize(pcRay.lightPosition);
+  float lr = max(dot(lightDir, normal), 0.0f);
   vec3 L = vec3(lr, lr, lr) * pcRay.lightIntensity;
 
   // Shadow ray
