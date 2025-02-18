@@ -83,6 +83,7 @@ struct GLTFMetallic_Roughness {
 	struct MaterialResources {
 		AllocatedImage colorImage;
 		VkSampler colorSampler;
+		uint32_t colorTexIndex;
 		AllocatedImage metalRoughImage;
 		VkSampler metalRoughSampler;
 		AllocatedImage normalImage;
@@ -251,6 +252,7 @@ public:
 
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
+	MaterialRTData materialRTShaderData;
 
 	//draw resources
 	AllocatedImage _drawImage;

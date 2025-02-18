@@ -26,12 +26,17 @@ struct ObjDesc {
   uint64_t vertexAddress;         
 	uint64_t indexAddress;   
   uint firstIndex;
-  uint padding;       
+  uint matIndex;       
 };
-
 
 struct Index {
   uint elems[3];
+};
+
+
+struct HitPoint {
+  vec3 normal;
+  vec2 uv;
 };
 
 layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; // Positions of an object
@@ -44,7 +49,11 @@ layout(set = 2, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
-vec3 compute_normal() {
+// vec3 compute_diffuse() {
+
+// }
+
+HitPoint compute_hit_point() {
   // Object Data
   ObjDesc objResource  = m_objDesc.i[gl_InstanceCustomIndexEXT];
   Indices    indices     = Indices(objResource.indexAddress + objResource.firstIndex * 4);
@@ -68,10 +77,14 @@ vec3 compute_normal() {
   // Transforming the normal to world space
   normal = normalize(vec3(normal * gl_WorldToObjectEXT));
 
-  return normal;
+  // Computing the UV at hit position
+  vec2 uv = vec2(v0.uv_x * barycentrics.x + v1.uv_x * barycentrics.y + v2.uv_x * barycentrics.z,
+                 v0.uv_y * barycentrics.x + v1.uv_y * barycentrics.y + v2.uv_y * barycentrics.z);
+
+  return HitPoint(normal, uv);
 }
 
-vec3 compute_color() {
+vec3 compute_vert_color() {
   // Object Data
   ObjDesc objResource  = m_objDesc.i[gl_InstanceCustomIndexEXT];
   Indices    indices     = Indices(objResource.indexAddress + objResource.firstIndex * 4);
@@ -98,14 +111,14 @@ vec3 compute_color() {
 
 void main()
 {
-  // Compute the normal
-  vec3 normal = compute_normal();
+  // Compute the hitpoint
+  const HitPoint hit_point = compute_hit_point();
 
-  prd.next_direction = normalize(normal + random_unit_vector(prd.seed));
-  prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + normal * 1e-6f;
+  prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
+  prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
 
   // Compute the color
-  vec3 vertex_color = compute_color();
+  vec3 vertex_color = compute_vert_color();
  
   prd.strength *= 0.9f;
   prd.color = prd.strength;

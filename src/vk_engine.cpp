@@ -1634,6 +1634,7 @@ void VulkanEngine::createRtDescriptorSet()
 			.vertexAddress = mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress,
 			.indexAddress = mainDrawContext.OpaqueSurfaces[i].indexBufferAddress,
 			.firstIndex = mainDrawContext.OpaqueSurfaces[i].firstIndex,
+            .matIndex = mainDrawContext.OpaqueSurfaces[i].material->matIndex
 		};
 		objDescs.push_back(desc);
 	}
@@ -1653,10 +1654,8 @@ void VulkanEngine::createRtDescriptorSet()
 
 	// Tex Descriptions
 	// Put all textures in loadScenes to a vector
-	for (const auto& [name, scene] : loadedScenes) {
-		for (const auto& [name, image] : scene->images) {
-			loadedTextures.push_back(image);
-		}
+	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+		loadedTextures.push_back(mainDrawContext.OpaqueSurfaces[i].material->albedo);	
 	}
 
 	// if textures are not empty
@@ -2156,6 +2155,9 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_shadowMap._shadowDepthMapSampler, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
+
+	matData.albedo = resources.colorImage;
+	matData.matIndex = resources.colorTexIndex;
 
 	return matData;
 }

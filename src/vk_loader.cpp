@@ -249,6 +249,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
         constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
 
+        // For RT
+        engine->materialRTShaderData.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1], mat.pbrData.baseColorFactor[2], mat.pbrData.baseColorFactor[3]);
+        engine->materialRTShaderData.albedoTexIndex = data_index;
+
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
 
@@ -279,8 +283,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         if (mat.pbrData.baseColorTexture.has_value()) {
             size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
             size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
-
+    
             materialResources.colorImage = images[img];
+            materialResources.colorTexIndex = img;
             materialResources.colorSampler = file.samplers[sampler];
         }
         // metallic roughness
