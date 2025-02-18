@@ -249,10 +249,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
         constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
 
-        // For RT
-        engine->materialRTShaderData.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1], mat.pbrData.baseColorFactor[2], mat.pbrData.baseColorFactor[3]);
-        engine->materialRTShaderData.albedoTexIndex = data_index;
-
         constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
         constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
 
@@ -275,6 +271,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         materialResources.normalImage = engine->_greyImage;
         materialResources.normalSampler = engine->_defaultSamplerLinear;
 
+		// For RT
+		materialResources.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1], mat.pbrData.baseColorFactor[2], mat.pbrData.baseColorFactor[3]);
+        materialResources.albedoTexIndex = data_index;
+
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
         materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
@@ -285,7 +285,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
     
             materialResources.colorImage = images[img];
-            materialResources.colorTexIndex = img;
+            materialResources.colorTexIndex = static_cast<uint32_t>(img);
             materialResources.colorSampler = file.samplers[sampler];
         }
         // metallic roughness

@@ -42,11 +42,6 @@ struct Vertex {
 	alignas(16) glm::vec3 bitangent;
 };
 
-struct MaterialRTData {
-	alignas(16) glm::vec4 albedo;
-	alignas(16) uint32_t albedoTexIndex;
-};
-
 // holds the resources needed for a mesh
 struct GPUMeshBuffers {
 
@@ -111,8 +106,11 @@ struct MaterialInstance {
 	VkDescriptorSet materialSet;
 	MaterialPass passType;
 
-	AllocatedImage albedo;
+	AllocatedImage colImage;
 	uint32_t matIndex;
+
+	glm::vec4 albedo;
+	uint32_t albedoTexIndex;
 };
 
 struct DrawContext;

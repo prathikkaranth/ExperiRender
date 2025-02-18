@@ -81,8 +81,9 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
-	/*std::string structurePath = { "..\\assets\\sphere.glb" };*/
+	 std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	/*std::string structurePath = { "..\\assets\\basic_albedo_scene.gltf" };*/
+	/*std::string structurePath = { "..\\assets\\sphere.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
 	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
 
@@ -735,10 +736,24 @@ void VulkanEngine::createTopLevelAS() {
 	tlas.reserve(mainDrawContext.OpaqueSurfaces.size());
 
 	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
-		glm::mat4 transform = mainDrawContext.OpaqueSurfaces[i].transform;
-		glm::mat3x4 transform3x4(transform);
-		VkTransformMatrixKHR vk_transform;
-		std::memcpy(&vk_transform, &transform3x4, sizeof(vk_transform));
+		VkTransformMatrixKHR vk_transform = {};
+		const glm::mat4& t = mainDrawContext.OpaqueSurfaces[i].transform;
+
+		vk_transform.matrix[0][0] = t[0][0];
+		vk_transform.matrix[0][1] = t[1][0];
+		vk_transform.matrix[0][2] = t[2][0];
+		vk_transform.matrix[0][3] = t[3][0]; // Translation X
+
+		vk_transform.matrix[1][0] = t[0][1];
+		vk_transform.matrix[1][1] = t[1][1];
+		vk_transform.matrix[1][2] = t[2][1];
+		vk_transform.matrix[1][3] = t[3][1]; // Translation Y
+
+		vk_transform.matrix[2][0] = t[0][2];
+		vk_transform.matrix[2][1] = t[1][2];
+		vk_transform.matrix[2][2] = t[2][2];
+		vk_transform.matrix[2][3] = t[3][2]; // Translation Z
+
 		VkAccelerationStructureInstanceKHR instance{
 				.transform = vk_transform,
 				.instanceCustomIndex = i,
@@ -778,6 +793,7 @@ void VulkanEngine::init_vulkan() {
 	VkPhysicalDeviceVulkan12Features features12{};
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
+	features12.runtimeDescriptorArray = true;
 
 	// Raytracing
 	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
@@ -1655,7 +1671,7 @@ void VulkanEngine::createRtDescriptorSet()
 	// Tex Descriptions
 	// Put all textures in loadScenes to a vector
 	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
-		loadedTextures.push_back(mainDrawContext.OpaqueSurfaces[i].material->albedo);	
+		loadedTextures.push_back(mainDrawContext.OpaqueSurfaces[i].material->colImage);	
 	}
 
 	// if textures are not empty
@@ -1690,10 +1706,47 @@ void VulkanEngine::createRtDescriptorSet()
 			});
 	}
 
+	// Mat descriptions 
+
+	struct MaterialRTData {
+		glm::vec4 albedo;
+		uint32_t albedoTexIndex;
+		uint32_t padding[3];
+	};
+	std::vector<MaterialRTData> materialRTShaderData;
+
+	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+		MaterialRTData matDesc{};
+		matDesc.albedo = mainDrawContext.OpaqueSurfaces[i].material->albedo;
+		matDesc.albedoTexIndex = mainDrawContext.OpaqueSurfaces[i].material->matIndex;
+		materialRTShaderData.push_back(matDesc);
+	}
+
+	{
+		DescriptorLayoutBuilder m_matDescSetLayoutBind;
+		m_matDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);  // MatDesc buffer	
+		m_matDescSetLayout = m_matDescSetLayoutBind.build(_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+	}
+
+	m_matDescSet = globalDescriptorAllocator.allocate(_device, m_matDescSetLayout);
+
+	AllocatedBuffer m_matDescSetBuffer = create_buffer(sizeof(MaterialRTData) * materialRTShaderData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	MaterialRTData* matDescsToMap;
+	VK_CHECK(vmaMapMemory(_allocator, m_matDescSetBuffer.allocation, reinterpret_cast<void**>(&matDescsToMap)));
+	memcpy(matDescsToMap, materialRTShaderData.data(), sizeof(MaterialRTData) * materialRTShaderData.size());
+	vmaUnmapMemory(_allocator, m_matDescSetBuffer.allocation);
+
+	DescriptorWriter mat_writer;
+	mat_writer.write_buffer(0, m_matDescSetBuffer.buffer, sizeof(MaterialRTData) * materialRTShaderData.size(), 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+
+	mat_writer.update_set(_device, m_matDescSet);
+
 	_mainDeletionQueue.push_function([&]() {	
 		vkDestroyDescriptorPool(_device, m_rtDescPool, nullptr);
 		vkDestroyDescriptorSetLayout(_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, m_objDescSetLayout, nullptr); 
+		vkDestroyDescriptorSetLayout(_device, m_matDescSetLayout, nullptr);
 		});
 }
 
@@ -1778,7 +1831,7 @@ void VulkanEngine::createRtPipeline() {
 	pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
 	// Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
-	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout };
+	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout, m_matDescSetLayout };
 
 	if (!loadedTextures.empty())
 	{
@@ -1914,11 +1967,13 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	if ( loadedTextures.empty() ) {
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_matDescSet, 0, nullptr);
 	}
 	else {
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_texDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_matDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_texDescSet, 0, nullptr);
 	}
 	
 	vkCmdPushConstants(cmdBuf, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 0, sizeof(PushConstantRay), &m_pcRay);
@@ -2156,8 +2211,11 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 
 	writer.update_set(device, matData.materialSet);
 
-	matData.albedo = resources.colorImage;
+	matData.colImage = resources.colorImage;
 	matData.matIndex = resources.colorTexIndex;
+
+	matData.albedo = resources.albedo;
+	matData.albedoTexIndex = resources.albedoTexIndex;
 
 	return matData;
 }

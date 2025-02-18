@@ -33,6 +33,13 @@ struct Index {
   uint elems[3];
 };
 
+struct MaterialRTData {
+  vec4 albedo;
+  uint albedoTexIndex;
+  uint p0;
+  uint p1;
+  uint p2;
+};
 
 struct HitPoint {
   vec3 normal;
@@ -45,13 +52,14 @@ layout(set = 1, binding = 0, std430) buffer ObjDesc_ {
     ObjDesc i[]; 
 } m_objDesc;
 
-layout(set = 2, binding = 0) uniform sampler2D textures[];
+layout(set = 2, binding = 0, std140) buffer MaterialsBuffer {
+    MaterialRTData m[];
+}
+u_materials;
+
+layout(set = 3, binding = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
-
-// vec3 compute_diffuse() {
-
-// }
 
 HitPoint compute_hit_point() {
   // Object Data
@@ -83,6 +91,17 @@ HitPoint compute_hit_point() {
 
   return HitPoint(normal, uv);
 }
+
+vec3 compute_diffuse(in HitPoint hit_point) {
+
+  const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+
+  const vec4 diffuseSample = texture(textures[material.albedoTexIndex], hit_point.uv);
+  const vec3 diffuseColor = diffuseSample.rgb * material.albedo.rgb;
+
+  return diffuseColor;
+}
+
 
 vec3 compute_vert_color() {
   // Object Data
@@ -120,7 +139,7 @@ void main()
   // Compute the color
   vec3 vertex_color = compute_vert_color();
  
-  prd.strength *= 0.9f;
+  prd.strength *= compute_diffuse(hit_point);
   prd.color = prd.strength;
   
 }
