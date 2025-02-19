@@ -82,7 +82,7 @@ void VulkanEngine::init()
 	init_default_data();
 
 	 std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
-	/*std::string structurePath = { "..\\assets\\basic_albedo_scene.gltf" };*/
+	/*std::string structurePath = { "..\\assets\\house2.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\sphere.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
 	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
@@ -1649,8 +1649,7 @@ void VulkanEngine::createRtDescriptorSet()
 		ObjDesc desc = {
 			.vertexAddress = mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress,
 			.indexAddress = mainDrawContext.OpaqueSurfaces[i].indexBufferAddress,
-			.firstIndex = mainDrawContext.OpaqueSurfaces[i].firstIndex,
-            .matIndex = mainDrawContext.OpaqueSurfaces[i].material->matIndex
+			.firstIndex = mainDrawContext.OpaqueSurfaces[i].firstIndex
 		};
 		objDescs.push_back(desc);
 	}
@@ -1672,6 +1671,7 @@ void VulkanEngine::createRtDescriptorSet()
 	// Put all textures in loadScenes to a vector
 	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
 		loadedTextures.push_back(mainDrawContext.OpaqueSurfaces[i].material->colImage);	
+		mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
 	}
 
 	// if textures are not empty
@@ -1718,7 +1718,7 @@ void VulkanEngine::createRtDescriptorSet()
 	for (std::uint32_t i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
 		MaterialRTData matDesc{};
 		matDesc.albedo = mainDrawContext.OpaqueSurfaces[i].material->albedo;
-		matDesc.albedoTexIndex = mainDrawContext.OpaqueSurfaces[i].material->matIndex;
+		matDesc.albedoTexIndex = mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex;
 		materialRTShaderData.push_back(matDesc);
 	}
 
@@ -2212,10 +2212,8 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.update_set(device, matData.materialSet);
 
 	matData.colImage = resources.colorImage;
-	matData.matIndex = resources.colorTexIndex;
 
 	matData.albedo = resources.albedo;
-	matData.albedoTexIndex = resources.albedoTexIndex;
 
 	return matData;
 }
