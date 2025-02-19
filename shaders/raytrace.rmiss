@@ -18,6 +18,6 @@ void main()
 	const float t = 0.5*(normalize(gl_WorldRayDirectionEXT).y + 1);
 	const vec3 skyColor = mix(vec3(1.0), vec3(0.702, 0.824, 1), t);
 
-	prd.color = (vec3(1.0f) * 5.0f) * prd.strength;
+	prd.color = (vec3(1.0f) * pcRay.lightIntensity) * prd.strength;
 
 }

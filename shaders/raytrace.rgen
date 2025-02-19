@@ -36,7 +36,7 @@ vec3 tracePath() {
 
     int depth = 0;
 
-    while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < 32) {
+    while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < pcRay.depth) {
         const vec3 origin = prd.next_origin;
         const vec3 direction = prd.next_direction;
 

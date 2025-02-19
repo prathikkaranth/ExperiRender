@@ -139,7 +139,7 @@ void main()
   // Compute the color
   vec3 vertex_color = compute_vert_color();
  
-  prd.strength *= compute_diffuse(hit_point);
+  prd.strength *= compute_diffuse(hit_point) * vertex_color;
   prd.color = prd.strength;
   
 }
