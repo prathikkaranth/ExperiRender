@@ -10,27 +10,11 @@
 #include <ssao.h>
 #include <RenderObject.h>
 #include <shadowmap.h>
-#include <raytraceKHR_vk.h>
+#include <raytracer.h>
 
 #include <glm/glm.hpp>
 
 #include "VkBootstrap.h"
-
-struct ComputePushConstants {
-	glm::vec4 data1;
-	glm::vec4 data2;
-	glm::vec4 data3;
-	glm::vec4 data4;
-};
-
-struct ComputeEffect {
-	const char* name;
-
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
-
-	ComputePushConstants data;
-};
 
 struct DeletionQueue
 {
@@ -117,20 +101,6 @@ struct EngineStats {
 	float mesh_draw_time;
 };
 
-// Push constant structure for the ray tracer
-struct PushConstantRay
-{
-	glm::vec4  clearColor;
-	glm::vec4  lightPosition;
-	glm::mat4  viewInverse;
-	glm::mat4  projInverse;
-	float lightIntensity;
-	int   lightType;
-	std::uint32_t seed;
-	std::uint32_t samples_done;
-	std::uint32_t depth;
-};
-
 struct MeshNode : public Node {
 
 	std::shared_ptr<MeshAsset> mesh;
@@ -148,28 +118,16 @@ public:
 	VkDevice _device; // Vulkan device for commands
 	VkSurfaceKHR _surface; // Vulkan window surface
 
-	// Ray tracing features
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
-
 	VkSwapchainKHR _swapchain; // Swapchain handle
 	VkFormat _swapchainImageFormat; // Swapchain image format
 
 	std::vector<VkImage> _swapchainImages; // Swapchain image handles
 	std::vector<VkImageView> _swapchainImageViews; // Swapchain image view handles
-	std::vector<ComputeEffect> backgroundEffects;
-	int currentBackgroundEffect{0};
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
 
 	DrawContext mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
-
-	// Ray tracing accel struct + variables
-	bool m_is_raytracing_supported{ false };
-	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
-	void traverseLoadedMeshNodesOnceForRT();
-	void createBottomLevelAS();
-	void createTopLevelAS();
-
+	
 	void update_scene();
 
 	Camera mainCamera;
@@ -180,6 +138,10 @@ public:
 	int _frameNumber{ 0 };
 	bool stop_rendering{ false };
 	bool useRaytracer{ false };
+
+	// Ray tracing
+	void traverseLoadedMeshNodesOnceForRT();
+	Raytracer raytracerPipeline;
 
 	VkExtent2D _windowExtent{ 1280 , 720 };
 
@@ -212,46 +174,13 @@ public:
 
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
-	// Ray tracing descriptors
-	VkDescriptorPool m_rtDescPool;
-	VkDescriptorSetLayout m_rtDescSetLayout;
-	VkDescriptorSet m_rtDescSet;
-	VkDescriptorPool m_objDescPool;
-	VkDescriptorSetLayout m_objDescSetLayout;
-	VkDescriptorSet m_objDescSet;
-	VkDescriptorSetLayout m_texSetLayout;
-	VkDescriptorSet m_texDescSet;
-	VkDescriptorSetLayout m_matDescSetLayout;
-	VkDescriptorSet m_matDescSet;
-
-	VkPipeline _gradientPipeline{};
-	VkPipelineLayout _gradientPipelineLayout{};
-
-	VkPipelineLayout _trianglePipelineLayout;
-	VkPipeline _trianglePipeline;
-
-	VkPipelineLayout _meshPipelineLayout;
-	VkPipeline _meshPipeline;
-
 	VkPipelineLayout _gbufferPipelineLayout;
 	VkPipeline _gbufferPipeline;
-
-	// Ray Tracing Pipeline
-	std::vector<VkRayTracingShaderGroupCreateInfoKHR> m_rtShaderGroups;
-	VkPipelineLayout                                  m_rtPipelineLayout;
-	VkPipeline                                        m_rtPipeline;
-
-	// Push constant for ray tracer
-	PushConstantRay m_pcRay{};
-	std::uint32_t max_samples;
-	std::uint32_t prevMaxSamples;
-	std::uint32_t prevMaxDepth;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
-	glm::vec4 prevSunDir;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
@@ -272,17 +201,6 @@ public:
 
 	//SSAO resources
 	ssao _ssao;
-
-	// Raytacing resources
-	AllocatedImage _rtOutputImage;
-	// Put all textures in loadScenes to a vector
-	std::vector<AllocatedImage> loadedTextures;
-
-	AllocatedBuffer m_rtSBTBuffer;
-	VkStridedDeviceAddressRegionKHR m_rgenRegion{};
-	VkStridedDeviceAddressRegionKHR m_missRegion{};
-	VkStridedDeviceAddressRegionKHR m_hitRegion{};
-	VkStridedDeviceAddressRegionKHR m_callRegion{};
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -305,15 +223,6 @@ public:
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
-
-	// Ray tracing funcs
-	void createRtDescriptorSet();
-	void updateRtDescriptorSet();
-	void createRtPipeline();
-	void createRtShaderBindingTable();
-	void raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
-	void resetSamples();
-	void rtSampleUpdates();
 
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	void destroy_buffer(const AllocatedBuffer& buffer);
@@ -359,7 +268,6 @@ private:
 	void init_descriptors();
 
 	void init_vulkan();
-	void init_ray_tracing();
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();
