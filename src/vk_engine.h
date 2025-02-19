@@ -83,12 +83,16 @@ struct GLTFMetallic_Roughness {
 	struct MaterialResources {
 		AllocatedImage colorImage;
 		VkSampler colorSampler;
+		uint32_t colorTexIndex;
 		AllocatedImage metalRoughImage;
 		VkSampler metalRoughSampler;
 		AllocatedImage normalImage;
 		VkSampler normalSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
+
+		glm::vec4 albedo;
+		uint32_t albedoTexIndex;
 	};
 
 	DescriptorWriter writer;
@@ -216,6 +220,8 @@ public:
 	VkDescriptorSet m_objDescSet;
 	VkDescriptorSetLayout m_texSetLayout;
 	VkDescriptorSet m_texDescSet;
+	VkDescriptorSetLayout m_matDescSetLayout;
+	VkDescriptorSet m_matDescSet;
 
 	VkPipeline _gradientPipeline{};
 	VkPipelineLayout _gradientPipelineLayout{};

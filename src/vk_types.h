@@ -104,6 +104,12 @@ struct MaterialInstance {
 	MaterialPipeline* pipeline;
 	VkDescriptorSet materialSet;
 	MaterialPass passType;
+
+	AllocatedImage colImage;
+	uint32_t matIndex;
+
+	glm::vec4 albedo;
+	uint32_t albedoTexIndex;
 };
 
 struct DrawContext;
