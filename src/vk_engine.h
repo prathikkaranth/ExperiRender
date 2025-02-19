@@ -128,6 +128,7 @@ struct PushConstantRay
 	int   lightType;
 	std::uint32_t seed;
 	std::uint32_t samples_done;
+	std::uint32_t depth;
 };
 
 struct MeshNode : public Node {
@@ -242,6 +243,9 @@ public:
 
 	// Push constant for ray tracer
 	PushConstantRay m_pcRay{};
+	std::uint32_t max_samples;
+	std::uint32_t prevMaxSamples;
+	std::uint32_t prevMaxDepth;
 
 	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;

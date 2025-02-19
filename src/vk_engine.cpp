@@ -254,6 +254,8 @@ void VulkanEngine::init_default_data() {
 
 	// RT defaults
 	m_pcRay.samples_done = 0;
+	max_samples = 200;
+	m_pcRay.depth = 8;
 
 }
 
@@ -529,6 +531,21 @@ void VulkanEngine::rtSampleUpdates() {
 		resetSamples();
 	}
 
+	// If max_samples has decreased, reset samples
+	if (max_samples < prevMaxSamples) {
+		resetSamples();
+	}
+
+	// Update previous max samples to the new value
+	prevMaxSamples = max_samples;
+
+	// If the depth has decreased, reset samples
+	if (m_pcRay.depth < prevMaxDepth || m_pcRay.depth > prevMaxDepth) {
+		resetSamples();
+	}
+
+	// Update previous max depth to the new value
+	prevMaxDepth = m_pcRay.depth;
 }
 
 
@@ -596,6 +613,12 @@ void VulkanEngine::setup_imgui_panel() {
 
 		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&sceneData.enableShadows));
 		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&sceneData.enableSSAO));
+	}
+
+	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
+		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&max_samples), 100, 5000);
+		ImGui::SliderInt("Ray Step Size", reinterpret_cast<int*>(&m_pcRay.depth), 2, 32);
+		
 	}
 
 	if (ImGui::CollapsingHeader("SSAO Settings")) {
@@ -1952,6 +1975,10 @@ void VulkanEngine::resetSamples() {
 //
 void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
 
+	if (m_pcRay.samples_done == max_samples) {
+		return;
+	}
+
 	// Initializing the push constants
 	m_pcRay.clearColor = clearColor;
 	m_pcRay.lightPosition = glm::vec4(sceneData.sunlightDirection.x, sceneData.sunlightDirection.y, sceneData.sunlightDirection.z, 0.0f);
@@ -1981,7 +2008,6 @@ void VulkanEngine::raytrace(const VkCommandBuffer& cmdBuf, const glm::vec4& clea
 	vkCmdTraceRaysKHR(cmdBuf, &m_rgenRegion, &m_missRegion, &m_hitRegion, &m_callRegion, _windowExtent.width, _windowExtent.height, 1);
 
 	m_pcRay.samples_done++;
-
 }
 
 void VulkanEngine::resize_swapchain()
