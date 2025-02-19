@@ -537,14 +537,6 @@ void VulkanEngine::setup_imgui_panel() {
 	constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
 	ImGui::Begin("Settings", nullptr, window_flags);
 
-	float fps = 1.f / stats.frametime;
-	fps = std::round(fps * 1000);
-
-	ImGui::Text("FPS %f", fps);
-	/*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-	ImGui::Text("update time %f ms", stats.scene_update_time);
-	ImGui::Text("triangles %i", stats.triangle_count);
-	ImGui::Text("draws %i", stats.drawcall_count);*/
 	ImGui::Checkbox("Ray Tracer mode", &useRaytracer); // Switch between raster and ray tracing
 
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
@@ -619,6 +611,21 @@ void VulkanEngine::setup_imgui_panel() {
 			ImGui::End();
 		}
 	}
+
+	ImGui::End();
+
+	constexpr ImGuiWindowFlags transparent_window_flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar;
+	ImGui::Begin("Stats", nullptr, transparent_window_flags);
+
+	float fps = 1.f / stats.frametime;
+	fps = std::round(fps * 1000);
+
+	ImGui::Text("FPS %f", fps);
+	/*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
+	ImGui::Text("update time %f ms", stats.scene_update_time);
+	ImGui::Text("triangles %i", stats.triangle_count);
+	ImGui::Text("draws %i", stats.drawcall_count);*/
+	ImGui::Text("Ray Tracing Samples done: %i", raytracerPipeline.m_pcRay.samples_done);
 
 	ImGui::End();
 
