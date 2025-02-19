@@ -1,34 +1,35 @@
 # ExperiRender
 
-![image](docs/images/ExperiRender_Sponza.png)
+![image](docs/images/Sponza-RT_Mat.png)
 
-A Graphics Renderer written in Vulkan mainly for visualization purposes required in research fields. Current iteration has support for: 
+A Graphics Renderer written in Vulkan mainly for visualization purposes required in research fields. Current iteration has support for rasterization and ray tracing. 
 
-- Shadow Maps 
-- Screen Space Ambient Occlusion (SSAO) 
-- Mipmaps 
-- Blinn-phong lighting support for
-    - textures (normal maps, roughness maps) 
-    - metallic materials.
+- Rasterizer
+    - Shadow Maps 
+    - Screen Space Ambient Occlusion (SSAO) 
+    - Mipmaps 
+    - Blinn-phong lighting support for
+        - textures (normal maps, roughness maps) 
+        - metallic materials.
 - Ray Tracing pipeline for,
-    - Shadows
-    - Ambient Occlusion (AO)
+    - Geometry
+    - Texture
 
 Currently Working on:
 
 - Ray Tracing pipeline for,
-    - Texture, metallic materials, PBR
+    - PBR materials
     - Reflections
-- Screen Space Reflections
-- Parallax Mapping
+- Screen Space Reflections in Rasterizer
+- Parallax Mapping for Rasterizer and Raytracer
 
 ## Showcase
 
 Showcase | Details
 ---------|--------
-![small](docs/images/TheTravelingWagon-RT_NoMat.png) ![small](docs/images/ExperiRender_Sponza_RT_NoMat.png) | <b> Ray Traced Geometry, AO </b> <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
-![small](docs/images/TheTravelingWagon-RT_Mat.png) | <b> Ray Traced Shadows and Vertex Colors </b> <br>Implements shadows using ray tracing and shading using vertex colors.
+![small](docs/images/TheTravelingWagon-RT_NoMat.png) | <b> Ray Traced Geometry, AO </b> <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
 ![small](docs/images/TheTravelingWagon-SSAO_ON.png) ![small](docs/images/TheTravelingWagon-SSAO_OFF.png) | <b> Screen Space Ambient Occlusion </b> <br>Implements screen space ambient occlusion.
+![small](docs/images/ExperiRender_Sponza.png) | <b> Shadow Maps </b> <br>Implements shadow mapping.
 
 ## Models Used
 
