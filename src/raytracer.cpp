@@ -76,6 +76,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 {
 	// Create output image
 	_rtOutputImage = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+	vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
 
 	{
 		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
@@ -130,6 +131,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	m_objDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_objDescSetLayout);
 
 	AllocatedBuffer m_objDescSetBuffer = engine->create_buffer(sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(engine->_allocator, m_objDescSetBuffer.allocation, "RT ObjDesc Buffer");
 
 	ObjDesc* objDescsToMap;
 	VK_CHECK(vmaMapMemory(engine->_allocator, m_objDescSetBuffer.allocation, reinterpret_cast<void**>(&objDescsToMap)));
@@ -198,6 +200,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	m_matDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_matDescSetLayout);
 
 	AllocatedBuffer m_matDescSetBuffer = engine->create_buffer(sizeof(MaterialRTData) * materialRTShaderData.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(engine->_allocator, m_matDescSetBuffer.allocation, "RT MatDesc Buffer");
 
 	MaterialRTData* matDescsToMap;
 	VK_CHECK(vmaMapMemory(engine->_allocator, m_matDescSetBuffer.allocation, reinterpret_cast<void**>(&matDescsToMap)));
@@ -214,7 +217,9 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
-		vkDestroyImage(engine->_device, _rtOutputImage.image, nullptr);
+		engine->destroy_image(_rtOutputImage);
+		engine->destroy_buffer(m_objDescSetBuffer);
+		engine->destroy_buffer(m_matDescSetBuffer);
 		});
 }
 
@@ -365,6 +370,7 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine* engine) {
 	VkDeviceSize sbtBufferSize = m_rgenRegion.size + m_missRegion.size + m_hitRegion.size + m_callRegion.size;
 	m_rtSBTBuffer = engine->create_buffer(sbtBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
 		| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VMA_MEMORY_USAGE_CPU_ONLY);
+	vmaSetAllocationName(engine->_allocator, m_rtSBTBuffer.allocation, "RT Shader Binding Table Buffer");
 
 	// Find the SBT addresses for each group
 	VkBufferDeviceAddressInfo info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_rtSBTBuffer.buffer };
@@ -404,7 +410,8 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine* engine) {
 	vmaUnmapMemory(engine->_allocator, m_rtSBTBuffer.allocation);
 
 	engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyBuffer(engine->_device, m_rtSBTBuffer.buffer, nullptr);
+		engine->destroy_buffer(m_rtSBTBuffer);
+
 		});
 }
 

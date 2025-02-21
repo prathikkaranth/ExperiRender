@@ -690,6 +690,7 @@ void VulkanEngine::init_vulkan() {
 	vmaCreateAllocator(&allocatorInfo, &_allocator);
 
 	_mainDeletionQueue.push_function([&]() {
+		raytracerPipeline.m_rt_builder->destroy();
 		vmaDestroyAllocator(_allocator);
 		});
 
@@ -1632,5 +1633,7 @@ void VulkanEngine::init_gbuffer()
 	_mainDeletionQueue.push_function([&]() {
 		vkDestroyPipelineLayout(_device, _gbufferPipelineLayout, nullptr);
 		vkDestroyPipeline(_device, _gbufferPipeline, nullptr);
+		destroy_image(_gbufferNormal);
+		destroy_image(_gbufferPosition);
 	});
 }
