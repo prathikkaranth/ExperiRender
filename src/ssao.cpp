@@ -65,6 +65,8 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoPipeline, nullptr);
+		vkDestroyImage(engine->_device, _ssaoImage.image, nullptr);
+		vkDestroyImage(engine->_device, _depthMap.image, nullptr);
 		});
 }
 
@@ -129,6 +131,8 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoBlurPipeline, nullptr);
+		vkDestroySampler(engine->_device, _ssaoSampler, nullptr);
+		vkDestroyImage(engine->_device, _ssaoImageBlurred.image, nullptr);
 		});
 }
 
@@ -136,6 +140,7 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd)
 {
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer ssaoSceneDataBuffer = engine->create_buffer(sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(engine->_allocator, ssaoSceneDataBuffer.allocation, "SSAO Scene Data Buffer");
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	engine->get_current_frame()._deletionQueue.push_function([=]() {

@@ -107,6 +107,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
 		vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
+		vkDestroyImage(engine->_device, _depthShadowMap.image, nullptr);
 	});
 
 }

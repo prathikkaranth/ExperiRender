@@ -214,6 +214,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
+		vkDestroyImage(engine->_device, _rtOutputImage.image, nullptr);
 		});
 }
 

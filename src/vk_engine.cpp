@@ -1,5 +1,3 @@
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE 1
 
@@ -15,7 +13,7 @@
 #include <vk_images.h>
 #include <raytraceKHR_vk.h>
 #include <VulkanGeometryKHR.h>
-
+#include <vk_mem_alloc.h>
 #include <glm/gtx/transform.hpp>
 
 #include <iostream>
@@ -23,18 +21,25 @@
 
 constexpr bool bUseValidationLayers = true;
 
-//we want to immediately abort when there is an error. In normal engines this would give an error message to the user, or perform a dump of state.
-using namespace std;
-#define VK_CHECK(x)                                                 \
-	do                                                              \
-	{                                                               \
-		VkResult err = x;                                           \
-		if (err)                                                    \
-		{                                                           \
-			std::cout <<"Detected Vulkan error: " << err << std::endl; \
-			abort();                                                \
-		}                                                           \
-	} while (0)
+namespace {
+	template <typename Fn> void run_with_mapped_memory(VmaAllocator allocator, VmaAllocation allocation, Fn&& fn)
+	{
+		void* mapped_memory;
+		VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_memory));
+		fn(mapped_memory);
+		vmaUnmapMemory(allocator, allocation);
+	}
+}
+
+void VulkanEngine::upload_to_vma_allocation(const void* src,
+	size_t size,
+	const AllocatedBuffer& dst_allocation,
+	size_t dst_offset)
+{
+	run_with_mapped_memory(_allocator, dst_allocation.allocation, [&](void* dst) {
+		memcpy(static_cast<std::uint8_t*>(dst) + dst_offset, src, size);
+		});
+}
 
 void VulkanEngine::init()
 {
@@ -122,12 +127,15 @@ void VulkanEngine::init_default_data() {
 	// 3 default textures, white, grey and black. 1 pixel each.
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _whiteImage.allocation, "whiteImage");
 
 	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
 	_greyImage = create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _greyImage.allocation, "greyImage");
 
 	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_blackImage = create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _blackImage.allocation, "blackImage");
 
 	// checkerboard texture
 	uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -138,6 +146,7 @@ void VulkanEngine::init_default_data() {
 		}
 	}
 	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
 
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
@@ -177,6 +186,7 @@ void VulkanEngine::init_default_data() {
 	}
 
 	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
 
 	for (int i = 0; i < 128; i++) {
 		_ssao.ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
@@ -216,12 +226,15 @@ void VulkanEngine::init_default_data() {
 
 	//set the uniform buffer for the material data
 	AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(_allocator, materialConstants.allocation, "Material Constants Buffer");
 
 	//write the buffer
-	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*)materialConstants.allocation->GetMappedData();
-	sceneUniformData->colorFactors = glm::vec4{ 1,1,1,1 };
-	sceneUniformData->metal_rough_factors = glm::vec4{ 1,0.5,0,0 };
-	sceneUniformData->hasMetalRoughTex = 0;
+	run_with_mapped_memory(_allocator, materialConstants.allocation, [&](void* data) {
+		GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = (GLTFMetallic_Roughness::MaterialConstants*)data;
+		sceneUniformData->colorFactors = glm::vec4{ 1,1,1,1 };
+		sceneUniformData->metal_rough_factors = glm::vec4{ 1,0.5,0,0 };
+		sceneUniformData->hasMetalRoughTex = 0;
+	});
 
 	_mainDeletionQueue.push_function([=, this]() {
 		destroy_buffer(materialConstants);
@@ -888,6 +901,7 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_DrawGbuffer");
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
@@ -895,8 +909,7 @@ void VulkanEngine::draw_gbuffer(VkCommandBuffer cmd)
 		});
 
 	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
-	*sceneUniformData = sceneData;
+	upload_to_vma_allocation(&sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
 
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
@@ -1020,6 +1033,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_drawGeom");
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	get_current_frame()._deletionQueue.push_function([=, this]() {
@@ -1027,8 +1041,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 		});
 
 	//write the buffer
-	GPUSceneData* sceneUniformData = (GPUSceneData*)gpuSceneDataBuffer.allocation->GetMappedData();
+	GPUSceneData* sceneUniformData;
+	VK_CHECK(vmaMapMemory(_allocator, gpuSceneDataBuffer.allocation, reinterpret_cast<void**>(&sceneUniformData)));
 	*sceneUniformData = sceneData;
+	vmaUnmapMemory(_allocator, gpuSceneDataBuffer.allocation);
 
 	//create a descriptor set that binds that buffer and update it
 	VkDescriptorSet globalDescriptor = get_current_frame()._frameDescriptors.allocate(_device, _gpuSceneDataDescriptorLayout);
@@ -1254,6 +1270,7 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	newSurface.vertexBuffer = create_buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT  | 
 		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
+	vmaSetAllocationName(_allocator, newSurface.vertexBuffer.allocation, "Vertex Buffer");
 
 	//find the address of the vertex buffer
 	VkBufferDeviceAddressInfo deviceAdressInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = newSurface.vertexBuffer.buffer };
@@ -1262,18 +1279,16 @@ GPUMeshBuffers VulkanEngine::uploadMesh(std::span<uint32_t> indices, std::span<V
 	//create index buffer
 	newSurface.indexBuffer = create_buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VMA_MEMORY_USAGE_GPU_ONLY);
+	vmaSetAllocationName(_allocator, newSurface.indexBuffer.allocation, "Index Buffer");
 
 	VkBufferDeviceAddressInfo deviceAdressInfo2{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,.buffer = newSurface.indexBuffer.buffer };
 	newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo2);
 
 	AllocatedBuffer staging = create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+	vmaSetAllocationName(_allocator, staging.allocation, "Staging Buffer");
 
-	void* data = staging.allocation->GetMappedData();
-
-	// copy vertex buffer
-	memcpy(data, vertices.data(), vertexBufferSize);
-	// copy index buffer
-	memcpy((char*)data + vertexBufferSize, indices.data(), indexBufferSize);
+	upload_to_vma_allocation(vertices.data(), vertexBufferSize, staging);
+	upload_to_vma_allocation(indices.data(), indexBufferSize, staging, vertexBufferSize);
 
 	immediate_submit([&](VkCommandBuffer cmd) {
 		VkBufferCopy vertexCopy{ 0 };
@@ -1318,24 +1333,6 @@ void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 	vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
 }
 
-template <typename Fn> void run_with_mapped_memory(VmaAllocator allocator, VmaAllocation allocation, Fn&& fn)
-{
-	void* mapped_memory;
-	VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_memory));
-	fn(mapped_memory);
-	vmaUnmapMemory(allocator, allocation);
-}
-
-void VulkanEngine::upload_to_vma_allocation(const void* src,
-	size_t size,
-	const AllocatedBuffer& dst_allocation,
-	size_t dst_offset)
-{
-	run_with_mapped_memory(_allocator, dst_allocation.allocation, [&](void* dst) {
-		memcpy(static_cast<std::uint8_t*>(dst) + dst_offset, src, size);
-		});
-}
-
 AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 {
 	AllocatedImage newImage;
@@ -1376,10 +1373,12 @@ AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat 
 	const size_t pixel_size = format == VK_FORMAT_R32G32B32A32_SFLOAT ? 16 : 4;
 	size_t data_size = size.depth * size.width * size.height * pixel_size;
 	AllocatedBuffer uploadbuffer = create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(_allocator, uploadbuffer.allocation, "Image Upload Buffer");
 
 	memcpy(uploadbuffer.info.pMappedData, data, data_size);
 
 	AllocatedImage new_image = create_image(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
+	vmaSetAllocationName(_allocator, new_image.allocation, "Image Allocation");
 
 	immediate_submit([&](VkCommandBuffer cmd) {
 		vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -1567,7 +1566,9 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 void VulkanEngine::init_gbuffer()
 {
 	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _gbufferPosition.allocation, "GBuffer Position Image");
 	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(_allocator, _gbufferNormal.allocation, "GBuffer Normal Image");
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
