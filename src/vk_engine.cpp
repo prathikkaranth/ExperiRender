@@ -317,6 +317,12 @@ void VulkanEngine::cleanup()
 
 		loadedScenes.clear();
 
+		// Free command buffers first
+		for (auto& frame : _frames) {
+			vkFreeCommandBuffers(_device, frame._commandPool, 1, &frame._mainCommandBuffer);
+		}
+		vkFreeCommandBuffers(_device, _immCommandPool, 1, &_immCommandBuffer);
+
 		for (auto& frame : _frames) {
 			frame._deletionQueue.flush();
 		}
@@ -691,7 +697,6 @@ void VulkanEngine::init_vulkan() {
 
 	_mainDeletionQueue.push_function([&]() {
 		raytracerPipeline.m_rt_builder->destroy();
-		vmaDestroyAllocator(_allocator);
 		});
 
 }
@@ -710,6 +715,8 @@ void VulkanEngine::init_commands() {
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
 
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
+
+		_mainDeletionQueue.push_function([=]() { vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr); });
 	}
 
 	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
@@ -1177,6 +1184,8 @@ void VulkanEngine::init_descriptors()
 	_mainDeletionQueue.push_function([&]() {
 		globalDescriptorAllocator.destroy_pools(_device);
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
 	});
 
 	for (int i = 0; i < FRAME_OVERLAP; i++) {
@@ -1498,6 +1507,14 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 
 	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
+
+	engine->_mainDeletionQueue.push_function([=]() {
+		vkDestroyDescriptorSetLayout(engine->_device, materialLayout, nullptr);
+		vkDestroyDescriptorSetLayout(engine->_device, engine->_gbufferInputDescriptorLayout, nullptr);
+		vkDestroyPipelineLayout(engine->_device, newLayout, nullptr);
+		vkDestroyPipeline(engine->_device, opaquePipeline.pipeline, nullptr);
+		vkDestroyPipeline(engine->_device, transparentPipeline.pipeline, nullptr);
+		});
 }
 
 MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator)
@@ -1635,5 +1652,6 @@ void VulkanEngine::init_gbuffer()
 		vkDestroyPipeline(_device, _gbufferPipeline, nullptr);
 		destroy_image(_gbufferNormal);
 		destroy_image(_gbufferPosition);
+		vkDestroySampler(_device, _gbufferSampler, nullptr);
 	});
 }

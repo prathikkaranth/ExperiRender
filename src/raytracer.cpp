@@ -84,19 +84,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
 		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 	}
-
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = 0;
-	pool_info.maxSets = 1;
-
-	VK_CHECK(vkCreateDescriptorPool(engine->_device, &pool_info, nullptr, &m_rtDescPool));
-
-	VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-	allocateInfo.descriptorPool = m_rtDescPool;
-	allocateInfo.descriptorSetCount = 1;
-	allocateInfo.pSetLayouts = &m_rtDescSetLayout;
-	VK_CHECK(vkAllocateDescriptorSets(engine->_device, &allocateInfo, &m_rtDescSet));
+	m_rtDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_rtDescSetLayout);
 
 	VkAccelerationStructureKHR tlas = m_rt_builder->getAccelerationStructure();
 	VkWriteDescriptorSetAccelerationStructureKHR asInfo = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
@@ -213,7 +201,6 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	mat_writer.update_set(engine->_device, m_matDescSet);
 
 	engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyDescriptorPool(engine->_device, m_rtDescPool, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
@@ -338,8 +325,8 @@ void Raytracer::createRtPipeline(VulkanEngine* engine) {
 		vkDestroyShaderModule(engine->_device, s.module, nullptr);
 
 	engine->_mainDeletionQueue.push_function([=]() {
-		vkDestroyPipeline(engine->_device, m_rtPipeline, nullptr);
 		vkDestroyPipelineLayout(engine->_device, m_rtPipelineLayout, nullptr);
+		vkDestroyPipeline(engine->_device, m_rtPipeline, nullptr);
 		});
 }
 

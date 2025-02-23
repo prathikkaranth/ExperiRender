@@ -55,10 +55,8 @@ public:
 	std::unique_ptr<nvvk::RaytracingBuilderKHR> m_rt_builder;
 
 	// Ray tracing descriptors
-	VkDescriptorPool m_rtDescPool;
 	VkDescriptorSetLayout m_rtDescSetLayout;
 	VkDescriptorSet m_rtDescSet;
-	VkDescriptorPool m_objDescPool;
 	VkDescriptorSetLayout m_objDescSetLayout;
 	VkDescriptorSet m_objDescSet;
 	VkDescriptorSetLayout m_texSetLayout;

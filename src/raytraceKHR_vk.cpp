@@ -205,6 +205,7 @@ void nvvk::RaytracingBuilderKHR::destroy()
 		m_engine_ptr->destroy_buffer(blas.buffer);
 		vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, blas.accel, nullptr);
 	}
+	vkDestroyCommandPool(m_engine_ptr->_device, m_cmd_pool, nullptr);
 }
 
 //--------------------------------------------------------------------------------------------------

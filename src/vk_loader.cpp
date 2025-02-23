@@ -531,5 +531,11 @@ void LoadedGLTF::clearAll()
     for (auto& sampler : samplers) {
         vkDestroySampler(dv, sampler, nullptr);
     }
+
+    samplers.clear();
+
+    // clear all the nodes
+    topNodes.clear();
+    nodes.clear();
 }
 
