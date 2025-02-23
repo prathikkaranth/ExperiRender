@@ -195,7 +195,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 
 	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
 		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 100, 5000);
-		ImGui::SliderInt("Ray Step Size", reinterpret_cast<int*>(&engine->raytracerPipeline.m_pcRay.depth), 2, 32);
+		ImGui::SliderInt("Ray Depth", reinterpret_cast<int*>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
 
 	}
 
