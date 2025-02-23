@@ -11,6 +11,7 @@
 #include <vk_types.h>
 #include <vk_initializers.h>
 #include <vk_images.h>
+#include <vk_utils.h>
 #include <raytraceKHR_vk.h>
 #include <VulkanGeometryKHR.h>
 #include <vk_mem_alloc.h>

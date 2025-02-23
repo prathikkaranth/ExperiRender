@@ -3,10 +3,8 @@
 #include <vk_types.h>
 #include <vk_descriptors.h>
 #include <vk_pipelines.h>
-#include <vk_loader.h>	
 #include <functional>
 #include <camera.h>
-#include <vk_utils.h>
 #include <ssao.h>
 #include <RenderObject.h>
 #include <shadowmap.h>
@@ -126,7 +124,7 @@ public:
 	std::vector<VkImageView> _swapchainImageViews; // Swapchain image view handles
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
 
-	DrawContext mainDrawContext;
+	DrawContext mainDrawContext{};
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
 
 	// GUI
