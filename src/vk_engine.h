@@ -3,14 +3,13 @@
 #include <vk_types.h>
 #include <vk_descriptors.h>
 #include <vk_pipelines.h>
-#include <vk_loader.h>	
 #include <functional>
 #include <camera.h>
-#include <vk_utils.h>
 #include <ssao.h>
 #include <RenderObject.h>
 #include <shadowmap.h>
 #include <raytracer.h>
+#include <ui.h>
 
 #include <glm/glm.hpp>
 
@@ -125,8 +124,11 @@ public:
 	std::vector<VkImageView> _swapchainImageViews; // Swapchain image view handles
 	VkExtent2D _swapchainExtent; // Swapchain image resolution
 
-	DrawContext mainDrawContext;
+	DrawContext mainDrawContext{};
 	std::unordered_map<std::string, std::shared_ptr<Node>> loadedNodes;
+
+	// GUI
+	ui gui;
 	
 	void update_scene();
 
@@ -243,8 +245,6 @@ public:
 	//run main loop
 	void run();
 
-	void RemoveTex();
-
 	bool resize_requested{ false };
 	bool drawGBufferPositions{ false };
 
@@ -255,13 +255,8 @@ public:
 
 private: 
 
-	void draw_background(VkCommandBuffer cmd);
 	void draw_geometry(VkCommandBuffer cmd);
 	void draw_gbuffer(VkCommandBuffer cmd);
-
-	void init_imgui();
-	void setup_imgui_panel();
-	void draw_imgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 	void init_pipelines();
 

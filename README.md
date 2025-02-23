@@ -8,12 +8,8 @@ A Graphics Renderer written in Vulkan mainly for visualization purposes required
     - Shadow Maps 
     - Screen Space Ambient Occlusion (SSAO) 
     - Mipmaps 
-    - Blinn-phong lighting support for
-        - textures (normal maps, roughness maps) 
-        - metallic materials.
-- Ray Tracing pipeline for,
-    - Geometry
-    - Texture
+    - Blinn-phong lighting 
+- Hardware Ray Tracing
 
 Currently Working on:
 
@@ -46,5 +42,6 @@ Model - ["The Traveling Wagon - Cheeeeeeeeeese"](https://sketchfab.com/3d-models
 - [Volk](https://github.com/zeux/volk)
 - [FastGLTF](https://github.com/spnda/fastgltf)
 - [DearImGui](https://github.com/ocornut/imgui)
+- [spdlog](https://github.com/gabime/spdlog)
 
 

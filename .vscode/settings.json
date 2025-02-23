@@ -8,6 +8,7 @@
     "files.associations": {
         "*.rgen": "glsl",
         "*.rchit": "glsl",
-        "*.rmiss": "glsl"
+        "*.rmiss": "glsl",
+        "vector": "cpp"
     }
 }

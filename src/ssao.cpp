@@ -9,7 +9,9 @@ void ssao::init_ssao(VulkanEngine* engine) {
 
 	_depthMapExtent = { engine->_windowExtent.width, engine->_windowExtent.height };
 	_ssaoImage = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(engine->_allocator, _ssaoImage.allocation, "SSAO Image");
 	_depthMap = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	vmaSetAllocationName(engine->_allocator, _depthMap.allocation, "Depth Map");
 
 	// SSAO 
 	{
@@ -65,12 +67,15 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoPipeline, nullptr);
-		});
+		engine->destroy_image(_ssaoImage);
+		engine->destroy_image(_depthMap);
+	});
 }
 
 void ssao::init_ssao_blur(VulkanEngine* engine) {
 
 	_ssaoImageBlurred = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(engine->_allocator, _ssaoImageBlurred.allocation, "SSAO Blurred Image");
 
 	// SSAO Blur
 	{
@@ -129,6 +134,8 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoBlurPipeline, nullptr);
+		vkDestroySampler(engine->_device, _ssaoSampler, nullptr);
+		engine->destroy_image(_ssaoImageBlurred);
 		});
 }
 
@@ -136,6 +143,7 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd)
 {
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer ssaoSceneDataBuffer = engine->create_buffer(sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(engine->_allocator, ssaoSceneDataBuffer.allocation, "SSAO Scene Data Buffer");
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
 	engine->get_current_frame()._deletionQueue.push_function([=]() {

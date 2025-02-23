@@ -165,6 +165,7 @@ nvvk::AccelKHR create_acceleration(VulkanEngine* engine,
                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
                                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                          VMA_MEMORY_USAGE_GPU_ONLY);
+    vmaSetAllocationName(engine->_allocator, accel.buffer.allocation, "Accel Buffer");
     accel_create_info.buffer = accel.buffer.buffer;
     VkAccelerationStructureKHR accelStructure;
     VK_CHECK(vkCreateAccelerationStructureKHR(engine->_device, &accel_create_info, nullptr, &accelStructure));
@@ -196,6 +197,15 @@ nvvk::RaytracingBuilderKHR::RaytracingBuilderKHR(VulkanEngine* engine, uint32_t 
 //
 void nvvk::RaytracingBuilderKHR::destroy()
 {
+
+	m_engine_ptr->destroy_buffer(m_tlas.buffer);
+    vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, m_tlas.accel, nullptr);
+    for (auto& blas : m_blas)
+    {
+		m_engine_ptr->destroy_buffer(blas.buffer);
+		vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, blas.accel, nullptr);
+	}
+	vkDestroyCommandPool(m_engine_ptr->_device, m_cmd_pool, nullptr);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -273,6 +283,7 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
         vk_engine->create_buffer(maxScratchSize,
                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+    vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT BLAS Scratch Buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer };
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(raw_device, &bufferInfo);
@@ -348,7 +359,7 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput>& input,
     // Clean up
     vkDestroyQueryPool(raw_device, queryPool, nullptr);
     // m_alloc->finalizeAndReleaseStaging();
-    // m_alloc->destroy(scratchBuffer);
+    vk_engine->destroy_buffer(scratchBuffer);
     // m_cmdPool.deinit();
 }
 
@@ -564,6 +575,7 @@ void nvvk::RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer cmdBuf,
         vk_engine->create_buffer(sizeInfo.buildScratchSize,
                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                  VMA_MEMORY_USAGE_UNKNOWN);
+    vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT TLAS Scratch Buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer};
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(raw_device, &bufferInfo);
@@ -618,6 +630,7 @@ void nvvk::RaytracingBuilderKHR::updateBlas(uint32_t blasIdx,
         vk_engine->create_buffer(sizeInfo.buildScratchSize,
                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                  VMA_MEMORY_USAGE_UNKNOWN);
+    vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT BLAS Scratch Buffer");
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer = scratchBuffer.buffer;
     buildInfos.scratchData.deviceAddress = vkGetBufferDeviceAddress(raw_device, &bufferInfo);
@@ -675,6 +688,7 @@ void nvvk::RaytracingBuilderKHR::buildTlas(size_t num_instances,
                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+    vmaSetAllocationName(vk_engine->_allocator, instancesBuffer.allocation, "RT TLAS Instance Buffer");
     // Copy the instance data into the buffer
     vk_engine->upload_to_vma_allocation(instance_data, instancesBufferSize, instancesBuffer);
 
@@ -704,4 +718,7 @@ void nvvk::RaytracingBuilderKHR::buildTlas(size_t num_instances,
     // Finalizing and destroying temporary data
     VK_CHECK(vkEndCommandBuffer(cmdBuf));
     vkinit::submit_command_buffer_and_wait(vk_engine->_graphicsQueue, cmdBuf);
+    vk_engine->destroy_buffer(scratchBuffer);
+    vk_engine->destroy_buffer(instancesBuffer);
+
 }
