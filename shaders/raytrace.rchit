@@ -58,6 +58,7 @@ layout(set = 2, binding = 0, std140) buffer MaterialsBuffer {
 u_materials;
 
 layout(set = 3, binding = 0) uniform sampler2D textures[];
+layout(set = 3, binding = 1) uniform sampler2D normalMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 

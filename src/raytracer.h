@@ -68,6 +68,7 @@ public:
 	AllocatedImage _rtOutputImage;
 	// Put all textures in loadScenes to a vector
 	std::vector<AllocatedImage> loadedTextures;
+	std::vector<AllocatedImage> loadedNormTextures;
 
 	AllocatedBuffer m_rtSBTBuffer;
 	VkStridedDeviceAddressRegionKHR m_rgenRegion{};

@@ -134,21 +134,25 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	// Put all textures in loadScenes to a vector
 	for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
 		loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
+		loadedNormTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->normImage);
 		engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
 	}
 
 	// if textures are not empty
-	if (!loadedTextures.empty()) {
+	if (!loadedTextures.empty() || !loadedNormTextures.empty()) {
 		auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
+		auto nbNormText = static_cast<uint32_t>(loadedNormTextures.size());
 
 		{
 			DescriptorLayoutBuilder m_texSetLayoutBind;
-			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images	
+			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images
+			m_texSetLayoutBind.add_bindings(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText); // Normal Maps
 			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 		}
 
 		m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
 
+		// Color Texture
 		std::vector<VkDescriptorImageInfo> texDescs;
 		texDescs.reserve(nbTxt);
 		for (uint32_t i = 0; i < nbTxt; i++) {
@@ -160,8 +164,21 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 			texDescs.push_back(imageInfo);
 		}
 
+		// Normal Texture
+		std::vector<VkDescriptorImageInfo> normTexDescs;
+		normTexDescs.reserve(nbNormText);
+		for (uint32_t i = 0; i < nbNormText; i++) {
+			VkDescriptorImageInfo imageInfo{
+				.sampler = engine->_defaultSamplerLinear,
+				.imageView = loadedNormTextures[i].imageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			};
+			normTexDescs.push_back(imageInfo);
+		}
+
 		DescriptorWriter tex_writer;
 		tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
+		tex_writer.write_images(1, *normTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText);
 		tex_writer.update_set(engine->_device, m_texDescSet);
 
 		engine->_mainDeletionQueue.push_function([=]() {
