@@ -83,7 +83,8 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	 std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\house2.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\sphere.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
