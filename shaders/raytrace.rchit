@@ -65,11 +65,11 @@ layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 HitPoint compute_hit_point() {
   // Object Data
   ObjDesc objResource  = m_objDesc.i[gl_InstanceCustomIndexEXT];
-  Indices    indices     = Indices(objResource.indexAddress + objResource.firstIndex * 4);
-  Vertices   vertices    = Vertices(objResource.vertexAddress);
+  Indices    indices   = Indices(objResource.indexAddress + objResource.firstIndex * 4);
+  Vertices   vertices  = Vertices(objResource.vertexAddress);
 
   // Indices of the triangle
-  uvec3 ind = ivec3(
+  uvec3 ind = uvec3(
     indices.i[gl_PrimitiveID].elems[0],
     indices.i[gl_PrimitiveID].elems[1],
     indices.i[gl_PrimitiveID].elems[2]);
@@ -81,17 +81,31 @@ HitPoint compute_hit_point() {
 
   const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
-  // Computing the normal at hit position
-  vec3 normal = v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
-  // Transforming the normal to world space
-  normal = normalize(vec3(normal * gl_WorldToObjectEXT));
+  // Interpolate normal, tangent, and bitangent
+  vec3 normal   = normalize(v0.normal   * barycentrics.x + v1.normal   * barycentrics.y + v2.normal   * barycentrics.z);
+  vec3 tangent  = normalize(v0.tangent  * barycentrics.x + v1.tangent  * barycentrics.y + v2.tangent  * barycentrics.z);
+  vec3 bitangent = normalize(v0.bitangent * barycentrics.x + v1.bitangent * barycentrics.y + v2.bitangent * barycentrics.z);
 
-  // Computing the UV at hit position
+  // Construct TBN matrix
+  mat3 TBN = mat3(tangent, bitangent, normal);
+
+  // Compute UV coordinates
   vec2 uv = vec2(v0.uv_x * barycentrics.x + v1.uv_x * barycentrics.y + v2.uv_x * barycentrics.z,
                  v0.uv_y * barycentrics.x + v1.uv_y * barycentrics.y + v2.uv_y * barycentrics.z);
 
+  // Fetch normal map index from material
+  MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+  vec3 normalTex = texture(normalMaps[material.albedoTexIndex], uv).rgb;
+
+  // Transform normal from [0,1] to [-1,1]
+  normalTex = normalize(normalTex * 2.0 - 1.0);
+
+  // Transform from tangent space to world space
+  normal = normalize(TBN * normalTex);
+
   return HitPoint(normal, uv);
 }
+
 
 vec3 compute_diffuse(in HitPoint hit_point) {
 
