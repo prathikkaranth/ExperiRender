@@ -264,6 +264,7 @@ void VulkanEngine::init_default_data() {
 	// RT defaults
 	raytracerPipeline.setRTDefaultData();
 
+
 }
 
 // Global function to check if an object is visible in the current view

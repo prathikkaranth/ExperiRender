@@ -20,6 +20,7 @@ void Raytracer::setRTDefaultData() {
 	m_pcRay.samples_done = 0;
 	max_samples = 200;
 	m_pcRay.depth = 8;
+	m_pcRay.lightType = 0; // Directional light
 }
 
 void Raytracer::createBottomLevelAS(VulkanEngine* engine) {
@@ -440,7 +441,6 @@ void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, co
 	m_pcRay.viewInverse = glm::inverse(engine->sceneData.view);
 	m_pcRay.projInverse = glm::inverse(engine->sceneData.proj);
 	m_pcRay.lightIntensity = engine->sceneData.sunlightDirection.w;
-	m_pcRay.lightType = 0; // Directional light
 	m_pcRay.seed = static_cast<std::uint32_t>(std::rand());
 
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
@@ -499,4 +499,12 @@ void Raytracer::rtSampleUpdates(VulkanEngine* engine) {
 
 	// Update previous max depth to the new value
 	prevMaxDepth = m_pcRay.depth;
+
+	// If the light type has changed, reset samples
+	if (m_pcRay.lightType != prevLightType) {
+		resetSamples();
+	}
+
+	// Update previous light type to the new value
+	prevLightType = m_pcRay.lightType;
 }

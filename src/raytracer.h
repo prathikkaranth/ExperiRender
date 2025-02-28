@@ -86,6 +86,7 @@ public:
 	std::uint32_t max_samples;
 	std::uint32_t prevMaxSamples;
 	std::uint32_t prevMaxDepth;
+	int prevLightType;
 	glm::vec4 prevSunDir;
 
 };

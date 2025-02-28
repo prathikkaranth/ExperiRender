@@ -117,6 +117,23 @@ vec3 compute_diffuse(in HitPoint hit_point) {
   return diffuseColor;
 }
 
+vec3 compute_lambertian(in HitPoint hit_point) {
+  const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+
+  const vec4 diffuseSample = texture(textures[material.albedoTexIndex], hit_point.uv);
+  const vec3 diffuseColor = diffuseSample.rgb * material.albedo.rgb;
+
+  vec3 lightDir = normalize(vec3(pcRay.lightPosition - gl_WorldRayOriginEXT));
+  float diff = max(dot(hit_point.normal, lightDir), 0.0);
+
+  // Light color and intensity
+  vec3 lightColor = vec3(1.0, 1.0, 1.0); // White light
+  float lightIntensity = pcRay.lightIntensity;
+
+  // Diffuse color
+  return (diff * lightIntensity * lightColor * diffuseColor);
+}
+
 
 vec3 compute_vert_color() {
   // Object Data
@@ -153,7 +170,10 @@ void main()
 
   // Compute the color
   vec3 vertex_color = compute_vert_color();
- 
-  prd.strength *= compute_diffuse(hit_point) * vertex_color;
+
+  if(pcRay.lightType == 1)
+    prd.strength *= compute_diffuse(hit_point) * vertex_color;
+  else
+    prd.strength *= compute_lambertian(hit_point) * vertex_color;
   
 }
