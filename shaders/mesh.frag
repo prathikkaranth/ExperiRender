@@ -137,6 +137,7 @@ void main()
 
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
+	float shadowFactor = 0.85f;
 
 	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
@@ -149,7 +150,7 @@ void main()
 	}
 
 	// Final color
-	vec3 lighting = ((ambient*ssao) + (1.0 - shadow) * (diffuse + spec));
+	vec3 lighting = ((ambient*ssao) + (1.0 - shadow * shadowFactor) * (diffuse + spec));
 	outFragColor = vec4(lighting, 1.0f);
 
 }

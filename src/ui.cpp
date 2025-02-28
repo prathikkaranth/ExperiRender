@@ -186,7 +186,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
 		ImGui::ColorEdit3("Ambient Color", &engine->sceneData.ambientColor.x);
 		ImGui::ColorEdit3("Sunlight Color", &engine->sceneData.sunlightColor.x);
-		ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -50, 50);
+		ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -10, 10);
 		ImGui::SliderFloat("Sunlight Intensity", &engine->sceneData.sunlightDirection.w, 0, 10);
 
 		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&engine->sceneData.enableShadows));
