@@ -103,7 +103,7 @@ void main()
 
 
 	// Ambient light
-	vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
+	vec2 screenUV = gl_FragCoord.xy / vec2(1600, 900);
 	vec3 ssao = texture(ssaoMap, screenUV).xxx;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
