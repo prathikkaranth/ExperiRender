@@ -58,17 +58,18 @@ layout(set = 2, binding = 0, std140) buffer MaterialsBuffer {
 u_materials;
 
 layout(set = 3, binding = 0) uniform sampler2D textures[];
+layout(set = 3, binding = 1) uniform sampler2D normalMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
 HitPoint compute_hit_point() {
   // Object Data
   ObjDesc objResource  = m_objDesc.i[gl_InstanceCustomIndexEXT];
-  Indices    indices     = Indices(objResource.indexAddress + objResource.firstIndex * 4);
-  Vertices   vertices    = Vertices(objResource.vertexAddress);
+  Indices    indices   = Indices(objResource.indexAddress + objResource.firstIndex * 4);
+  Vertices   vertices  = Vertices(objResource.vertexAddress);
 
   // Indices of the triangle
-  uvec3 ind = ivec3(
+  uvec3 ind = uvec3(
     indices.i[gl_PrimitiveID].elems[0],
     indices.i[gl_PrimitiveID].elems[1],
     indices.i[gl_PrimitiveID].elems[2]);
@@ -80,17 +81,31 @@ HitPoint compute_hit_point() {
 
   const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
-  // Computing the normal at hit position
-  vec3 normal = v0.normal * barycentrics.x + v1.normal * barycentrics.y + v2.normal * barycentrics.z;
-  // Transforming the normal to world space
-  normal = normalize(vec3(normal * gl_WorldToObjectEXT));
+  // Interpolate normal, tangent, and bitangent
+  vec3 normal   = normalize(v0.normal   * barycentrics.x + v1.normal   * barycentrics.y + v2.normal   * barycentrics.z);
+  vec3 tangent  = normalize(v0.tangent  * barycentrics.x + v1.tangent  * barycentrics.y + v2.tangent  * barycentrics.z);
+  vec3 bitangent = normalize(v0.bitangent * barycentrics.x + v1.bitangent * barycentrics.y + v2.bitangent * barycentrics.z);
 
-  // Computing the UV at hit position
+  // Construct TBN matrix
+  mat3 TBN = mat3(tangent, bitangent, normal);
+
+  // Compute UV coordinates
   vec2 uv = vec2(v0.uv_x * barycentrics.x + v1.uv_x * barycentrics.y + v2.uv_x * barycentrics.z,
                  v0.uv_y * barycentrics.x + v1.uv_y * barycentrics.y + v2.uv_y * barycentrics.z);
 
+  // Fetch normal map index from material
+  MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+  vec3 normalTex = texture(normalMaps[material.albedoTexIndex], uv).rgb;
+
+  // Transform normal from [0,1] to [-1,1]
+  normalTex = normalize(normalTex * 2.0 - 1.0);
+
+  // Transform from tangent space to world space
+  normal = normalize(TBN * normalTex);
+
   return HitPoint(normal, uv);
 }
+
 
 vec3 compute_diffuse(in HitPoint hit_point) {
 
@@ -100,6 +115,23 @@ vec3 compute_diffuse(in HitPoint hit_point) {
   const vec3 diffuseColor = diffuseSample.rgb * material.albedo.rgb;
 
   return diffuseColor;
+}
+
+vec3 compute_lambertian(in HitPoint hit_point) {
+  const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+
+  const vec4 diffuseSample = texture(textures[material.albedoTexIndex], hit_point.uv);
+  const vec3 diffuseColor = diffuseSample.rgb * material.albedo.rgb;
+
+  vec3 lightDir = normalize(vec3(pcRay.lightPosition - gl_WorldRayOriginEXT));
+  float diff = max(dot(hit_point.normal, lightDir), 0.0);
+
+  // Light color and intensity
+  vec3 lightColor = vec3(1.0, 1.0, 1.0); // White light
+  float lightIntensity = pcRay.lightIntensity;
+
+  // Diffuse color
+  return (diff * lightIntensity * lightColor * diffuseColor);
 }
 
 
@@ -135,10 +167,12 @@ void main()
 
   prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
-
   // Compute the color
   vec3 vertex_color = compute_vert_color();
- 
-  prd.strength *= compute_diffuse(hit_point) * vertex_color;
+
+  if(pcRay.lightType == 1)
+    prd.strength *= compute_diffuse(hit_point) * vertex_color;
+  else
+    prd.strength *= compute_lambertian(hit_point) * vertex_color;
   
 }

@@ -186,16 +186,47 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
 		ImGui::ColorEdit3("Ambient Color", &engine->sceneData.ambientColor.x);
 		ImGui::ColorEdit3("Sunlight Color", &engine->sceneData.sunlightColor.x);
-		ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -50, 50);
+		ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -10, 10);
 		ImGui::SliderFloat("Sunlight Intensity", &engine->sceneData.sunlightDirection.w, 0, 10);
 
 		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&engine->sceneData.enableShadows));
 		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&engine->sceneData.enableSSAO));
 	}
-
 	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
 		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 100, 5000);
 		ImGui::SliderInt("Ray Depth", reinterpret_cast<int*>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
+
+		if (ImGui::TreeNode("RT Lighting"))
+		{
+			if (ImGui::CollapsingHeader("Light Type")) {
+				// Dropdown for selecting the visual for debugging
+				const char* visuals[] = { "Directional Light(Lambertian)", "Global Lighting" };
+				static const char* current_item = visuals[0];
+				if (ImGui::BeginCombo("Light Types", current_item)) // The second parameter is the label previewed before opening the combo.
+				{
+					for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
+					{
+						bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(visuals[n], is_selected))
+							current_item = visuals[n];
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+					}
+					ImGui::EndCombo();
+				}
+
+				if (strcmp(current_item, "Directional Light(Lambertian)") == 0)
+				{
+					engine->raytracerPipeline.m_pcRay.lightType = 0;
+				}
+				else if (strcmp(current_item, "Global Lighting") == 0)
+				{
+					engine->raytracerPipeline.m_pcRay.lightType = 1;
+				}
+			}
+			ImGui::TreePop();
+			ImGui::Spacing();
+		}
 
 	}
 

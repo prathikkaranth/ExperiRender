@@ -68,6 +68,7 @@ public:
 	AllocatedImage _rtOutputImage;
 	// Put all textures in loadScenes to a vector
 	std::vector<AllocatedImage> loadedTextures;
+	std::vector<AllocatedImage> loadedNormTextures;
 
 	AllocatedBuffer m_rtSBTBuffer;
 	VkStridedDeviceAddressRegionKHR m_rgenRegion{};
@@ -85,6 +86,7 @@ public:
 	std::uint32_t max_samples;
 	std::uint32_t prevMaxSamples;
 	std::uint32_t prevMaxDepth;
+	int prevLightType;
 	glm::vec4 prevSunDir;
 
 };

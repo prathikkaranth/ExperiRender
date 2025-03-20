@@ -103,7 +103,7 @@ void main()
 
 
 	// Ambient light
-	vec2 screenUV = gl_FragCoord.xy / vec2(1280, 720);
+	vec2 screenUV = gl_FragCoord.xy / vec2(1600, 900);
 	vec3 ssao = texture(ssaoMap, screenUV).xxx;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
@@ -137,6 +137,7 @@ void main()
 
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
+	float shadowFactor = 0.725f;
 
 	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
@@ -149,7 +150,7 @@ void main()
 	}
 
 	// Final color
-	vec3 lighting = ((ambient*ssao) + (1.0 - shadow) * (diffuse + spec));
+	vec3 lighting = ((ambient*ssao) + (1.0 - shadow * shadowFactor) * (diffuse + spec));
 	outFragColor = vec4(lighting, 1.0f);
 
 }

@@ -145,7 +145,7 @@ public:
 	void traverseLoadedMeshNodesOnceForRT();
 	Raytracer raytracerPipeline;
 
-	VkExtent2D _windowExtent{ 1280 , 720 };
+	VkExtent2D _windowExtent{ 1600 , 900 };
 
 	float renderScale = 1.f;
 

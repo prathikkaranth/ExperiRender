@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vk_loader.h>
 #include<variant>
+#include <filesystem>
 
 // header for std::visit
 
@@ -32,9 +33,13 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                                                     // local files.
 
                 const std::string path(filePath.uri.path().begin(),
-                    filePath.uri.path().end()); // Thanks C++.
-                const std::string fullPath = baseDir + path;
-                unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &nrChannels, 4);
+                    filePath.uri.path().end());
+
+				// Resolve the full path using filesystem utilities
+				std::filesystem::path fullPath = std::filesystem::path(baseDir) / filePath.uri.path();
+				fullPath = fullPath.lexically_normal(); // Normalize path separators
+
+                unsigned char* data = stbi_load(fullPath.string().c_str(), &width, &height, &nrChannels, 4);
                 if (data) {
                     VkExtent3D imagesize;
                     imagesize.width = width;
@@ -99,7 +104,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
         return {};
     } else {
         return newImage;
-    }
+    }	
 
 }
 

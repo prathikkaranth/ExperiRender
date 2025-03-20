@@ -83,7 +83,10 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	 std::string structurePath = { "..\\assets\\Sponza\\glTF\\Sponza.gltf" };
+	std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
+	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
+	// std::string structurePath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
+	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\house2.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\sphere.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
@@ -262,6 +265,7 @@ void VulkanEngine::init_default_data() {
 
 	// RT defaults
 	raytracerPipeline.setRTDefaultData();
+
 
 }
 
@@ -517,7 +521,7 @@ void VulkanEngine::update_scene()
 	glm::mat4 view = mainCamera.getViewMatrix();
 
 	//// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(75.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+	glm::mat4 projection = glm::perspective(glm::radians(75.f), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.01f);
 
 	//// invert the Y direction on projection matrix so that we are more similar
 	//// to OpenGL and gLTF axis
@@ -604,6 +608,7 @@ void VulkanEngine::init_vulkan() {
 	vkb::InstanceBuilder builder;
 
 	auto inst_ret = builder.set_app_name("ExperiRender")
+		.set_engine_name("ExperiRender")
 		.request_validation_layers(bUseValidationLayers)
 		.require_api_version(1, 3, 0)
 		.use_default_debug_messenger()
@@ -1543,6 +1548,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.update_set(device, matData.materialSet);
 
 	matData.colImage = resources.colorImage;
+	matData.normImage = resources.normalImage;
 
 	matData.albedo = resources.albedo;
 
