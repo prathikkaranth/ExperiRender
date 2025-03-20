@@ -4,7 +4,7 @@
 #include <vk_descriptors.h>
 #include <vk_pipelines.h>
 #include <functional>
-#include <camera.h>
+#include "Scene/camera.h"
 #include <ssao.h>
 #include <RenderObject.h>
 #include <shadowmap.h>

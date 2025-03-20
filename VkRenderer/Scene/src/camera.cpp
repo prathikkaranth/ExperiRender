@@ -1,8 +1,8 @@
-#include "camera.h"
-#include "glm/gtx/quaternion.hpp"
-#include "glm/gtx/transform.hpp"
-#include <iostream>
+#include "Scene/camera.h"
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
 #include <spdlog/spdlog.h>
+#include <SDL_events.h>
 
 glm::mat4 Camera::getViewMatrix() const
 {
