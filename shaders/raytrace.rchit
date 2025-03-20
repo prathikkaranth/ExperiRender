@@ -167,7 +167,6 @@ void main()
 
   prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
-
   // Compute the color
   vec3 vertex_color = compute_vert_color();
 
