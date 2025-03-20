@@ -201,7 +201,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 			if (ImGui::CollapsingHeader("Light Type")) {
 				// Dropdown for selecting the visual for debugging
 				const char* visuals[] = { "Directional Light(Lambertian)", "Global Lighting" };
-				static const char* current_item = visuals[1];
+				static const char* current_item = visuals[0];
 				if (ImGui::BeginCombo("Light Types", current_item)) // The second parameter is the label previewed before opening the combo.
 				{
 					for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)

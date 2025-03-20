@@ -20,7 +20,7 @@ void Raytracer::setRTDefaultData() {
 	m_pcRay.samples_done = 0;
 	max_samples = 200;
 	m_pcRay.depth = 8;
-	m_pcRay.lightType = 0; // Directional light
+	m_pcRay.lightType = 1; // Global light
 }
 
 void Raytracer::createBottomLevelAS(VulkanEngine* engine) {
