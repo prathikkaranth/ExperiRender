@@ -26,6 +26,9 @@ find_package(SDL2 CONFIG REQUIRED)
 # GLFW
 add_subdirectory(deps/glfw-3.4)
 
+# STB
+add_subdirectory(deps/stb)
+
 # GLM
 FetchContent_Declare(
 	glm
@@ -132,7 +135,7 @@ target_include_directories(Renderer PRIVATE VkRenderer/)
 
 # External Dependencies
 target_link_libraries(Renderer PRIVATE
-    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog)
+    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
 
 # Internal Dependencies
 target_link_libraries(Renderer PRIVATE Scene)
