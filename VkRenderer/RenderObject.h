@@ -1,12 +1,7 @@
 #pragma once
 
 #include <vk_types.h>
-#include <vk_descriptors.h>
-#include <vk_pipelines.h>
 #include <vk_loader.h>	
-#include <functional>
-#include <vk_utils.h>
-
 #include "VkBootstrap.h"
 
 struct RenderObject {
