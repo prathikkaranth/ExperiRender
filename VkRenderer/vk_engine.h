@@ -69,12 +69,6 @@ struct GLTFMetallic_Roughness {
 	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
 
-struct DrawContext {
-	std::vector<RenderObject> OpaqueSurfaces;		
-	std::vector<RenderObject> TransparentSurfaces;
-	
-};
-
 struct EngineStats {
 	float frametime;
 	int triangle_count;

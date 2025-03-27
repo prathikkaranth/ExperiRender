@@ -16,3 +16,9 @@ struct RenderObject {
 	VkDeviceAddress vertexBufferAddress;
 	VkDeviceAddress indexBufferAddress;
 };
+
+struct DrawContext {
+	std::vector<RenderObject> OpaqueSurfaces;
+	std::vector<RenderObject> TransparentSurfaces;
+
+};
