@@ -7,6 +7,7 @@
 #include "Scene/camera.h"
 #include <ssao.h>
 #include <RenderObject.h>
+#include <DeletionQueue.h>
 #include <shadowmap.h>
 #include <raytracer.h>
 #include <ui.h>
@@ -14,24 +15,6 @@
 #include <glm/glm.hpp>
 
 #include "VkBootstrap.h"
-
-struct DeletionQueue
-{
-	std::deque<std::function<void()>> deletors;
-
-	void push_function(std::function<void()>&& function) {
-		deletors.push_back(function);
-	}
-
-	void flush() {
-		// reverse iterate the deletion queue to execute all the functions
-		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
-			(*it)(); //call functors
-		}
-
-		deletors.clear();
-	}
-};
 
 struct FrameData {
 	VkCommandPool _commandPool;
