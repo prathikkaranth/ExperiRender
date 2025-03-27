@@ -137,7 +137,7 @@ void main()
 
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
-	float shadowFactor = 0.725f;
+	float shadowFactor = 0.775f;
 
 	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);

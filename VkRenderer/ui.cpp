@@ -162,7 +162,7 @@ void ui::init_imgui(VulkanEngine* engine) {
 	engine->_ssao._ssaoDescriptorSet = ImGui_ImplVulkan_AddTexture(engine->_ssao._ssaoSampler, engine->_ssao._ssaoImageBlurred.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	// For Drawing Gbuffer Position on ImGui
-	engine->_gbufferPosOutputDescriptor = ImGui_ImplVulkan_AddTexture(engine->_gbufferSampler, engine->_gbufferPosition.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	engine->gbuffer._gbufferPosOutputDescriptor = ImGui_ImplVulkan_AddTexture(engine->gbuffer.getGbufferSampler(), engine->gbuffer.getGbufferPosInfo().imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	// add the destroy the imgui created structures
 	engine->_mainDeletionQueue.push_function([=]() {
@@ -282,7 +282,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 		else if (strcmp(current_item, "GBuffer Position") == 0)
 		{
 			ImGui::Begin("GBuffer Position");
-			ImGui::Image((ImTextureID)engine->_gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::Image((ImTextureID)engine->gbuffer._gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 			ImGui::End();
 		}
 	}

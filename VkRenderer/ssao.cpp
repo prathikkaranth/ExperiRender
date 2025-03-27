@@ -160,8 +160,8 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd)
 	DescriptorWriter ssao_writer;
 	ssao_writer.write_buffer(0, ssaoSceneDataBuffer.buffer, sizeof(SSAOSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	ssao_writer.write_image(1, _depthMap.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	ssao_writer.write_image(2, engine->_gbufferPosition.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	ssao_writer.write_image(3, engine->_gbufferNormal.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	ssao_writer.write_image(2, engine->gbuffer.getGbufferPosInfo().imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	ssao_writer.write_image(3, engine->gbuffer.getGbufferNormInfo().imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(4, engine->_ssaoNoiseImage.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(5, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
