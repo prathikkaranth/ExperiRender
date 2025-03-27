@@ -2,6 +2,7 @@
 #include "raytracer.h"
 
 #include <VulkanGeometryKHR.h>
+#include <vk_images.h>
 #include <spdlog/spdlog.h>
 
 void Raytracer::init_ray_tracing(VulkanEngine* engine) {
@@ -76,7 +77,7 @@ void Raytracer::createTopLevelAS(VulkanEngine* engine) {
 void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 {
 	// Create output image
-	_rtOutputImage = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+	_rtOutputImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 	vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
 
 	{
@@ -222,7 +223,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
-		engine->destroy_image(_rtOutputImage);
+		vkutil::destroy_image(engine, _rtOutputImage);
 		engine->destroy_buffer(m_objDescSetBuffer);
 		engine->destroy_buffer(m_matDescSetBuffer);
 		});

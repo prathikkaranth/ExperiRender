@@ -130,15 +130,15 @@ void VulkanEngine::init_default_data() {
 
 	// 3 default textures, white, grey and black. 1 pixel each.
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	_whiteImage = create_image((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_whiteImage = vkutil::create_image(this, (void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _whiteImage.allocation, "whiteImage");
 
 	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	_greyImage = create_image((void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_greyImage = vkutil::create_image(this, (void*)&grey, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _greyImage.allocation, "greyImage");
 
 	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	_blackImage = create_image((void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_blackImage = vkutil::create_image(this, (void*)&black, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _blackImage.allocation, "blackImage");
 
 	// checkerboard texture
@@ -149,7 +149,7 @@ void VulkanEngine::init_default_data() {
 			pixels[x + y * 16] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
-	_errorCheckerboardImage = create_image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
 
 	// Shadow light map
@@ -189,7 +189,7 @@ void VulkanEngine::init_default_data() {
 		ssaoNoise.push_back(noise);
 	}
 
-	_ssaoNoiseImage = create_image(&ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoNoiseImage = vkutil::create_image(this, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
 
 	for (int i = 0; i < 128; i++) {
@@ -212,11 +212,11 @@ void VulkanEngine::init_default_data() {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 
-		destroy_image(_whiteImage);
-		destroy_image(_greyImage);
-		destroy_image(_blackImage);
-		destroy_image(_errorCheckerboardImage);
-		destroy_image(_ssaoNoiseImage);
+		vkutil::destroy_image(this, _whiteImage);
+		vkutil::destroy_image(this, _greyImage);
+		vkutil::destroy_image(this, _blackImage);
+		vkutil::destroy_image(this, _errorCheckerboardImage);
+		vkutil::destroy_image(this, _ssaoNoiseImage);
 		});
 
 	GLTFMetallic_Roughness::MaterialResources materialResources;
@@ -1349,89 +1349,6 @@ void VulkanEngine::destroy_buffer(const AllocatedBuffer& buffer)
 	vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
 }
 
-AllocatedImage VulkanEngine::create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
-{
-	AllocatedImage newImage;
-	newImage.imageFormat = format;
-	newImage.imageExtent = size;
-
-	VkImageCreateInfo img_info = vkinit::image_create_info(format, usage, size);
-	if (mipmapped) {
-		img_info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(size.width, size.height)))) + 1;
-	}
-
-	// always allocated images on dedicated GPU memory
-	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	allocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-	// allocate and create the image
-	VK_CHECK(vmaCreateImage(_allocator, &img_info, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
-
-	// if the format is a depth format, we will need to have it use the correct 
-	// aspect flag
-	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-	if (format == VK_FORMAT_D32_SFLOAT) {
-		aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
-	}
-
-	// build a image view for the image
-	VkImageViewCreateInfo view_info = vkinit::imageview_create_info(format, newImage.image, aspectFlag);
-	view_info.subresourceRange.levelCount = img_info.mipLevels;
-
-	VK_CHECK(vkCreateImageView(_device, &view_info, nullptr, &newImage.imageView));
-	
-	return newImage;
-}
-
-AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
-{
-	const size_t pixel_size = format == VK_FORMAT_R32G32B32A32_SFLOAT ? 16 : 4;
-	size_t data_size = size.depth * size.width * size.height * pixel_size;
-	AllocatedBuffer uploadbuffer = create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-	vmaSetAllocationName(_allocator, uploadbuffer.allocation, "Image Upload Buffer");
-
-	memcpy(uploadbuffer.info.pMappedData, data, data_size);
-
-	AllocatedImage new_image = create_image(size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
-	vmaSetAllocationName(_allocator, new_image.allocation, "Image Allocation");
-
-	immediate_submit([&](VkCommandBuffer cmd) {
-		vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		VkBufferImageCopy copyRegion = {};
-		copyRegion.bufferOffset = 0;
-		copyRegion.bufferRowLength = 0;
-		copyRegion.bufferImageHeight = 0;
-
-		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		copyRegion.imageSubresource.mipLevel = 0;
-		copyRegion.imageSubresource.baseArrayLayer = 0;
-		copyRegion.imageSubresource.layerCount = 1;
-		copyRegion.imageExtent = size;
-
-		// copy the buffer into the image
-		vkCmdCopyBufferToImage(cmd, uploadbuffer.buffer, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-			&copyRegion);
-
-		if (mipmapped) {
-			vkutil::generate_mipmaps(cmd, new_image.image, VkExtent2D{ new_image.imageExtent.width,new_image.imageExtent.height });
-		}
-		else {
-			vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		}
-		});
-	destroy_buffer(uploadbuffer);
-	return new_image;
-}
-
-void VulkanEngine::destroy_image(const AllocatedImage& image)
-{
-	vkDestroyImageView(_device, image.imageView, nullptr);
-	vmaDestroyImage(_allocator, image.image, image.allocation);
-}
-
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 {
 	VkShaderModule meshFragShader;
@@ -1590,9 +1507,9 @@ void MeshNode::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 
 void VulkanEngine::init_gbuffer()
 {
-	_gbufferPosition = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_gbufferPosition = vkutil::create_image(this, VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _gbufferPosition.allocation, "GBuffer Position Image");
-	_gbufferNormal = create_image(VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_gbufferNormal = vkutil::create_image(this, VkExtent3D{ _windowExtent.width, _windowExtent.height, 1 }, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _gbufferNormal.allocation, "GBuffer Normal Image");
 
 	VkPushConstantRange matrixRange{};
@@ -1657,8 +1574,8 @@ void VulkanEngine::init_gbuffer()
 	_mainDeletionQueue.push_function([&]() {
 		vkDestroyPipelineLayout(_device, _gbufferPipelineLayout, nullptr);
 		vkDestroyPipeline(_device, _gbufferPipeline, nullptr);
-		destroy_image(_gbufferNormal);
-		destroy_image(_gbufferPosition);
+		vkutil::destroy_image(this, _gbufferNormal);
+		vkutil::destroy_image(this, _gbufferPosition);
 		vkDestroySampler(_device, _gbufferSampler, nullptr);
 	});
 }

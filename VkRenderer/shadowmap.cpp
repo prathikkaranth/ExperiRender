@@ -1,5 +1,6 @@
 
 #include "vk_mem_alloc.h"
+#include <vk_images.h>
 #include <spdlog/spdlog.h>
 
 #include "shadowmap.h"
@@ -42,7 +43,7 @@ void shadowMap::update_lightSpaceMatrix(VulkanEngine* engine) {
 
 void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
-	_depthShadowMap = engine->create_image(VkExtent3D{ SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_depthShadowMap = vkutil::create_image(engine, VkExtent3D{ SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(engine->_allocator, _depthShadowMap.allocation, "Shadow Depth Map");
 
 	VkPushConstantRange matrixRange{};
@@ -107,7 +108,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
 		vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
-		engine->destroy_image(_depthShadowMap);
+		vkutil::destroy_image(engine, _depthShadowMap);
 	});
 
 }

@@ -1,6 +1,7 @@
 
 #include "vk_mem_alloc.h"
 #include <spdlog/spdlog.h>
+#include <vk_images.h>
 
 #include "ssao.h"
 #include "vk_engine.h"
@@ -8,9 +9,9 @@
 void ssao::init_ssao(VulkanEngine* engine) {
 
 	_depthMapExtent = { engine->_windowExtent.width, engine->_windowExtent.height };
-	_ssaoImage = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(engine->_allocator, _ssaoImage.allocation, "SSAO Image");
-	_depthMap = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	_depthMap = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 	vmaSetAllocationName(engine->_allocator, _depthMap.allocation, "Depth Map");
 
 	// SSAO 
@@ -67,14 +68,14 @@ void ssao::init_ssao(VulkanEngine* engine) {
 	engine->_mainDeletionQueue.push_function([=]() {
 		vkDestroyPipelineLayout(engine->_device, _ssaoPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoPipeline, nullptr);
-		engine->destroy_image(_ssaoImage);
-		engine->destroy_image(_depthMap);
+		vkutil::destroy_image(engine, _ssaoImage);
+		vkutil::destroy_image(engine, _depthMap);
 	});
 }
 
 void ssao::init_ssao_blur(VulkanEngine* engine) {
 
-	_ssaoImageBlurred = engine->create_image(VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	_ssaoImageBlurred = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(engine->_allocator, _ssaoImageBlurred.allocation, "SSAO Blurred Image");
 
 	// SSAO Blur
@@ -135,7 +136,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 		vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _ssaoBlurPipeline, nullptr);
 		vkDestroySampler(engine->_device, _ssaoSampler, nullptr);
-		engine->destroy_image(_ssaoImageBlurred);
+		vkutil::destroy_image(engine, _ssaoImageBlurred);
 		});
 }
 
