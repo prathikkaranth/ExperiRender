@@ -22,16 +22,6 @@
 
 constexpr bool bUseValidationLayers = true;
 
-namespace {
-	template <typename Fn> void run_with_mapped_memory(VmaAllocator allocator, VmaAllocation allocation, Fn&& fn)
-	{
-		void* mapped_memory;
-		VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_memory));
-		fn(mapped_memory);
-		vmaUnmapMemory(allocator, allocation);
-	}
-}
-
 void VulkanEngine::upload_to_vma_allocation(const void* src,
 	size_t size,
 	const AllocatedBuffer& dst_allocation,
