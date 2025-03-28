@@ -75,10 +75,10 @@ void VulkanEngine::init()
 
 	std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
 	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
-	// std::string structurePath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
+	 std::string helmetPath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
 	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\house2.gltf" };*/
-	/*std::string structurePath = { "..\\assets\\sphere.gltf" };*/
+	/*std::string spherePath = { "..\\assets\\sphere.gltf" };*/
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
 	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
 
@@ -86,7 +86,12 @@ void VulkanEngine::init()
 
 	assert(structureFile.has_value());
 
+	auto helmetFile = loadGltf(this, helmetPath);
+
+	assert(helmetFile.has_value());
+
 	loadedScenes["Sponza"] = *structureFile;
+	loadedScenes["Helmet"] = *helmetFile;
 
 	//everything went fine
 	_isInitialized = true;
@@ -300,7 +305,9 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 }
 
 void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
+	glm::mat4 translationMatrix = glm::translate(glm::mat4{ 1.f }, glm::vec3(0.0f, -0.025f, 0.0f));
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	loadedScenes["Helmet"]->Draw(translationMatrix, mainDrawContext);
 }
 
 void VulkanEngine::cleanup()
@@ -532,6 +539,7 @@ void VulkanEngine::update_scene()
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
+	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);
