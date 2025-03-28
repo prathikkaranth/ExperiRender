@@ -150,7 +150,6 @@ public:
 
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
-	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
