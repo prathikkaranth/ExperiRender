@@ -511,6 +511,12 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
     }
 }
 
+void LoadedGLTF::translateLoadedScene(glm::vec3 translation, DrawContext& ctx) {
+    glm::mat4 translationMatrix = glm::translate(glm::mat4{ 1.f }, translation);
+	// create renderables from the scenenodes
+    Draw(translationMatrix, ctx);
+}
+
 void LoadedGLTF::clearAll()
 {
     VkDevice dv = creator->_device;

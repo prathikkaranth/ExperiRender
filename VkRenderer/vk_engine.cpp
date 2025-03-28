@@ -305,9 +305,9 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 }
 
 void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
-	glm::mat4 translationMatrix = glm::translate(glm::mat4{ 1.f }, glm::vec3(0.0f, -0.025f, 0.0f));
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	loadedScenes["Helmet"]->Draw(translationMatrix, mainDrawContext);
+	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
 }
 
 void VulkanEngine::cleanup()
@@ -540,6 +540,7 @@ void VulkanEngine::update_scene()
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
 	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);

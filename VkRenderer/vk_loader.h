@@ -61,6 +61,8 @@ struct LoadedGLTF : public IRenderable {
 
     virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx);
 
+    void translateLoadedScene(glm::vec3 translation, DrawContext& ctx);
+
 private:
 
     void clearAll();
