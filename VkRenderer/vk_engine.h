@@ -4,9 +4,11 @@
 #include <vk_descriptors.h>
 #include <vk_pipelines.h>
 #include <functional>
-#include <camera.h>
+#include "Scene/camera.h"
+#include "gbuffer.h"
 #include <ssao.h>
 #include <RenderObject.h>
+#include <DeletionQueue.h>
 #include <shadowmap.h>
 #include <raytracer.h>
 #include <ui.h>
@@ -14,24 +16,6 @@
 #include <glm/glm.hpp>
 
 #include "VkBootstrap.h"
-
-struct DeletionQueue
-{
-	std::deque<std::function<void()>> deletors;
-
-	void push_function(std::function<void()>&& function) {
-		deletors.push_back(function);
-	}
-
-	void flush() {
-		// reverse iterate the deletion queue to execute all the functions
-		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
-			(*it)(); //call functors
-		}
-
-		deletors.clear();
-	}
-};
 
 struct FrameData {
 	VkCommandPool _commandPool;
@@ -84,12 +68,6 @@ struct GLTFMetallic_Roughness {
 	void clear_resources(VkDevice device);
 
 	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
-};
-
-struct DrawContext {
-	std::vector<RenderObject> OpaqueSurfaces;		
-	std::vector<RenderObject> TransparentSurfaces;
-	
 };
 
 struct EngineStats {
@@ -170,28 +148,19 @@ public:
 	VkDescriptorSet _drawImageDescriptors{};
 	VkDescriptorSetLayout _drawImageDescriptorLayout{};
 
-	VkDescriptorSet _gbufferInputDescriptors{};
-	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
-	VkDescriptorSet _gbufferPosOutputDescriptor{};
-
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
 
-	VkPipelineLayout _gbufferPipelineLayout;
-	VkPipeline _gbufferPipeline;
-
-	GPUMeshBuffers rectangle;
 	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 
 	GPUSceneData sceneData;
 
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
-	AllocatedImage create_image(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	void destroy_image(const AllocatedImage& image);
-
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
+
+	// Gbuffer
+	Gbuffer gbuffer;
 
 	//draw resources
 	AllocatedImage _drawImage;
@@ -218,7 +187,6 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 	VkSampler _defaultSamplerShadowDepth;
-	VkSampler _gbufferSampler;
 
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 
@@ -248,15 +216,9 @@ public:
 	bool resize_requested{ false };
 	bool drawGBufferPositions{ false };
 
-	// GBuffer
-	void init_gbuffer();
-	AllocatedImage _gbufferPosition;
-	AllocatedImage _gbufferNormal;
-
 private: 
 
 	void draw_geometry(VkCommandBuffer cmd);
-	void draw_gbuffer(VkCommandBuffer cmd);
 
 	void init_pipelines();
 

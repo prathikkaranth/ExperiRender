@@ -7,6 +7,7 @@
 
 #include "stb_image.h"
 #include "vk_engine.h"
+#include <vk_images.h>
 #include "vk_initializers.h"
 #include "vk_types.h"
 #include <glm/gtx/quaternion.hpp>
@@ -46,7 +47,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+                    newImage = vkutil::create_image(engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
 
                     vmaSetAllocationName(engine->_allocator, newImage.allocation, path.c_str());
 
@@ -62,7 +63,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+                    newImage = vkutil::create_image(engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
                     vmaSetAllocationName(engine->_allocator, newImage.allocation, "Loader Img alloc for Vector");
 
                     stbi_image_free(data);
@@ -86,7 +87,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine* engine, fastgltf::Asset& 
                                        imagesize.height = height;
                                        imagesize.depth = 1;
 
-                                       newImage = engine->create_image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                                       newImage = vkutil::create_image(engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
                                            VK_IMAGE_USAGE_SAMPLED_BIT, true);
                                        vmaSetAllocationName(engine->_allocator, newImage.allocation, "Loader Image Allocation from Buffer view");
 
@@ -510,6 +511,12 @@ void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
     }
 }
 
+void LoadedGLTF::translateLoadedScene(glm::vec3 translation, DrawContext& ctx) {
+    glm::mat4 translationMatrix = glm::translate(glm::mat4{ 1.f }, translation);
+	// create renderables from the scenenodes
+    Draw(translationMatrix, ctx);
+}
+
 void LoadedGLTF::clearAll()
 {
     VkDevice dv = creator->_device;
@@ -530,7 +537,7 @@ void LoadedGLTF::clearAll()
             //dont destroy the default images
             continue;
         }
-        creator->destroy_image(v);
+        vkutil::destroy_image(creator, v);
     }
 
     for (auto& sampler : samplers) {

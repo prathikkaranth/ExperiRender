@@ -1,10 +1,17 @@
 cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17. 20]
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # TODO is this a hack?
 project(ExperiRender)
 
 include(FetchContent)
 
+#############
+# Build options
+if(MSVC)
+    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+endif()
 
 ######################################
 # Dependencies
@@ -18,6 +25,9 @@ find_package(SDL2 CONFIG REQUIRED)
 
 # GLFW
 add_subdirectory(deps/glfw-3.4)
+
+# STB
+add_subdirectory(deps/stb)
 
 # GLM
 FetchContent_Declare(
@@ -107,21 +117,28 @@ endforeach()
 # Create a target to compile all shaders
 add_custom_target(compile_shaders ALL DEPENDS ${SPV_OUTPUTS})
 
+# SubFolders
+add_subdirectory(VkRenderer/Scene)
 
 # source and headers
 file(GLOB CPP_SRC
-        "src/*.cpp"
+        "VkRenderer/*.cpp"
         )
-file(GLOB_RECURSE HEADERS "src/*.h")
+file(GLOB_RECURSE HEADERS "VkRenderer/*.h")
 
 add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
 
 # Ensure the shader compilation runs before building the main target
 add_dependencies(Renderer compile_shaders)
 
-target_include_directories(Renderer PRIVATE src/)
+target_include_directories(Renderer PRIVATE VkRenderer/)
+
+# External Dependencies
 target_link_libraries(Renderer PRIVATE
-    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator  imgui fastgltf spdlog::spdlog)
+    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+
+# Internal Dependencies
+target_link_libraries(Renderer PRIVATE Scene)
 
 
 if (WIN32)
