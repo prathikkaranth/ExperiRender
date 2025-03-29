@@ -1,4 +1,4 @@
-#define STB_IMAGE_IMPLEMENTATION
+﻿#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include "vk_initializers.h"
@@ -79,6 +79,133 @@ AllocatedImage vkutil::create_image(VulkanEngine* engine, void* data, VkExtent3D
 		});
 	engine->destroy_buffer(uploadbuffer);
 	return new_image;
+}
+
+AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, void* data, int width, int height, int nrComponents)
+{
+	// load HDRI
+		// Calculate buffer size based on loaded data
+	size_t dataSize = width * height * nrComponents * sizeof(float);
+
+	// Create a staging buffer
+	AllocatedBuffer uploadBuffer = engine->create_buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	vmaSetAllocationName(engine->_allocator, uploadBuffer.allocation, "HDRI Upload Buffer");
+
+	// Copy the data to the upload buffer
+	memcpy(uploadBuffer.info.pMappedData, data, dataSize);
+
+	// Create destination image
+	VkExtent3D imageSize = {
+		static_cast<uint32_t>(width),
+		static_cast<uint32_t>(height),
+		1
+	};
+
+	VkImageCreateInfo imgInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+	imgInfo.imageType = VK_IMAGE_TYPE_2D;
+	imgInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	imgInfo.extent = imageSize;
+	imgInfo.mipLevels = 1;
+	imgInfo.arrayLayers = 1;
+	imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imgInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	AllocatedImage newImage;
+	newImage.imageExtent = imageSize;
+	newImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+	VmaAllocationCreateInfo allocInfo = {};
+	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+	// Create the image
+	VK_CHECK(vmaCreateImage(engine->_allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+	vmaSetAllocationName(engine->_allocator, newImage.allocation, "HDRI Image");
+
+	// Create the image view
+	VkImageViewCreateInfo viewInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+	viewInfo.image = newImage.image;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+
+	vkCreateImageView(engine->_device, &viewInfo, nullptr, &newImage.imageView);
+
+	// Upload the image data and transition layout
+	engine->immediate_submit([&](VkCommandBuffer cmd) {
+		// Transition image to transfer destination layout
+		VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = newImage.image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+		vkCmdPipelineBarrier(
+			cmd,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+
+		// Copy the buffer to the image
+		VkBufferImageCopy copyRegion = {};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0;  // Tightly packed
+		copyRegion.bufferImageHeight = 0;  // Tightly packed
+		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		copyRegion.imageSubresource.mipLevel = 0;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageExtent = imageSize;
+
+		vkCmdCopyBufferToImage(
+			cmd,
+			uploadBuffer.buffer,
+			newImage.image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&copyRegion
+		);
+
+		// Transition to shader read layout
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		vkCmdPipelineBarrier(
+			cmd,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+		});
+
+	// Clean up the staging buffer
+	engine->destroy_buffer(uploadBuffer);
+
+	return newImage;
 }
 
 void vkutil::destroy_image(VulkanEngine* engine, const AllocatedImage& image)

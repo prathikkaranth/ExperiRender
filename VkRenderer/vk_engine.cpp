@@ -73,6 +73,8 @@ void VulkanEngine::init()
 
 	init_default_data();
 
+	// Scene
+
 	std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
 	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
 	 std::string helmetPath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
@@ -1096,6 +1098,9 @@ void VulkanEngine::init_pipelines()
 
 	// GBuffer PIPELINE
 	gbuffer.init_gbuffer(this);
+
+	// HDRI PIPELINE
+	hdrImage.init_hdriMap(this);
 
 	// SHADOW PIPELINE
 	_shadowMap.init_depthShadowMap(this);

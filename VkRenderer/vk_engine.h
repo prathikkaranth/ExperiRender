@@ -5,6 +5,7 @@
 #include <vk_pipelines.h>
 #include <functional>
 #include "Scene/camera.h"
+#include "Hdri.h"
 #include "gbuffer.h"
 #include <ssao.h>
 #include <RenderObject.h>
@@ -161,6 +162,9 @@ public:
 
 	// Gbuffer
 	Gbuffer gbuffer;
+
+	// HDRI
+	HDRI hdrImage;
 
 	//draw resources
 	AllocatedImage _drawImage;
