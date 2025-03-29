@@ -1095,12 +1095,11 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 
 void VulkanEngine::init_pipelines()
 {
+	// HDRI PIPELINE
+	hdrImage.init_hdriMap(this);
 
 	// GBuffer PIPELINE
 	gbuffer.init_gbuffer(this);
-
-	// HDRI PIPELINE
-	hdrImage.init_hdriMap(this);
 
 	// SHADOW PIPELINE
 	_shadowMap.init_depthShadowMap(this);
