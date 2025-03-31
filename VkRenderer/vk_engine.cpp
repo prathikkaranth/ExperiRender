@@ -450,8 +450,6 @@ void VulkanEngine::draw()
 
 		hdrImage.draw_hdriMap(this, cmd);
 
-		vkutil::transition_image(cmd, hdrImage.get_hdriOutImage().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
 		draw_geometry(cmd);
 
 		//transition the draw image and the swapchain image into their correct transfer layouts
@@ -876,7 +874,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
-		vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL)
+		vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL)
 	};
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);

@@ -111,7 +111,7 @@ void HDRI::init_hdriMap(VulkanEngine* engine) {
 	pipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_ALWAYS);
 
 	//render format
-	pipelineBuilder.add_color_attachment(_hdriOutImage.imageFormat, PipelineBuilder::BlendMode::ALPHA_BLEND);
+	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
 
 	pipelineBuilder.set_depth_format(VK_FORMAT_D32_SFLOAT);
 
@@ -137,7 +137,7 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info( _hdriOutImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	VkClearValue depthClear = { .depthStencil = {1.0f, 0} };
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(engine->_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
