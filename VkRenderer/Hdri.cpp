@@ -7,42 +7,27 @@
 void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
 	// Create an array of the six cubemap face filenames
-	std::vector<std::string> filenames = {
-		"..\\assets\\HDRI\\skybox\\right.jpg", // Positive X
-		"..\\assets\\HDRI\\skybox\\left.jpg", // Negative X
-		"..\\assets\\HDRI\\skybox\\top.jpg", // Positive Y
-		"..\\assets\\HDRI\\skybox\\bottom.jpg", // Negative Y
-		"..\\assets\\HDRI\\skybox\\front.jpg", // Positive Z
-		"..\\assets\\HDRI\\skybox\\back.jpg"  // Negative Z
-	};
+	//std::vector<std::string> filenames = {
+	//	"..\\assets\\HDRI\\skybox\\right.jpg", // Positive X
+	//	"..\\assets\\HDRI\\skybox\\left.jpg", // Negative X
+	//	"..\\assets\\HDRI\\skybox\\top.jpg", // Positive Y
+	//	"..\\assets\\HDRI\\skybox\\bottom.jpg", // Negative Y
+	//	"..\\assets\\HDRI\\skybox\\front.jpg", // Positive Z
+	//	"..\\assets\\HDRI\\skybox\\back.jpg"  // Negative Z
+	//};
 
-	// Prepare a vector to hold the image data for each face
-	std::vector<unsigned char*> cubemapData(6, nullptr);
 	int width, height, nrComponents;
 
-	// Load each face of the cubemap
-	for (int i = 0; i < 6; i++) {
-		// You might want to set flip to false for cubemaps
-		stbi_set_flip_vertically_on_load(false);
+	stbi_set_flip_vertically_on_load(true);
+	float* data = stbi_loadf("..\\assets\\HDRI\\pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
 
-		// Load the image
-		cubemapData[i] = stbi_load(filenames[i].c_str(), &width, &height, &nrComponents, 0);
-
-		if (!cubemapData[i]) {
-			spdlog::error("Failed to load cubemap face: {}", filenames[i]);
-			// Free any already loaded faces
-			for (int j = 0; j < i; j++) {
-				stbi_image_free(cubemapData[j]);
-			}
-			return; // Or handle the error as appropriate
-		}
-
-		spdlog::info("Loaded cubemap face {}: {}x{} with {} components",
-			i, width, height, nrComponents);
+	if (!data) {
+		spdlog::error("Failed to load HDRI image!");
+		return;
 	}
 
 	// Use the loaded data...
-	_hdriMap = vkutil::create_hdri_image(engine, cubemapData, width, height, nrComponents);
+	_hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
 
 	if (_hdriMap.image == VK_NULL_HANDLE) {
 		spdlog::error("Failed to initialize cubemap!");

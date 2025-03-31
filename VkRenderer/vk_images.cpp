@@ -82,27 +82,24 @@ AllocatedImage vkutil::create_image(VulkanEngine* engine, void* data, VkExtent3D
 	return new_image;
 }
 
-AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsigned char*> cubemapData, int width, int height, int nrComponents)
+AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, float* data, int width, int height, int nrComponents)
 {
-	// Calculate buffer size based on loaded data and format
 	VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
 	// Calculate source size based on nrComponents from stb_image
-	size_t srcBytesPerPixel = nrComponents;
-	size_t srcFaceSize = width * height * srcBytesPerPixel;
+	size_t srcBytesPerPixel = nrComponents * 2;	// RGB - 16: So each channel is 2 bytes
+	size_t srcSize = width * height * srcBytesPerPixel;
 
 	// Calculate destination size for the R16G16B16A16_SFLOAT format
 	size_t dstBytesPerPixel = 8; // 16-bit per channel × 4 channels / 8 bits per byte
-	size_t dstFaceSize = width * height * dstBytesPerPixel;
-	size_t totalSize = dstFaceSize * 6;
+	size_t dstSize = width * height * dstBytesPerPixel;
 
 	// Debug output
 	printf("Image dimensions: %d x %d with %d components\n", width, height, nrComponents);
 	printf("Source bytes per pixel: %zu\n", srcBytesPerPixel);
-	printf("Source face size: %zu bytes\n", srcFaceSize);
+	printf("Source size: %zu bytes\n", srcSize);
 	printf("Destination bytes per pixel: %zu\n", dstBytesPerPixel);
-	printf("Destination face size: %zu bytes\n", dstFaceSize);
-	printf("Total buffer size: %zu bytes\n", totalSize);
+	printf("Destination size: %zu bytes\n", dstSize);
 
 	// Create destination image structure first, before any memory operations
 	VkExtent3D imageSize = {
@@ -117,10 +114,9 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsig
 	imgInfo.format = format;
 	imgInfo.extent = imageSize;
 	imgInfo.mipLevels = 1;
-	imgInfo.arrayLayers = 6;
+	imgInfo.arrayLayers = 1; // Just a single 2D image, not a cubemap
 	imgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	imgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imgInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	imgInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	imgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	imgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -129,8 +125,8 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsig
 	newImage.imageExtent = imageSize;
 	newImage.imageFormat = format;
 
-	// Create a staging buffer - make sure we're using the correct size
-	AllocatedBuffer uploadBuffer = engine->create_buffer(totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	// Create a staging buffer
+	AllocatedBuffer uploadBuffer = engine->create_buffer(dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	vmaSetAllocationName(engine->_allocator, uploadBuffer.allocation, "HDRI Upload Buffer");
 
 	// Verify the buffer was created with the correct size
@@ -145,98 +141,58 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsig
 		uploadBuffer.info.pMappedData = mappedData;
 	}
 
-	// Process each face - using a more cautious approach
-	std::vector<VkBufferImageCopy> copyRegions;
-	copyRegions.reserve(6);
-
 	// Initialize the buffer to zeros for safety
-	memset(uploadBuffer.info.pMappedData, 0, totalSize);
+	memset(uploadBuffer.info.pMappedData, 0, dstSize);
 
-	for (int i = 0; i < 6; i++) {
-		// Skip faces with no data
-		if (cubemapData[i] == nullptr) {
-			printf("Face %d: NULL data, skipping\n", i);
-			continue;
-		}
+	unsigned char* dstPtr = static_cast<unsigned char*>(uploadBuffer.info.pMappedData);
 
-		printf("Processing face %d\n", i);
+	// Convert float HDR data to half-float
+	printf("Converting HDR data to half-float format\n");
 
-		size_t dstOffset = i * dstFaceSize;
-		if (dstOffset + dstFaceSize > uploadBuffer.info.size) {
-			printf("ERROR: Face %d would exceed buffer bounds! Offset: %zu, Size: %zu, Buffer size: %zu\n",
-				i, dstOffset, dstFaceSize, uploadBuffer.info.size);
-			continue;  // Skip this face
-		}
+	// Process all pixels
+	for (int y = 0; y < height; y++) {
+		for (int x = 0; x < width; x++) {
+			size_t srcIdx = (y * width + x) * nrComponents;
+			size_t dstIdx = (y * width + x) * dstBytesPerPixel;
 
-		unsigned char* dstPtr = static_cast<unsigned char*>(uploadBuffer.info.pMappedData) + dstOffset;
-
-		// Direct copy would be unsafe if formats don't match
-		// Always do a pixel-by-pixel conversion for safety
-		printf("Converting data for face %d\n", i);
-
-		// Use a simple conversion loop - one pixel at a time
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				size_t srcIdx = (y * width + x) * srcBytesPerPixel;
-				size_t dstIdx = (y * width + x) * dstBytesPerPixel;
-
-				// Ensure we don't read past the end of source data
-				if (srcIdx + srcBytesPerPixel > srcFaceSize) {
-					printf("ERROR: Source index out of bounds at pixel (%d,%d)\n", x, y);
-					break;
+			// Convert each component from float to half-float
+			for (int c = 0; c < 4; c++) {
+				float floatValue = 0.0f;
+				if (c < nrComponents) {
+					// Use the float data directly from the HDR file
+					floatValue = data[srcIdx + c];
+				}
+				else if (c == 3) {
+					// Alpha channel - set to 1.0 if not in source
+					floatValue = 1.0f;
 				}
 
-				// Ensure we don't write past the end of destination buffer
-				if (dstIdx + dstBytesPerPixel > dstFaceSize) {
-					printf("ERROR: Destination index out of bounds at pixel (%d,%d)\n", x, y);
-					break;
-				}
+				// Convert float to half-float
+				uint16_t half = glm::packHalf1x16(floatValue);
 
-				// Convert source to 16-bit float format
-				for (int c = 0; c < 4; c++) {
-					// Get the float value (0.0 to 1.0)
-					float floatValue = 0.0f;
-					if (c < nrComponents) {
-						// Convert 8-bit to float (0-255 to 0.0-1.0)
-						floatValue = cubemapData[i][srcIdx + c] / 255.0f;
-					}
-					else if (c == 3) {
-						// Alpha channel - set to 1.0 if not in source
-						floatValue = 1.0f;
-					}
-
-					// Convert float to half-float (16-bit) using a more reliable method
-					uint16_t half = glm::packHalf1x16(floatValue);
-
-					// Write to destination
-					uint16_t* dstPixel = reinterpret_cast<uint16_t*>(dstPtr + dstIdx + c * 2);
-					*dstPixel = half;
-				}
+				// Write to destination
+				uint16_t* dstPixel = reinterpret_cast<uint16_t*>(dstPtr + dstIdx + c * 2);
+				*dstPixel = half;
 			}
 		}
-
-		printf("Conversion completed for face %d\n", i);
-
-		// Free source data after conversion
-		stbi_image_free(cubemapData[i]);
-		cubemapData[i] = nullptr;
-
-		// Setup copy region for this face
-		VkBufferImageCopy copyRegion = {};
-		copyRegion.bufferOffset = dstOffset;
-		copyRegion.bufferRowLength = 0;  // Tightly packed
-		copyRegion.bufferImageHeight = 0;  // Tightly packed
-		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		copyRegion.imageSubresource.mipLevel = 0;
-		copyRegion.imageSubresource.baseArrayLayer = i;
-		copyRegion.imageSubresource.layerCount = 1;
-		copyRegion.imageExtent = imageSize;
-		copyRegion.imageOffset = { 0, 0, 0 };
-
-		copyRegions.push_back(copyRegion);
 	}
 
-	printf("Processed %zu valid faces\n", copyRegions.size());
+	printf("Conversion completed\n");
+
+	// Free source data after conversion
+	stbi_image_free(data);
+
+	// Setup copy region
+	VkBufferImageCopy copyRegion = {};
+	copyRegion.bufferOffset = 0;
+	copyRegion.bufferRowLength = 0;  // Tightly packed
+	copyRegion.bufferImageHeight = 0;  // Tightly packed
+	copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	copyRegion.imageSubresource.mipLevel = 0;
+	copyRegion.imageSubresource.baseArrayLayer = 0;
+	copyRegion.imageSubresource.layerCount = 1;
+	copyRegion.imageExtent = imageSize;
+	copyRegion.imageOffset = { 0, 0, 0 };
 
 	// Always allocate images on dedicated GPU memory
 	VmaAllocationCreateInfo allocInfo = {};
@@ -245,80 +201,74 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsig
 
 	// Allocate and create the image
 	VK_CHECK(vmaCreateImage(engine->_allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
-	vmaSetAllocationName(engine->_allocator, newImage.allocation, "HDRI Cubemap Image");
+	vmaSetAllocationName(engine->_allocator, newImage.allocation, "HDRI Image");
 
-	// Create the image view for cubemap
+	// Create the image view
 	VkImageViewCreateInfo viewInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 	viewInfo.image = newImage.image;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	viewInfo.format = format;
 	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	viewInfo.subresourceRange.baseMipLevel = 0;
 	viewInfo.subresourceRange.levelCount = 1;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
-	viewInfo.subresourceRange.layerCount = 6;
+	viewInfo.subresourceRange.layerCount = 1;
 
 	VK_CHECK(vkCreateImageView(engine->_device, &viewInfo, nullptr, &newImage.imageView));
 
-	// Only proceed with upload if we have valid data
-	if (!copyRegions.empty()) {
-		// Upload the image data and transition layout
-		engine->immediate_submit([&](VkCommandBuffer cmd) {
-			// Transition image to transfer destination layout
-			VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier.image = newImage.image;
-			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			barrier.subresourceRange.baseMipLevel = 0;
-			barrier.subresourceRange.levelCount = 1;
-			barrier.subresourceRange.baseArrayLayer = 0;
-			barrier.subresourceRange.layerCount = 6;
-			barrier.srcAccessMask = 0;
-			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	// Upload the image data and transition layout
+	engine->immediate_submit([&](VkCommandBuffer cmd) {
+		// Transition image to transfer destination layout
+		VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = newImage.image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-			vkCmdPipelineBarrier(
-				cmd,
-				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				0,
-				0, nullptr,
-				0, nullptr,
-				1, &barrier
-			);
+		vkCmdPipelineBarrier(
+			cmd,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
 
-			// Copy the buffer to each face of the cubemap
-			vkCmdCopyBufferToImage(
-				cmd,
-				uploadBuffer.buffer,
-				newImage.image,
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				static_cast<uint32_t>(copyRegions.size()),
-				copyRegions.data()
-			);
+		// Copy the buffer to the image
+		vkCmdCopyBufferToImage(
+			cmd,
+			uploadBuffer.buffer,
+			newImage.image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&copyRegion
+		);
 
-			// Transition to shader read layout
-			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		// Transition to shader read layout
+		barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-			vkCmdPipelineBarrier(
-				cmd,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				0,
-				0, nullptr,
-				0, nullptr,
-				1, &barrier
-			);
-			});
-	}
-	else {
-		printf("WARNING: No valid faces to upload!\n");
-	}
+		vkCmdPipelineBarrier(
+			cmd,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+		});
 
 	// Clean up the staging buffer
 	engine->destroy_buffer(uploadBuffer);
