@@ -75,7 +75,7 @@ void VulkanEngine::init()
 
 	// Scene
 
-	std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
+	// std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
 	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
 	 std::string helmetPath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
 	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
@@ -84,15 +84,15 @@ void VulkanEngine::init()
 	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
 	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
 
-	auto structureFile = loadGltf(this, structurePath);
+	//auto structureFile = loadGltf(this, structurePath);
 
-	assert(structureFile.has_value());
+	//assert(structureFile.has_value());
 
 	auto helmetFile = loadGltf(this, helmetPath);
 
 	assert(helmetFile.has_value());
 
-	loadedScenes["Sponza"] = *structureFile;
+	//loadedScenes["Sponza"] = *structureFile;
 	loadedScenes["Helmet"] = *helmetFile;
 
 	//everything went fine
@@ -307,7 +307,7 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 }
 
 void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	//loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
 }
@@ -541,7 +541,7 @@ void VulkanEngine::update_scene()
 	_shadowMap.update_lightSpaceMatrix(this);
 	
 	// for (int i = 0; i < 16; i++)         {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
+	//loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
 	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
@@ -1239,7 +1239,6 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	layoutBuilder.add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.add_binding(6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	// builder for the gbuffer input
 	/*DescriptorLayoutBuilder gbufferLayoutBuilder;
@@ -1326,7 +1325,6 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.write_image(3, resources.normalImage.imageView, resources.normalSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(4, engine->_ssao._ssaoImageBlurred.imageView, engine->_ssao._ssaoSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	writer.write_image(5, engine->_shadowMap._depthShadowMap.imageView, engine->_shadowMap._shadowDepthMapSampler, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.write_image(6, engine->hdrImage.get_hdriOutImage().imageView, engine->hdrImage.get_hdriMapSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.update_set(device, matData.materialSet);
 

@@ -1,5 +1,6 @@
 ﻿#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <glm/gtc/packing.hpp>
 
 #include "vk_initializers.h"
 #include "vk_images.h"
@@ -204,12 +205,8 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, std::vector<unsig
 						floatValue = 1.0f;
 					}
 
-					// Convert float to half-float (16-bit)
-					uint32_t x = *reinterpret_cast<uint32_t*>(&floatValue);
-					uint16_t h = ((x >> 16) & 0x8000) | // sign bit
-						((((x & 0x7f800000) - 0x38000000) >> 13) & 0x7c00) | // exponential
-						((x >> 13) & 0x03ff); // mantissa
-					uint16_t half = h;
+					// Convert float to half-float (16-bit) using a more reliable method
+					uint16_t half = glm::packHalf1x16(floatValue);
 
 					// Write to destination
 					uint16_t* dstPixel = reinterpret_cast<uint16_t*>(dstPtr + dstIdx + c * 2);
