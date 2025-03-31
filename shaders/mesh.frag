@@ -149,8 +149,14 @@ void main()
 		ssao = vec3(1.0f);
 	}
 
+	// **Key part: Rendering the HDRI map as a background.**
+    // vec3 hdriColor = texture(hdriMap, inUV).xyz;  // Sampling HDRI based on normals or view direction
+
 	// Final color
 	vec3 lighting = ((ambient*ssao) + (1.0 - shadow * shadowFactor) * (diffuse + spec));
-	outFragColor = vec4(lighting, 1.0f);
+    
+    // Output the final color for the background or mesh
+    outFragColor = vec4(lighting, .1f);  // Output regular lighting for the mesh
+
 
 }

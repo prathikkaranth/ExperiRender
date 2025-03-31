@@ -43,6 +43,7 @@ public:
     void disable_depthtest();
     void enable_depthtest(bool depthWriteEnable, VkCompareOp op);
     void clear_attachments();
+    void set_vertex_input(uint32_t bindingCount, const VkVertexInputBindingDescription* bindings, uint32_t attributeCount, const VkVertexInputAttributeDescription* attributes);
 
 private:
     std::vector<VkFormat> _colorAttachmentFormats;
