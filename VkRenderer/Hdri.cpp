@@ -6,16 +6,6 @@
 
 void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
-	// Create an array of the six cubemap face filenames
-	//std::vector<std::string> filenames = {
-	//	"..\\assets\\HDRI\\skybox\\right.jpg", // Positive X
-	//	"..\\assets\\HDRI\\skybox\\left.jpg", // Negative X
-	//	"..\\assets\\HDRI\\skybox\\top.jpg", // Positive Y
-	//	"..\\assets\\HDRI\\skybox\\bottom.jpg", // Negative Y
-	//	"..\\assets\\HDRI\\skybox\\front.jpg", // Positive Z
-	//	"..\\assets\\HDRI\\skybox\\back.jpg"  // Negative Z
-	//};
-
 	int width, height, nrComponents;
 
 	stbi_set_flip_vertically_on_load(true);
@@ -44,6 +34,8 @@ void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	sampl2.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	vkCreateSampler(engine->_device, &sampl2, nullptr, &_hdriMapSampler);
+
+	stbi_set_flip_vertically_on_load(false);
 
 	engine->_mainDeletionQueue.push_function([=]() {
 		
