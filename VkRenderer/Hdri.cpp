@@ -9,7 +9,7 @@ void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 	int width, height, nrComponents;
 
 	stbi_set_flip_vertically_on_load(true);
-	float* data = stbi_loadf("..\\assets\\HDRI\\pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
+	float* data = stbi_loadf("..\\assets\\HDRI\\mirrored_hall_4k.hdr", &width, &height, &nrComponents, 0);
 
 	if (!data) {
 		spdlog::error("Failed to load HDRI image!");

@@ -18,10 +18,34 @@ vec2 SampleSphericalMap(vec3 v)
     return uv;
 }
 
+// Simple Reinhard tone mapping function
+vec3 toneMap(vec3 color, float exposure)
+{
+    // Apply exposure
+    color *= exposure;
+    
+    // Apply Reinhard tone mapping
+    color = color / (color + vec3(1.0));
+    
+    return color;
+}
+
+// Gamma correction
+vec3 gammaCorrect(vec3 color, float gamma)
+{
+    return pow(color, vec3(1.0 / gamma));
+}
+
 void main()
 {		
     vec2 uv = SampleSphericalMap(normalize(inTexCoord)); // make sure to normalize localPos
     vec3 color = texture(equirectangularMap, uv).rgb;
+
+    // Replace the tone mapping section with:
+    float exposure = 1.0;
+    float gamma = 2.2;
+    color = toneMap(color, exposure);
+    color = gammaCorrect(color, gamma);
     
     outColor = vec4(color, 1.0);
 }
