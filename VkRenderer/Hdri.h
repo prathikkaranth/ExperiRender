@@ -10,6 +10,7 @@ public:
 	void init_hdriMap(VulkanEngine* engine);
 	void draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd);
 
+	AllocatedImage get_hdriMap() { return _hdriMap; }
 	AllocatedImage get_hdriOutImage() { return _hdriOutImage; }
 	VkSampler get_hdriMapSampler() { return _hdriMapSampler; }
 private:

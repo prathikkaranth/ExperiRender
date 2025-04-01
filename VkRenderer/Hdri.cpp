@@ -114,12 +114,16 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 
-	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
+		vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+	};
 
 	VkClearValue depthClear = { .depthStencil = {1.0f, 0} };
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(engine->_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 	depthAttachment.clearValue = depthClear;
-	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_windowExtent, &colorAttachment, &depthAttachment);
+	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_windowExtent, nullptr/*color attachments*/, &depthAttachment);
+	renderInfo.pColorAttachments = colorAttachments.data();
+	renderInfo.colorAttachmentCount = colorAttachments.size();
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 

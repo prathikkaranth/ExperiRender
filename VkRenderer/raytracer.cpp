@@ -141,7 +141,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	}
 
 	// if textures are not empty
-	if (!loadedTextures.empty() || !loadedNormTextures.empty()) {
+	if (!loadedTextures.empty() || !loadedNormTextures.empty() || engine->hdrImage.get_hdriMap().image != VK_NULL_HANDLE) {
 		auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
 		auto nbNormText = static_cast<uint32_t>(loadedNormTextures.size());
 
@@ -149,7 +149,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 			DescriptorLayoutBuilder m_texSetLayoutBind;
 			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images
 			m_texSetLayoutBind.add_bindings(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText); // Normal Maps
-			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
+			m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
+			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR);
 		}
 
 		m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
@@ -181,6 +182,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		DescriptorWriter tex_writer;
 		tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
 		tex_writer.write_images(1, *normTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText);
+		tex_writer.write_image(2, engine->hdrImage.get_hdriMap().imageView, engine->hdrImage.get_hdriMapSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		tex_writer.update_set(engine->_device, m_texDescSet);
 
 		engine->_mainDeletionQueue.push_function([=]() {

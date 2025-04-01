@@ -4,7 +4,8 @@
 layout(location = 0) in vec3 inTexCoord;
 
 // Output color
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 outColor0;  // First attachment
+layout(location = 1) out vec4 outColor1;  // Second attachment (_hdriOutImage)
 
 // Cubemap sampler
 layout(set = 0, binding = 0) uniform sampler2D equirectangularMap;
@@ -47,5 +48,6 @@ void main()
     color = toneMap(color, exposure);
     color = gammaCorrect(color, gamma);
     
-    outColor = vec4(color, 1.0);
+    outColor0 = vec4(color, 1.0);
+    outColor1 = vec4(color, 1.0); // Assuming you want the same color for the second attachment
 }

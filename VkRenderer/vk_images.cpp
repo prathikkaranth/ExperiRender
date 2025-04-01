@@ -94,13 +94,6 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, float* data, int 
 	size_t dstBytesPerPixel = 8; // 16-bit per channel × 4 channels / 8 bits per byte
 	size_t dstSize = width * height * dstBytesPerPixel;
 
-	// Debug output
-	printf("Image dimensions: %d x %d with %d components\n", width, height, nrComponents);
-	printf("Source bytes per pixel: %zu\n", srcBytesPerPixel);
-	printf("Source size: %zu bytes\n", srcSize);
-	printf("Destination bytes per pixel: %zu\n", dstBytesPerPixel);
-	printf("Destination size: %zu bytes\n", dstSize);
-
 	// Create destination image structure first, before any memory operations
 	VkExtent3D imageSize = {
 		static_cast<uint32_t>(width),
@@ -129,12 +122,8 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, float* data, int 
 	AllocatedBuffer uploadBuffer = engine->create_buffer(dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	vmaSetAllocationName(engine->_allocator, uploadBuffer.allocation, "HDRI Upload Buffer");
 
-	// Verify the buffer was created with the correct size
-	printf("Upload buffer allocated size: %zu\n", uploadBuffer.info.size);
-
 	// Verify buffer is mapped
 	if (uploadBuffer.info.pMappedData == nullptr) {
-		printf("ERROR: Upload buffer not properly mapped!\n");
 		// Map it explicitly if not mapped
 		void* mappedData = nullptr;
 		VK_CHECK(vmaMapMemory(engine->_allocator, uploadBuffer.allocation, &mappedData));
@@ -145,9 +134,6 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, float* data, int 
 	memset(uploadBuffer.info.pMappedData, 0, dstSize);
 
 	unsigned char* dstPtr = static_cast<unsigned char*>(uploadBuffer.info.pMappedData);
-
-	// Convert float HDR data to half-float
-	printf("Converting HDR data to half-float format\n");
 
 	// Process all pixels
 	for (int y = 0; y < height; y++) {
@@ -176,8 +162,6 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine* engine, float* data, int 
 			}
 		}
 	}
-
-	printf("Conversion completed\n");
 
 	// Free source data after conversion
 	stbi_image_free(data);

@@ -149,6 +149,9 @@ void VulkanEngine::init_default_data() {
 	_errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
 
+	// HDRI map
+	hdrImage.load_hdri_to_buffer(this);
+
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
 
@@ -387,6 +390,7 @@ void VulkanEngine::draw()
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	if (useRaytracer) {
+
 		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
 
@@ -1098,7 +1102,6 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 void VulkanEngine::init_pipelines()
 {
 	// HDRI PIPELINE
-	hdrImage.load_hdri_to_buffer(this);
 	hdrImage.init_hdriMap(this);
 
 	// GBuffer PIPELINE
