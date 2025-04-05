@@ -191,6 +191,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 
 		ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool*>(&engine->sceneData.enableShadows));
 		ImGui::Checkbox("SSAO", reinterpret_cast<bool*>(&engine->sceneData.enableSSAO));
+		ImGui::Checkbox("PBR", reinterpret_cast<bool*>(&engine->sceneData.enablePBR));
 	}
 	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
 		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 100, 5000);

@@ -124,6 +124,7 @@ void VulkanEngine::init_default_data() {
 	raytracerPipeline.prevSunDir = glm::vec4(sunDir, sceneData.sunlightDirection.w);	// TODO: Change sunlight code so that prevSunDir can be set in rt file
 	sceneData.enableShadows = true;
 	sceneData.enableSSAO = true;
+	sceneData.enablePBR = true;
 
 	// 3 default textures, white, grey and black. 1 pixel each.
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
