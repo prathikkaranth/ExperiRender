@@ -179,7 +179,9 @@ vec3 pbr() {
 }
 
 vec3 blinnPhong() {
-	vec3 color = inColor * texture(colorTex,inUV).xyz;
+
+	vec3 tex = pow(texture(colorTex,inUV).xyz, vec3(2.2f));
+	vec3 color = tex * inColor;
 
 	// Metallic
 	float metallic = 0;
@@ -252,6 +254,11 @@ vec3 blinnPhong() {
 
 	// Final color
 	vec3 lighting = ((ambient*ssao) + (1.0 - shadow * shadowFactor) * (diffuse + spec));
+
+	// HDR tonemapping
+    lighting = lighting / (lighting + vec3(1.0));
+    // gamma correct
+    lighting = pow(lighting, vec3(1.0/2.2)); 
 
 	return lighting;
 }
