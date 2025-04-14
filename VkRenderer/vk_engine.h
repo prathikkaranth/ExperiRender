@@ -5,6 +5,7 @@
 #include <vk_pipelines.h>
 #include <functional>
 #include "Scene/camera.h"
+#include "Hdri.h"
 #include "gbuffer.h"
 #include <ssao.h>
 #include <RenderObject.h>
@@ -162,6 +163,9 @@ public:
 	// Gbuffer
 	Gbuffer gbuffer;
 
+	// HDRI
+	HDRI hdrImage;
+
 	//draw resources
 	AllocatedImage _drawImage;
 	AllocatedImage _depthImage;
@@ -172,6 +176,13 @@ public:
 
 	//SSAO resources
 	ssao _ssao;
+
+	// Full screen quad resources
+	AllocatedImage _fullScreenImage;
+	VkSampler _fullScreenSampler;
+	VkDescriptorSetLayout _fullScreenDescriptorLayout;
+	VkDescriptorSet _fullScreenDescriptor;
+
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -219,8 +230,10 @@ public:
 private: 
 
 	void draw_geometry(VkCommandBuffer cmd);
+	void draw_fullscreen_quad(VkCommandBuffer cmd);
 
 	void init_pipelines();
+	void init_fullscreen_quad();
 
 	void init_descriptors();
 

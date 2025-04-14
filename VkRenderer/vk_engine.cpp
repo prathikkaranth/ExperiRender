@@ -73,7 +73,9 @@ void VulkanEngine::init()
 
 	init_default_data();
 
-	std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
+	// Scene
+
+	 std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
 	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
 	 std::string helmetPath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
 	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
@@ -122,6 +124,7 @@ void VulkanEngine::init_default_data() {
 	raytracerPipeline.prevSunDir = glm::vec4(sunDir, sceneData.sunlightDirection.w);	// TODO: Change sunlight code so that prevSunDir can be set in rt file
 	sceneData.enableShadows = true;
 	sceneData.enableSSAO = true;
+	sceneData.enablePBR = true;
 
 	// 3 default textures, white, grey and black. 1 pixel each.
 	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
@@ -147,15 +150,18 @@ void VulkanEngine::init_default_data() {
 	_errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
 
+	// HDRI map
+	hdrImage.load_hdri_to_buffer(this);
+
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
 
 	// SSAO data - Sponza scene
 	// ----------------------
 	_ssao.ssaoData.kernelSize = 128;
-	_ssao.ssaoData.radius = 0.382f;
-	_ssao.ssaoData.bias = 0.006f;
-	_ssao.ssaoData.intensity = 1.412f;
+	_ssao.ssaoData.radius = 0.032f;
+	_ssao.ssaoData.bias = 0.011f;
+	_ssao.ssaoData.intensity = 2.111f;
 
 	// generate sample kernel
 	// ----------------------
@@ -385,6 +391,7 @@ void VulkanEngine::draw()
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	if (useRaytracer) {
+
 		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
 
@@ -445,6 +452,8 @@ void VulkanEngine::draw()
 		vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+		hdrImage.draw_hdriMap(this, cmd);
 
 		draw_geometry(cmd);
 
@@ -870,7 +879,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
-		vkinit::attachment_info(_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_GENERAL)
+		vkinit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_GENERAL)
 	};
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);
@@ -1093,6 +1102,8 @@ AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags
 
 void VulkanEngine::init_pipelines()
 {
+	// HDRI PIPELINE
+	hdrImage.init_hdriMap(this);
 
 	// GBuffer PIPELINE
 	gbuffer.init_gbuffer(this);

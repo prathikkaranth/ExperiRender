@@ -10,6 +10,7 @@ layout(set = 0, binding = 0) uniform  SceneData{
 	vec3 cameraPosition;
 	int enableShadows;
 	int enableSSAO;
+	int enablePBR;
 } sceneData;
 
 layout(set = 1, binding = 0) uniform GLTFMaterialData{   

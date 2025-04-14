@@ -64,6 +64,7 @@ struct GPUSceneData {
 	alignas(16) glm::vec3 cameraPosition;
 	int enableShadows;
 	int enableSSAO;
+	int enablePBR;
 };
 
 struct SSAOSceneData {

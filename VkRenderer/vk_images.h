@@ -10,5 +10,6 @@ namespace vkutil {
 	void generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D imageSize);
 	AllocatedImage create_image(VulkanEngine* engine, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 	AllocatedImage create_image(VulkanEngine* engine, void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	AllocatedImage create_hdri_image(VulkanEngine* engine, float* data, int width, int height, int nrComponents);
 	void destroy_image(VulkanEngine* engine, const AllocatedImage& image);
 }
