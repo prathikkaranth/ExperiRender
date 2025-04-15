@@ -225,7 +225,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     // load all textures
     for (fastgltf::Image& image : gltf.images) {
-        std::string baseDir = path.parent_path().string() + "\\";
+        std::string baseDir = (path.parent_path() / "").string();
         std::optional<AllocatedImage> img = load_image(engine, gltf, image, baseDir);
 
         if (img.has_value()) {

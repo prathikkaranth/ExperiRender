@@ -1,27 +1,45 @@
 cmake_minimum_required(VERSION 3.11)
-set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17. 20]
-
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1) # TODO is this a hack?
+set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17, 20]
 project(ExperiRender)
-
 include(FetchContent)
 
 #############
-# Build options
-if(MSVC)
-    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# Platform-specific build options
+if(WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
+    set(GLSLC_PATH "C:/VulkanSDK/1.3.283.0/Bin/glslc.exe")
+elseif(UNIX AND NOT APPLE)
+    # Set compiler to g++ explicitly on Linux
+    set(CMAKE_CXX_COMPILER /usr/bin/g++)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
+    
+    # Find glslc from Linux Vulkan SDK
+    find_program(GLSLC_PATH glslc REQUIRED)
 endif()
+
+# Common output directories
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+# Disable C++20 modules scanning for fastgltf
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 ######################################
 # Dependencies
-
 # vulkan
 find_package(Vulkan REQUIRED)
 
-# SDL
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/cmake")
-find_package(SDL2 CONFIG REQUIRED)
+# SDL2 - Platform-specific setup
+if(WIN32)
+    list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/cmake")
+    find_package(SDL2 CONFIG REQUIRED)
+else()
+    # Linux way
+    find_package(SDL2 REQUIRED)
+    if(NOT SDL2_FOUND)
+        message(FATAL_ERROR "SDL2 not found, install with: sudo apt install libsdl2-dev")
+    endif()
+endif()
 
 # GLFW
 add_subdirectory(deps/glfw-3.4)
@@ -31,29 +49,27 @@ add_subdirectory(deps/stb)
 
 # GLM
 FetchContent_Declare(
-	glm
-	GIT_REPOSITORY	https://github.com/g-truc/glm.git
-	GIT_TAG 	bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
+    glm
+    GIT_REPOSITORY    https://github.com/g-truc/glm.git
+    GIT_TAG     bf71a834948186f4097caa076cd2663c69a10e1e #refs/tags/1.0.1
 )
 FetchContent_MakeAvailable(glm)
 
 # VK-Bootstrap
 FetchContent_Declare(
-	Vkbootstrap
-	GIT_REPOSITORY	https://github.com/charles-lunarg/vk-bootstrap.git
-	GIT_TAG 	50b75222b200cb6e62010573608d2e65f2e816ec #refs/tags/1.3.283
+    Vkbootstrap
+    GIT_REPOSITORY    https://github.com/charles-lunarg/vk-bootstrap.git
+    GIT_TAG     50b75222b200cb6e62010573608d2e65f2e816ec #refs/tags/1.3.283
 )
 FetchContent_MakeAvailable(Vkbootstrap)
 
 # VMA
 FetchContent_Declare(
-	VMA
-	GIT_REPOSITORY	https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-	GIT_TAG 	eaf8fc27eeadf6f21b11183651b829e897f01957 
+    VMA
+    GIT_REPOSITORY    https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+    GIT_TAG     eaf8fc27eeadf6f21b11183651b829e897f01957 
 )
 FetchContent_MakeAvailable(VMA)
-
-
 
 # FastGLTF
 FetchContent_Declare(
@@ -63,6 +79,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fastgltf)
 
+# After fastgltf is made available, disable modules if target exists
+if(TARGET fastgltf_module)
+    set_target_properties(fastgltf_module PROPERTIES CMAKE_CXX_SCAN_FOR_MODULES OFF)
+endif()
+
 # Spdlog
 FetchContent_Declare(
     spdlog
@@ -71,20 +92,46 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
-# IMGUI
-file(GLOB IMGUI_SRC
-    "deps/imgui/*.cpp"
-    "deps/imgui/backends/imgui_impl_vulkan.cpp"
-    "deps/imgui/backends/imgui_impl_sdl2.cpp"
-)
-
-add_library(imgui STATIC ${IMGUI_SRC})
-target_link_libraries(imgui Vulkan::Vulkan SDL2::SDL2)
-target_include_directories(imgui PUBLIC deps/imgui)
+# IMGUI - Platform-specific setup
+if(UNIX AND NOT APPLE)
+    # Linux path check first
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui")
+        file(GLOB IMGUI_SRC
+            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/*.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_sdl2.cpp"
+        )
+        
+        # Debug output to see what files were found
+        message(STATUS "ImGui source files: ${IMGUI_SRC}")
+        
+        if(IMGUI_SRC)
+            add_library(imgui STATIC ${IMGUI_SRC})
+            target_link_libraries(imgui Vulkan::Vulkan ${SDL2_LIBRARIES})
+            target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui" ${SDL2_INCLUDE_DIRS})
+        else()
+            message(FATAL_ERROR "ImGui source files not found! Check the directory structure.")
+        endif()
+    else()
+        message(FATAL_ERROR "ImGui directory not found at ${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui")
+    endif()
+else()
+    # Windows setup
+    file(GLOB IMGUI_SRC
+        "deps/imgui/*.cpp"
+        "deps/imgui/backends/imgui_impl_vulkan.cpp"
+        "deps/imgui/backends/imgui_impl_sdl2.cpp"
+    )
+    add_library(imgui STATIC ${IMGUI_SRC})
+    target_link_libraries(imgui Vulkan::Vulkan SDL2::SDL2)
+    target_include_directories(imgui PUBLIC deps/imgui)
+endif()
 
 # Define paths for shaders
-set(GLSLC_PATH "C:/VulkanSDK/1.3.283.0/Bin/glslc.exe")
 set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+
+# Create shader output directory
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/shaders")
 
 # List of shaders to compile
 file(GLOB SHADERS
@@ -96,21 +143,17 @@ file(GLOB SHADERS
     "${SHADER_DIR}/*.rmiss"
 )
 
-
 # Loop through shaders and create custom commands for each
-# TODO Shader dependencies
 foreach(SHADER ${SHADERS})
     set(SHADER_SRC ${SHADER})
     get_filename_component(SHADER_NAME ${SHADER} NAME)
     set(SHADER_SPV "${CMAKE_BINARY_DIR}/shaders/${SHADER_NAME}.spv")
-
     add_custom_command(
         OUTPUT ${SHADER_SPV}
         COMMAND ${GLSLC_PATH} ${SHADER_SRC} -o ${SHADER_SPV} --target-spv=spv1.6
         DEPENDS ${SHADER_SRC}
         COMMENT "Compiling shader: ${SHADER_SRC} -> ${SHADER_SPV}"
     )
-
     list(APPEND SPV_OUTPUTS ${SHADER_SPV})
 endforeach()
 
@@ -126,25 +169,41 @@ file(GLOB CPP_SRC
         )
 file(GLOB_RECURSE HEADERS "VkRenderer/*.h")
 
-add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
+# Platform-specific executable setup
+if(WIN32)
+    add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
+else()
+    add_executable(Renderer ${CPP_SRC} ${HEADERS})
+endif()
 
 # Ensure the shader compilation runs before building the main target
 add_dependencies(Renderer compile_shaders)
 
-target_include_directories(Renderer PRIVATE VkRenderer/)
+# Platform-specific include directories
+if(WIN32)
+    target_include_directories(Renderer PRIVATE VkRenderer/)
+else()
+    target_include_directories(Renderer PRIVATE VkRenderer/ ${SDL2_INCLUDE_DIRS})
+endif()
 
-# External Dependencies
-target_link_libraries(Renderer PRIVATE
-    glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+# Platform-specific libraries
+if(WIN32)
+    target_link_libraries(Renderer PRIVATE
+        glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+else()
+    target_link_libraries(Renderer PRIVATE
+        glm::glm glfw Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+endif()
 
 # Internal Dependencies
 target_link_libraries(Renderer PRIVATE Scene)
 
-
-if (WIN32)
+# Platform-specific post-build steps
+if(WIN32)
     add_custom_command(TARGET Renderer POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/lib/x64/SDL2.dll"
             $<TARGET_FILE_DIR:Renderer>)
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(Renderer PRIVATE dl pthread X11)
 endif()
-

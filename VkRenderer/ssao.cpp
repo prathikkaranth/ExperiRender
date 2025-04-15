@@ -43,7 +43,7 @@ void ssao::init_ssao(VulkanEngine* engine) {
 
 	// layout code
 	VkShaderModule ssaoDrawShader;
-	if (!vkutil::load_shader_module("ssao.comp.spv", engine->_device, &ssaoDrawShader))
+	if (!vkutil::load_shader_module("SSAO.comp.spv", engine->_device, &ssaoDrawShader))
 	{
 		spdlog::error ("Error when building the ssao compute shader");
 

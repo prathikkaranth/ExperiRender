@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <random>
+#include <filesystem>
 
 constexpr bool bUseValidationLayers = true;
 
@@ -74,15 +75,9 @@ void VulkanEngine::init()
 	init_default_data();
 
 	// Scene
-
-	 std::string structurePath = { "..\\assets\\Sponza\\Sponza.gltf" };
-	// std::string structurePath = { "..\\assets\\vokselia_spawn\\minecraft_scene.glb" };
-	 std::string helmetPath = { "..\\assets\\FlightHelmet\\glTF\\FlightHelmet.gltf" };
-	/*std::string structurePath = { "..\\assets\\New_Sponza\\New_Sponza_001.gltf" };*/
-	/*std::string structurePath = { "..\\assets\\house2.gltf" };*/
-	/*std::string spherePath = { "..\\assets\\sphere.gltf" };*/
-	/*std::string structurePath = { "..\\assets\\pbr_kabuto_samurai_helmet.glb" };*/
-	/*std::string structurePath = { "..\\assets\\the_traveling_wagon_-_cheeeeeeeeeese\\scene.gltf" };*/
+	std::string assetsDir = "../assets";
+	std::string structurePath = (std::filesystem::path(assetsDir) / "Sponza" / "Sponza.gltf").string();
+	std::string helmetPath = (std::filesystem::path(assetsDir) / "FlightHelmet" / "glTF" / "FlightHelmet.gltf").string();
 
 	auto structureFile = loadGltf(this, structurePath);
 
