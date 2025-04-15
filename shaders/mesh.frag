@@ -23,10 +23,10 @@ layout (location = 5) in vec3 inBitangent;
 layout (location = 6) in vec4 inFragPosLightSpace;
 
 layout (location = 0) out vec4 outFragColor;
-layout (location = 1) out vec4 outFragWorldPos;
-layout (location = 2) out vec4 outFragWorldNormal;
 
 struct Empty{ float e; };
+
+const float shadowFactor = 1.0f;
 
 //push constants block
 layout( push_constant ) uniform constants
@@ -162,7 +162,6 @@ vec3 pbr() {
 
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, L);
-	float shadowFactor = 0.9f;
 
 	if (bool(sceneData.enableShadows == 0)) {
 		shadow = 0.0f;
@@ -237,7 +236,6 @@ vec3 blinnPhong() {
 
 	// Shadow calculation
 	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
-	float shadowFactor = 0.775f;
 
 	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
@@ -253,7 +251,7 @@ vec3 blinnPhong() {
     // vec3 hdriColor = texture(hdriMap, inUV).xyz;  // Sampling HDRI based on normals or view direction
 
 	// Final color
-	vec3 lighting = ((ambient*ssao) + (1.0 - shadow * shadowFactor) * (diffuse + spec));
+	vec3 lighting = ((ambient*ssao) + (1.0 - (shadow * shadowFactor)) * (diffuse + spec));
 
 	// HDR tonemapping
     lighting = lighting / (lighting + vec3(1.0));
