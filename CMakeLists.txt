@@ -41,9 +41,6 @@ else()
     endif()
 endif()
 
-# GLFW
-add_subdirectory(deps/glfw-3.4)
-
 # STB
 add_subdirectory(deps/stb)
 
@@ -93,38 +90,32 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 
 # IMGUI - Platform-specific setup
-if(UNIX AND NOT APPLE)
-    # Linux path check first
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui")
-        file(GLOB IMGUI_SRC
-            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/*.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp"
-            "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_sdl2.cpp"
-        )
-        
-        # Debug output to see what files were found
-        message(STATUS "ImGui source files: ${IMGUI_SRC}")
-        
-        if(IMGUI_SRC)
-            add_library(imgui STATIC ${IMGUI_SRC})
-            target_link_libraries(imgui Vulkan::Vulkan ${SDL2_LIBRARIES})
-            target_include_directories(imgui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui" ${SDL2_INCLUDE_DIRS})
-        else()
-            message(FATAL_ERROR "ImGui source files not found! Check the directory structure.")
-        endif()
-    else()
-        message(FATAL_ERROR "ImGui directory not found at ${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui")
-    endif()
-else()
-    # Windows setup
-    file(GLOB IMGUI_SRC
-        "deps/imgui/*.cpp"
-        "deps/imgui/backends/imgui_impl_vulkan.cpp"
-        "deps/imgui/backends/imgui_impl_sdl2.cpp"
-    )
-    add_library(imgui STATIC ${IMGUI_SRC})
+set(IMGUI_VERSION 1.91.8)
+FetchContent_Declare (
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v${IMGUI_VERSION}
+)
+FetchContent_MakeAvailable(imgui)
+
+file(GLOB IMGUI_SRC
+    "${imgui_SOURCE_DIR}/*.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp"
+    "${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp"
+)
+
+add_library(imgui STATIC ${IMGUI_SRC})
+target_include_directories(imgui PUBLIC 
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+
+# Platform-specific linking for ImGui
+if(WIN32)
     target_link_libraries(imgui Vulkan::Vulkan SDL2::SDL2)
-    target_include_directories(imgui PUBLIC deps/imgui)
+else()
+    target_link_libraries(imgui Vulkan::Vulkan ${SDL2_LIBRARIES})
+    target_include_directories(imgui PUBLIC ${SDL2_INCLUDE_DIRS})
 endif()
 
 # Define paths for shaders
@@ -189,10 +180,10 @@ endif()
 # Platform-specific libraries
 if(WIN32)
     target_link_libraries(Renderer PRIVATE
-        glm::glm glfw Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
 else()
     target_link_libraries(Renderer PRIVATE
-        glm::glm glfw Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
 endif()
 
 # Internal Dependencies
