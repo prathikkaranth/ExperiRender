@@ -77,7 +77,7 @@ void Raytracer::createTopLevelAS(VulkanEngine* engine) {
 void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 {
 	// Create output image
-	_rtOutputImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+	_rtOutputImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 	vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
 
 	{
