@@ -76,7 +76,7 @@ void VulkanEngine::init()
 
 	// Scene
 	std::string assetsDir = "../assets";
-	std::string structurePath = (std::filesystem::path(assetsDir) / "Sponza" / "Sponza.gltf").string();
+	std::string structurePath = (std::filesystem::path(assetsDir) / "Sponza" / "glTF" / "Sponza.gltf").string();
 	std::string helmetPath = (std::filesystem::path(assetsDir) / "FlightHelmet" / "glTF" / "FlightHelmet.gltf").string();
 
 	auto structureFile = loadGltf(this, structurePath);
