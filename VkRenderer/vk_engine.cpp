@@ -116,7 +116,7 @@ float ssaolerp(float a, float b, float f)
 void VulkanEngine::init_default_data() {
 	
 	//some default lighting parameters
-	sceneData.ambientColor = glm::vec4(.25f);
+	sceneData.ambientColor = glm::vec4(.12f);
 	sceneData.sunlightColor = glm::vec4(2.f);
 	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
