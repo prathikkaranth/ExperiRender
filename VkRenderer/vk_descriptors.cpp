@@ -234,12 +234,17 @@ void DescriptorWriter::write_buffer(int binding, VkBuffer buffer, size_t size, s
 
 void DescriptorWriter::write_accel_struct(int binding, VkWriteDescriptorSetAccelerationStructureKHR asInfo, VkDescriptorType type)
 {
-	VkWriteDescriptorSet write = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	write.pNext = &asInfo;
+	// Store a copy of the acceleration structure info
+	asInfos.push_back(asInfo);
+	
+	VkWriteDescriptorSet write = {};
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.pNext = &asInfos.back();  // Point to our stored copy
 	write.dstBinding = binding;
-	write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+	write.dstSet = VK_NULL_HANDLE;
 	write.descriptorCount = 1;
 	write.descriptorType = type;
+	
 	writes.push_back(write);
 }
 

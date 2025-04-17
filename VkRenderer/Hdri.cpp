@@ -3,13 +3,15 @@
 #include <stb_image.h>
 #include "vk_images.h"
 #include <spdlog/spdlog.h>
+#include <filesystem>
 
 void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
 	int width, height, nrComponents;
 
 	stbi_set_flip_vertically_on_load(true);
-	float* data = stbi_loadf("..\\assets\\HDRI\\mirrored_hall_4k.hdr", &width, &height, &nrComponents, 0);
+	std::string hdriPath = (std::filesystem::path("../assets") / "HDRI" / "mirrored_hall_4k.hdr").string();
+	float* data = stbi_loadf("../assets/HDRI/mirrored_hall_4k.hdr", &width, &height, &nrComponents, 0);
 
 	if (!data) {
 		spdlog::error("Failed to load HDRI image!");
@@ -89,6 +91,7 @@ void HDRI::init_hdriMap(VulkanEngine* engine) {
 
 	//render format
 	pipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+	pipelineBuilder.add_color_attachment(VK_FORMAT_R16G16B16A16_SFLOAT, PipelineBuilder::BlendMode::NO_BLEND); 
 
 	pipelineBuilder.set_depth_format(VK_FORMAT_D32_SFLOAT);
 
@@ -114,9 +117,10 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
 	VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
 
-	std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
-		vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
-	};
+	std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
+        vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+        vkinit::attachment_info(_hdriOutImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+    };
 
 	VkClearValue depthClear = { .depthStencil = {1.0f, 0} };
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(engine->_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);

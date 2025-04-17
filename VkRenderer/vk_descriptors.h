@@ -58,6 +58,7 @@ struct DescriptorWriter {
     std::deque<VkDescriptorImageInfo> imageInfos;
     std::deque<VkDescriptorBufferInfo> bufferInfos;
     std::vector<VkWriteDescriptorSet> writes;
+    std::vector<VkWriteDescriptorSetAccelerationStructureKHR> asInfos;
 
     void write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type);
     void write_images(int binding, VkDescriptorImageInfo& info, VkDescriptorType type, uint32_t descCount);
