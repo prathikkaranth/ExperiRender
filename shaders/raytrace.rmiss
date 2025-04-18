@@ -48,6 +48,7 @@ void main()
 	hdrColor = pow(hdrColor, vec3(1.0 / gamma));
 
 	// Set the ray payload color to the sky color and the intensity of the light
-	prd.color = pcRay.lightIntensity * hdrColor * prd.strength;
+	// prd.color = pcRay.lightIntensity * hdrColor * prd.strength;
+	prd.isHit = false;
 
 }

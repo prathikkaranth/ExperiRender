@@ -24,6 +24,7 @@ vec3 tracePath() {
     const vec4 target = pcRay.projInverse * vec4(d.x, d.y, 1.0, 1.0);
     prd.next_direction = (pcRay.viewInverse * vec4(normalize(target.xyz), 0.0)).xyz;
     prd.strength = vec3(1.0f);
+    prd.isHit = true;
 
     const uint RAY_FLAGS = gl_RayFlagsOpaqueEXT;
     const uint CULL_MASK = 0xFF;
@@ -56,6 +57,11 @@ vec3 tracePath() {
                     PAYLOAD);
 
         depth++;
+    }
+    if (depth == 1 && !prd.isHit)
+    {
+        // Sky color, does not participate in lighting
+        return vec3(0.2f, 0.3f, 0.27f);
     }
     const vec3 radiance = prd.color.rgb;
     return radiance;

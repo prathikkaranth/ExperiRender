@@ -650,6 +650,10 @@ void VulkanEngine::init_vulkan() {
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.shaderInt64 = true;
 
+	VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
+	rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+	rayQueryFeatures.rayQuery = VK_TRUE;
+
 	const std::vector<const char*> raytracing_extensions{
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
@@ -671,6 +675,7 @@ void VulkanEngine::init_vulkan() {
 		.add_required_extensions(raytracing_extensions)
 		.add_required_extension_features(accelerationStructureFeatures)
 		.add_required_extension_features(raytracingPipelineFeatures)
+		.add_required_extension_features(rayQueryFeatures)
 		.set_required_features(deviceFeatures)
 		.select()
 		.value();

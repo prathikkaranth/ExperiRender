@@ -6,11 +6,16 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : enable
+#extension GL_EXT_ray_query : require
 #include "raycommon.glsl"
 #include "random.glsl"
+#include "input_structures.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
 hitAttributeEXT vec2 attribs;
+
 
 struct Vertex {
   vec3 position;
@@ -117,6 +122,12 @@ vec3 compute_diffuse(in HitPoint hit_point) {
   return diffuseColor;
 }
 
+bool is_strength_weak(vec3 strength)
+{
+    const float THRESHOLD = 1e-4f;
+    return max(max(strength.r, strength.g), strength.b) < THRESHOLD;
+}
+
 vec3 compute_lambertian(in HitPoint hit_point) {
   const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
 
@@ -132,6 +143,29 @@ vec3 compute_lambertian(in HitPoint hit_point) {
 
   // Diffuse color
   return (diff * lightIntensity * lightColor * diffuseColor);
+}
+
+vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin)
+{
+    const vec3 light_dir = -pcRay.lightPosition; // Direction *from* surface point *to* light
+
+    rayQueryEXT rq;
+    const float tmin = 0.0001f;
+    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
+    rayQueryProceedEXT(rq);
+    
+    if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
+    {
+        const float NdotL = max(dot(normal, light_dir), 0.0f);
+        const vec3 diffuse = NdotL * vec3(1.0f); // White light, no texture for now
+
+        //const vec3 view_dir = normalize(sceneData.cameraPosition - next_origin);
+        const vec3 specular = vec3(0.0f); // placeholder for later
+        
+        return (diffuse + specular) * pcRay.lightIntensity;
+    }
+
+    return vec3(0.f); // in shadow
 }
 
 
@@ -165,14 +199,22 @@ void main()
   // Compute the hitpoint
   const HitPoint hit_point = compute_hit_point();
 
-  prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
-  prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
   // Compute the color
   vec3 vertex_color = compute_vert_color();
 
-  if(pcRay.lightType == 1)
-    prd.strength *= compute_diffuse(hit_point) * vertex_color;
-  else
-    prd.strength *= compute_lambertian(hit_point) * vertex_color;
+  const vec3 diffuse_color = compute_diffuse(hit_point);
+  prd.strength *= diffuse_color * vertex_color;
+
+  
+  if (is_strength_weak(prd.strength))
+  {
+    prd.next_direction = vec3(0.0f);
+    return;
+  }
+  
+  prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
+  prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
+
+  prd.color += prd.strength * compute_directional_light_contribution(hit_point.normal, prd.next_origin);
   
 }

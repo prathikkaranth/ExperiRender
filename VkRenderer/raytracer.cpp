@@ -84,7 +84,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
 		m_rtDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);  // TLAS
 		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
-		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 	}
 	m_rtDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_rtDescSetLayout);
 
