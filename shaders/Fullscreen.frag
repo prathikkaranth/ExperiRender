@@ -16,6 +16,13 @@ void main()
     // Sample both images
     vec3 rasterized = texture(rasterizedImage, inUV).rgb;
     vec3 rayTraced = texture(rayTracedImage, inUV).rgb;
+
+    // HDR tonemapping
+    rasterized = rasterized / (rasterized + vec3(1.0));
+    rayTraced = rayTraced / (rayTraced + vec3(1.0));
+    // gamma correct
+    rasterized = pow(rasterized, vec3(1.0/2.2)); 
+    rayTraced = pow(rayTraced, vec3(1.0/2.2));
     
     if (compositorData.useRayTracer == 1) {
         // Use ray traced image

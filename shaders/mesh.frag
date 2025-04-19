@@ -169,11 +169,6 @@ vec3 pbr() {
 
 	vec3 color = ambient + Lo * (1.0 - shadow * shadowFactor);
 
-	// HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
-
 	return color;
 }
 
@@ -252,11 +247,6 @@ vec3 blinnPhong() {
 
 	// Final color
 	vec3 lighting = ((ambient*ssao) + (1.0 - (shadow * shadowFactor)) * (diffuse + spec));
-
-	// HDR tonemapping
-    lighting = lighting / (lighting + vec3(1.0));
-    // gamma correct
-    lighting = pow(lighting, vec3(1.0/2.2)); 
 
 	return lighting;
 }
