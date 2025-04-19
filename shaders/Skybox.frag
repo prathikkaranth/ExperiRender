@@ -41,12 +41,6 @@ void main()
 {		
     vec2 uv = SampleSphericalMap(normalize(inTexCoord)); // make sure to normalize localPos
     vec3 color = texture(equirectangularMap, uv).rgb;
-
-    // Replace the tone mapping section with:
-    float exposure = 1.0;
-    float gamma = 2.2;
-    color = toneMap(color, exposure);
-    color = gammaCorrect(color, gamma);
     
     outColor0 = vec4(color, 1.0);
     outColor1 = vec4(color, 1.0); // Assuming you want the same color for the second attachment

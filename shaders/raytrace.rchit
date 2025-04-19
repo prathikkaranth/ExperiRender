@@ -151,7 +151,7 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
 
     rayQueryEXT rq;
-    const float tmin = 0.001f;
+    const float tmin = 0.1f;
     rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
     rayQueryProceedEXT(rq);
     

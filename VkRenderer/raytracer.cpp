@@ -150,7 +150,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images
 			m_texSetLayoutBind.add_bindings(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText); // Normal Maps
 			m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
-			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR);
+			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 		}
 
 		m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
