@@ -20,7 +20,7 @@ void Raytracer::init_ray_tracing(VulkanEngine* engine) {
 void Raytracer::setRTDefaultData() {
 	m_pcRay.samples_done = 0;
 	max_samples = 200;
-	m_pcRay.depth = 8;
+	m_pcRay.depth = 3;
 	m_pcRay.lightType = 1; // Global light
 }
 
