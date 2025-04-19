@@ -71,12 +71,12 @@ void HDRI::init_hdriMap(VulkanEngine* engine) {
 
 	VkShaderModule skyboxVertShader;
 	if (!vkutil::load_shader_module("Skybox.vert.spv", engine->_device, &skyboxVertShader)) {
-		spdlog::error("Error when building the Gbuffer fragment shader module");
+		spdlog::error("Error when building the Skybox fragment shader module");
 	}
 
 	VkShaderModule skyboxFragShader;
 	if (!vkutil::load_shader_module("Skybox.frag.spv", engine->_device, &skyboxFragShader)) {
-		spdlog::error("Error when building the Gbuffer vertex shader module");
+		spdlog::error("Error when building the Skybox vertex shader module");
 	}
 
 	// build the stage-create-info for both vertex and fragment stages. This lets

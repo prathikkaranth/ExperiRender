@@ -181,7 +181,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 	constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
 	ImGui::Begin("Settings", nullptr, window_flags);
 
-	ImGui::Checkbox("Ray Tracer mode", &engine->useRaytracer); // Switch between raster and ray tracing
+	ImGui::Checkbox("Ray Tracer mode", reinterpret_cast<bool*>(&engine->postProcessor._compositorData)); // Switch between raster and ray tracing
 
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
 		ImGui::ColorEdit3("Ambient Color", &engine->sceneData.ambientColor.x);
