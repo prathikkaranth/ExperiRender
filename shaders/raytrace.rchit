@@ -9,14 +9,12 @@
 #extension GL_EXT_ray_query : require
 #include "raycommon.glsl"
 #include "random.glsl"
-#include "input_structures.glsl"
+#include "pbr_util.glsl"
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
 hitAttributeEXT vec2 attribs;
-
-const float PI = 3.14159265359f;
 
 struct Vertex {
   vec3 position;
@@ -147,9 +145,17 @@ vec3 compute_lambertian(in HitPoint hit_point) {
   return (diff * lightIntensity * lightColor * diffuseColor);
 }
 
-vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color)
+vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv)
 {
     const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
+    const vec3 view_dir = normalize(gl_WorldRayOriginEXT - next_origin); // Direction to camera/viewer
+    
+    // Get the material data
+    const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+    
+    // Default roughness and metalness values
+    float roughness = 0.5;
+    float metalness = 0.0;
 
     rayQueryEXT rq;
     const float tmin = 0.1f;
@@ -158,13 +164,41 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     
     if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
     {
+        // Retrieve metalness and roughness from texture if available
+        if(material.albedoTexIndex != 0) // Assuming 0 means no texture
+        {
+            vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], uv).rgb;
+            roughness = metalRoughSample.g; // Green channel for roughness
+            metalness = metalRoughSample.b; // Blue channel for metalness
+        }
+        
         const float NdotL = max(dot(normal, light_dir), 0.0f);
-        const vec3 light_color = vec3(1.f); // Light color
+        const vec3 light_color = vec3(1.f);
         
-        // Multiply by diffuse color to respect material properties
-        const vec3 diffuse = NdotL * light_color * diffuse_color;
+        // PBR calculations
+        vec3 half_vec = normalize(light_dir + view_dir);
         
-        return diffuse * (pcRay.lightIntensity * 0.25);
+        // Calculate base reflectivity for metals vs non-metals
+        vec3 F0 = vec3(0.04); // Base reflectivity for dielectrics
+        F0 = mix(F0, diffuse_color, metalness); // Metals use albedo color for base reflectivity
+        
+        // Cook-Torrance BRDF
+        float NDF = DistributionGGX(normal, half_vec, roughness);
+        float G = GeometrySmith(normal, view_dir, light_dir, roughness);
+        vec3 F = fresnelSchlick(max(dot(half_vec, view_dir), 0.0), F0);
+        
+        vec3 kS = F; // Specular contribution
+        vec3 kD = (vec3(1.0) - kS) * (1.0 - metalness); // Diffuse contribution (metallic surfaces don't diffuse)
+        
+        // Combine specular components
+        vec3 numerator = NDF * G * F;
+        float denominator = 4.0 * max(dot(normal, view_dir), 0.0) * NdotL + 0.0001; // Prevent division by zero
+        vec3 specular = numerator / denominator;
+        
+        // Combine diffuse and specular for final result
+        vec3 result = (kD * diffuse_color / PI + specular) * NdotL * light_color;
+        
+        return result * (pcRay.lightIntensity * 0.25);
     }
 
     return vec3(0.f); // in shadow
@@ -214,7 +248,7 @@ void main()
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * max(0.01, offsetFactor);
 
   // Pass the material color to the light calculation
-  prd.color += prd.strength * compute_directional_light_contribution(hit_point.normal, prd.next_origin, material_color);
+  prd.color += prd.strength * compute_directional_light_contribution(hit_point.normal, prd.next_origin, material_color, hit_point.uv);
 
   const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
   const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
