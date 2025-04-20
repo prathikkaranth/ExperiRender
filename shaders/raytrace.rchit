@@ -217,7 +217,8 @@ void main()
 
   const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
   const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
-  prd.strength *= material_color * cos_theta / HEMISPHERE_PDF;
+  prd.strength *= material_color * cos_theta / HEMISPHERE_PDF * 0.25f; // 0.25 is scaling factor to prevent light bleeding. TODO: find a better way to do this.
+  prd.strength *= 1.0f / (1.0f + length(prd.strength) * 0.01f); // Attenuate strength
 
   if (is_strength_weak(prd.strength))
   {
