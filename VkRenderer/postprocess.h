@@ -6,6 +6,7 @@
 
 struct CompositorData {
 	int useRayTracer;
+	float exposure;
 };
 
 class VulkanEngine;

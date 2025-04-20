@@ -183,6 +183,10 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 
 	ImGui::Checkbox("Ray Tracer mode", reinterpret_cast<bool*>(&engine->postProcessor._compositorData)); // Switch between raster and ray tracing
 
+	if (ImGui::CollapsingHeader("Compositor Settings")) {
+		ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
+	}
+
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
 		ImGui::ColorEdit3("Ambient Color", &engine->sceneData.ambientColor.x);
 		ImGui::ColorEdit3("Sunlight Color", &engine->sceneData.sunlightColor.x);

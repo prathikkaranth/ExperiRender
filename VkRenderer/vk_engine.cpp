@@ -804,7 +804,7 @@ void VulkanEngine::init_swapchain() {
 	};
 
 	//hardcoding the draw format to 32 bit float
-	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	_drawImage.imageFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
 
 	VkImageUsageFlags drawImageUsages{};
