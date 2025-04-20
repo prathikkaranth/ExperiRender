@@ -146,7 +146,7 @@ vec3 compute_lambertian(in HitPoint hit_point) {
   return (diff * lightIntensity * lightColor * diffuseColor);
 }
 
-vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin)
+vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color)
 {
     const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
 
@@ -158,12 +158,12 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
     {
         const float NdotL = max(dot(normal, light_dir), 0.0f);
-        const vec3 diffuse = NdotL * vec3(0.992f, 0.992f, 0.833f); // White light, no texture for now
-
-        //const vec3 view_dir = normalize(sceneData.cameraPosition - next_origin);
-        const vec3 specular = vec3(0.0f); // placeholder for later
+        const vec3 light_color = vec3(1.f); // Light color
         
-        return (diffuse + specular) * (pcRay.lightIntensity * 0.25);
+        // Multiply by diffuse color to respect material properties
+        const vec3 diffuse = NdotL * light_color * diffuse_color;
+        
+        return diffuse * (pcRay.lightIntensity * 0.25);
     }
 
     return vec3(0.f); // in shadow
@@ -202,19 +202,22 @@ void main()
 
   // Compute the color
   vec3 vertex_color = compute_vert_color();
-
   const vec3 diffuse_color = compute_diffuse(hit_point);
+  
+  // Combine material colors
+  vec3 material_color = diffuse_color * vertex_color;
   
   prd.next_direction = random_in_hemisphere(hit_point.normal, prd.seed);
   // Use a larger offset factor that scales with hit distance
   float offsetFactor = gl_HitTEXT * 0.001; // 0.1% of hit distance
   prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * max(0.01, offsetFactor);
 
-  prd.color += prd.strength * compute_directional_light_contribution(hit_point.normal, prd.next_origin);
+  // Pass the material color to the light calculation
+  prd.color += prd.strength * compute_directional_light_contribution(hit_point.normal, prd.next_origin, material_color);
 
   const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
   const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
-  prd.strength *= diffuse_color * vertex_color * cos_theta / HEMISPHERE_PDF;  
+  prd.strength *= material_color * cos_theta / HEMISPHERE_PDF;
 
   if (is_strength_weak(prd.strength))
   {
