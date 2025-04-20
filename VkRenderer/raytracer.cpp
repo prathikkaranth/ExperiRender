@@ -137,6 +137,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
 		loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
 		loadedNormTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->normImage);
+		loadedMetalRoughTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughImage);
 		engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
 	}
 
@@ -144,12 +145,14 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	if (!loadedTextures.empty() || !loadedNormTextures.empty() || engine->hdrImage.get_hdriMap().image != VK_NULL_HANDLE) {
 		auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
 		auto nbNormText = static_cast<uint32_t>(loadedNormTextures.size());
+		auto nbMetalRoughText = static_cast<uint32_t>(loadedMetalRoughTextures.size());
 
 		{
 			DescriptorLayoutBuilder m_texSetLayoutBind;
 			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images
 			m_texSetLayoutBind.add_bindings(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText); // Normal Maps
 			m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
+			m_texSetLayoutBind.add_bindings(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbMetalRoughText); // Metal Rough Maps
 			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 		}
 
@@ -179,10 +182,23 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 			normTexDescs.push_back(imageInfo);
 		}
 
+		// Metal Rough Texture
+		std::vector<VkDescriptorImageInfo> metalRoughTexDescs;
+		metalRoughTexDescs.reserve(nbMetalRoughText);
+		for (uint32_t i = 0; i < nbMetalRoughText; i++) {
+			VkDescriptorImageInfo imageInfo{
+				.sampler = engine->_defaultSamplerLinear,
+				.imageView = loadedMetalRoughTextures[i].imageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			};
+			metalRoughTexDescs.push_back(imageInfo);
+		}
+
 		DescriptorWriter tex_writer;
 		tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
 		tex_writer.write_images(1, *normTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText);
 		tex_writer.write_image(2, engine->hdrImage.get_hdriMap().imageView, engine->hdrImage.get_hdriMapSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		tex_writer.write_images(3, *metalRoughTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbMetalRoughText); // Metal Roughness
 		tex_writer.update_set(engine->_device, m_texDescSet);
 
 		engine->_mainDeletionQueue.push_function([=]() {

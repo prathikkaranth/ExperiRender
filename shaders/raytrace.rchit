@@ -65,6 +65,7 @@ u_materials;
 
 layout(set = 3, binding = 0) uniform sampler2D textures[];
 layout(set = 3, binding = 1) uniform sampler2D normalMaps[];
+layout(set = 3, binding = 3) uniform sampler2D metalRoughMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 

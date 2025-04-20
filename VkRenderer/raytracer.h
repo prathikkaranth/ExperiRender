@@ -69,6 +69,7 @@ public:
 	// Put all textures in loadScenes to a vector
 	std::vector<AllocatedImage> loadedTextures;
 	std::vector<AllocatedImage> loadedNormTextures;
+	std::vector<AllocatedImage> loadedMetalRoughTextures;
 
 	AllocatedBuffer m_rtSBTBuffer;
 	VkStridedDeviceAddressRegionKHR m_rgenRegion{};

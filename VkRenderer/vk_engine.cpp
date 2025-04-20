@@ -1332,7 +1332,13 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.update_set(device, matData.materialSet);
 
 	matData.colImage = resources.colorImage;
+	matData.colSampler = resources.colorSampler;
+
 	matData.normImage = resources.normalImage;
+	matData.normSampler = resources.normalSampler;
+
+	matData.metalRoughImage = resources.metalRoughImage;
+	matData.metalRoughSampler = resources.metalRoughSampler;
 
 	matData.albedo = resources.albedo;
 

@@ -103,7 +103,14 @@ struct MaterialInstance {
 	MaterialPass passType;
 
 	AllocatedImage colImage;
+	VkSampler colSampler;
+
 	AllocatedImage normImage;
+	VkSampler normSampler;
+
+	AllocatedImage metalRoughImage;
+	VkSampler metalRoughSampler;
+
 	uint32_t matIndex;
 
 	glm::vec4 albedo;
