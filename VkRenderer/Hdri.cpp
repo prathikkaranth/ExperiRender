@@ -11,7 +11,7 @@ void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
 	stbi_set_flip_vertically_on_load(true);
 	std::string hdriPath = (std::filesystem::path("../assets") / "HDRI" / "mirrored_hall_4k.hdr").string();
-	float* data = stbi_loadf("../assets/HDRI/mirrored_hall_4k.hdr", &width, &height, &nrComponents, 0);
+	float* data = stbi_loadf("../assets/HDRI/pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
 
 	if (!data) {
 		spdlog::error("Failed to load HDRI image!");
