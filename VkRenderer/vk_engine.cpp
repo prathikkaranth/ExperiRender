@@ -111,7 +111,7 @@ float ssaolerp(float a, float b, float f)
 void VulkanEngine::init_default_data() {
 	
 	//some default lighting parameters
-	sceneData.ambientColor = glm::vec4(.12f);
+	sceneData.ambientColor = glm::vec4(.053f, .049f, .049f, .049f);
 	sceneData.sunlightColor = glm::vec4(2.f);
 	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
@@ -154,9 +154,9 @@ void VulkanEngine::init_default_data() {
 	// SSAO data - Sponza scene
 	// ----------------------
 	_ssao.ssaoData.kernelSize = 128;
-	_ssao.ssaoData.radius = 0.032f;
-	_ssao.ssaoData.bias = 0.011f;
-	_ssao.ssaoData.intensity = 2.111f;
+	_ssao.ssaoData.radius = 0.721f;
+	_ssao.ssaoData.bias = 0.023f;
+	_ssao.ssaoData.intensity = 0.713f;
 
 	// generate sample kernel
 	// ----------------------
