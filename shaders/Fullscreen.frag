@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "ACES.glsl"
+#include "pbrNeutral.glsl"
 
 layout (location = 0) in vec2 inUV;
 
@@ -12,6 +13,7 @@ layout (set = 0, binding = 1) uniform sampler2D rasterizedImage;
 
 layout(set = 0, binding = 2) uniform  CompositerData{   
     int useRayTracer;
+    
     float exposure;
 } compositorData;
 
@@ -28,7 +30,7 @@ void main()
     // Apply exposure adjustment before ACES filmic tone mapping
     rayTraced *= compositorData.exposure;
     
-    // ACES filmic tone mapping
+    // Tone mapping for rayTraced
     rayTraced = ACESFitted(rayTraced);
 
     // Gamma correction for rayTraced
