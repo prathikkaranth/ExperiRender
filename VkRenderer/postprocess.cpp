@@ -8,6 +8,10 @@ void PostProcessor::init(VulkanEngine* engine) {
 	// init compositor data
 	_compositorData.useRayTracer = 0;
 	_compositorData.exposure = 4.0f;
+	_compositorData.sigma = 2.305f;
+	_compositorData.kSigma = 0.529f;
+	_compositorData.threshold = 0.143f;
+	_compositorData.useDenoiser = 0;
 
 	_fullscreenImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 	vmaSetAllocationName(engine->_allocator, _fullscreenImage.allocation, "Post Process Image");

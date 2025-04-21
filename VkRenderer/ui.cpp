@@ -185,6 +185,17 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 
 	if (ImGui::CollapsingHeader("Compositor Settings")) {
 		ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
+
+		ImGui::Checkbox("Denoiser", reinterpret_cast<bool*>(&engine->postProcessor._compositorData.useDenoiser));
+
+		if (ImGui::TreeNode("Denoiser Settings")) {
+			ImGui::SliderFloat("Sigma", &engine->postProcessor._compositorData.sigma, 0.1f, 10.0f);
+			ImGui::SliderFloat("kSigma", &engine->postProcessor._compositorData.kSigma, 0.1f, 10.0f);
+			ImGui::SliderFloat("Threshold", &engine->postProcessor._compositorData.threshold, 0.1f, 10.0f);
+
+			ImGui::TreePop();
+			ImGui::Spacing();
+		}
 	}
 
 	if (ImGui::CollapsingHeader("Lighting Settings")) {
@@ -198,7 +209,7 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 		ImGui::Checkbox("PBR", reinterpret_cast<bool*>(&engine->sceneData.enablePBR));
 	}
 	if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
-		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 100, 5000);
+		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 1, 5000);
 		ImGui::SliderInt("Ray Depth", reinterpret_cast<int*>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
 
 		if (ImGui::TreeNode("RT Lighting"))

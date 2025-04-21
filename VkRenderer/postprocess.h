@@ -6,6 +6,13 @@
 
 struct CompositorData {
 	int useRayTracer;
+	int useDenoiser;
+
+	// Denoising parameters
+	float sigma; // Standard deviation for Gaussian filter
+	float kSigma; // Standard deviation for kernel size
+	float threshold; // Threshold for denoising
+
 	float exposure;
 };
 
