@@ -4,6 +4,7 @@
 #include <VulkanGeometryKHR.h>
 #include <vk_images.h>
 #include <spdlog/spdlog.h>
+#include <random>
 
 void Raytracer::init_ray_tracing(VulkanEngine* engine) {
 
@@ -213,6 +214,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		MaterialRTData matDesc{};
 		matDesc.albedo = engine->mainDrawContext.OpaqueSurfaces[i].material->albedo;
 		matDesc.albedoTexIndex = engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex;
+		matDesc.metal_rough_factors = engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughFactors;
 		materialRTShaderData.push_back(matDesc);
 	}
 
@@ -460,7 +462,9 @@ void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, co
 	m_pcRay.viewInverse = glm::inverse(engine->sceneData.view);
 	m_pcRay.projInverse = glm::inverse(engine->sceneData.proj);
 	m_pcRay.lightIntensity = engine->sceneData.sunlightDirection.w;
-	m_pcRay.seed = static_cast<std::uint32_t>(std::rand());
+	std::random_device rd;  // Non-deterministic seed source
+	std::mt19937 gen(rd()); // Mersenne Twister engine
+	m_pcRay.seed = gen();
 
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 

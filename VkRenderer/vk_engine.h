@@ -62,6 +62,7 @@ struct GLTFMetallic_Roughness {
 
 		glm::vec4 albedo;
 		uint32_t albedoTexIndex;
+		glm::vec4 metalRoughFactors;
 	};
 
 	DescriptorWriter writer;

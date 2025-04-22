@@ -34,7 +34,7 @@ vec3 tracePath() {
     const uint SBT_RECORD_OFFSET = 0;
     const uint SBT_RECORD_STRIDE = 0;
     const uint MISS_INDEX = 0;
-    const float TMIN = 0.0001;
+    const float TMIN = 0.1;
     const float TMAX = 10000.0;
     const int PAYLOAD = 0;
 
@@ -90,6 +90,11 @@ vec3 tracePath() {
 void main() 
 {
     prd.seed = gl_LaunchIDEXT.x * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.y + (pcRay.seed * 0x9e3779b1);
+    
+    // Initialize prd values
+    prd.color = vec3(0.0);
+    prd.strength = vec3(1.0);
+    prd.isHit = true;
     
     const vec3 radiance = tracePath();
 

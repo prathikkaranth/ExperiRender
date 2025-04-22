@@ -1341,6 +1341,7 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	matData.metalRoughSampler = resources.metalRoughSampler;
 
 	matData.albedo = resources.albedo;
+	matData.metalRoughFactors = resources.metalRoughFactors;
 
 	return matData;
 }
