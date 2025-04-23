@@ -13,6 +13,7 @@
 #include <shadowmap.h>
 #include <raytracer.h>
 #include <ui.h>
+#include <postprocess.h>
 
 #include <glm/glm.hpp>
 
@@ -61,6 +62,7 @@ struct GLTFMetallic_Roughness {
 
 		glm::vec4 albedo;
 		uint32_t albedoTexIndex;
+		glm::vec4 metalRoughFactors;
 	};
 
 	DescriptorWriter writer;
@@ -178,11 +180,7 @@ public:
 	ssao _ssao;
 
 	// Full screen quad resources
-	AllocatedImage _fullScreenImage;
-	VkSampler _fullScreenSampler;
-	VkDescriptorSetLayout _fullScreenDescriptorLayout;
-	VkDescriptorSet _fullScreenDescriptor;
-
+	PostProcessor postProcessor;
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -230,10 +228,8 @@ public:
 private: 
 
 	void draw_geometry(VkCommandBuffer cmd);
-	void draw_fullscreen_quad(VkCommandBuffer cmd);
 
 	void init_pipelines();
-	void init_fullscreen_quad();
 
 	void init_descriptors();
 

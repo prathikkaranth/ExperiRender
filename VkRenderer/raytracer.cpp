@@ -4,6 +4,7 @@
 #include <VulkanGeometryKHR.h>
 #include <vk_images.h>
 #include <spdlog/spdlog.h>
+#include <random>
 
 void Raytracer::init_ray_tracing(VulkanEngine* engine) {
 
@@ -20,7 +21,7 @@ void Raytracer::init_ray_tracing(VulkanEngine* engine) {
 void Raytracer::setRTDefaultData() {
 	m_pcRay.samples_done = 0;
 	max_samples = 200;
-	m_pcRay.depth = 8;
+	m_pcRay.depth = 3;
 	m_pcRay.lightType = 1; // Global light
 }
 
@@ -77,14 +78,14 @@ void Raytracer::createTopLevelAS(VulkanEngine* engine) {
 void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 {
 	// Create output image
-	_rtOutputImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+	_rtOutputImage = vkutil::create_image(engine, VkExtent3D{ engine->_windowExtent.width, engine->_windowExtent.height, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
 
 	{
 		DescriptorLayoutBuilder m_rtDescSetLayoutBind;
 		m_rtDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);  // TLAS
 		m_rtDescSetLayoutBind.add_binding(1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE); // Output image
-		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+		m_rtDescSetLayout = m_rtDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 	}
 	m_rtDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_rtDescSetLayout);
 
@@ -137,6 +138,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
 		loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
 		loadedNormTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->normImage);
+		loadedMetalRoughTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughImage);
 		engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
 	}
 
@@ -144,13 +146,15 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	if (!loadedTextures.empty() || !loadedNormTextures.empty() || engine->hdrImage.get_hdriMap().image != VK_NULL_HANDLE) {
 		auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
 		auto nbNormText = static_cast<uint32_t>(loadedNormTextures.size());
+		auto nbMetalRoughText = static_cast<uint32_t>(loadedMetalRoughTextures.size());
 
 		{
 			DescriptorLayoutBuilder m_texSetLayoutBind;
 			m_texSetLayoutBind.add_bindings(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);  // Tex Images
 			m_texSetLayoutBind.add_bindings(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText); // Normal Maps
 			m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
-			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR);
+			m_texSetLayoutBind.add_bindings(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbMetalRoughText); // Metal Rough Maps
+			m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 		}
 
 		m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
@@ -179,10 +183,23 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 			normTexDescs.push_back(imageInfo);
 		}
 
+		// Metal Rough Texture
+		std::vector<VkDescriptorImageInfo> metalRoughTexDescs;
+		metalRoughTexDescs.reserve(nbMetalRoughText);
+		for (uint32_t i = 0; i < nbMetalRoughText; i++) {
+			VkDescriptorImageInfo imageInfo{
+				.sampler = engine->_defaultSamplerLinear,
+				.imageView = loadedMetalRoughTextures[i].imageView,
+				.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			};
+			metalRoughTexDescs.push_back(imageInfo);
+		}
+
 		DescriptorWriter tex_writer;
 		tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
 		tex_writer.write_images(1, *normTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText);
 		tex_writer.write_image(2, engine->hdrImage.get_hdriMap().imageView, engine->hdrImage.get_hdriMapSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		tex_writer.write_images(3, *metalRoughTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbMetalRoughText); // Metal Roughness
 		tex_writer.update_set(engine->_device, m_texDescSet);
 
 		engine->_mainDeletionQueue.push_function([=]() {
@@ -197,6 +214,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		MaterialRTData matDesc{};
 		matDesc.albedo = engine->mainDrawContext.OpaqueSurfaces[i].material->albedo;
 		matDesc.albedoTexIndex = engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex;
+		matDesc.metal_rough_factors = engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughFactors;
 		materialRTShaderData.push_back(matDesc);
 	}
 
@@ -444,7 +462,9 @@ void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, co
 	m_pcRay.viewInverse = glm::inverse(engine->sceneData.view);
 	m_pcRay.projInverse = glm::inverse(engine->sceneData.proj);
 	m_pcRay.lightIntensity = engine->sceneData.sunlightDirection.w;
-	m_pcRay.seed = static_cast<std::uint32_t>(std::rand());
+	std::random_device rd;  // Non-deterministic seed source
+	std::mt19937 gen(rd()); // Mersenne Twister engine
+	m_pcRay.seed = gen();
 
 	vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 

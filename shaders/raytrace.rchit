@@ -6,8 +6,12 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 #extension GL_EXT_buffer_reference : require
 #extension GL_ARB_gpu_shader_int64 : enable
+#extension GL_EXT_ray_query : require
 #include "raycommon.glsl"
 #include "random.glsl"
+#include "PBRMetallicRoughness.glsl"
+
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
 hitAttributeEXT vec2 attribs;
@@ -39,6 +43,7 @@ struct MaterialRTData {
   uint p0;
   uint p1;
   uint p2;
+  vec4 metal_rough_factors;
 };
 
 struct HitPoint {
@@ -59,6 +64,7 @@ u_materials;
 
 layout(set = 3, binding = 0) uniform sampler2D textures[];
 layout(set = 3, binding = 1) uniform sampler2D normalMaps[];
+layout(set = 3, binding = 3) uniform sampler2D metalRoughMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
@@ -117,21 +123,51 @@ vec3 compute_diffuse(in HitPoint hit_point) {
   return diffuseColor;
 }
 
-vec3 compute_lambertian(in HitPoint hit_point) {
-  const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+bool is_strength_weak(vec3 strength)
+{
+    const float THRESHOLD = 1e-4f;
+    return max(max(strength.r, strength.g), strength.b) < THRESHOLD;
+}
 
-  const vec4 diffuseSample = texture(textures[material.albedoTexIndex], hit_point.uv);
-  const vec3 diffuseColor = diffuseSample.rgb * material.albedo.rgb;
+vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv)
+{
+    const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
+    const vec3 view_dir = normalize(gl_WorldRayOriginEXT - next_origin); // Direction to camera/viewer
+    
+    // Get the material data
+    const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+    
+    // Default roughness and metalness values
+    float roughness = 0.5;
+    float metalness = 0.0;
 
-  vec3 lightDir = normalize(vec3(pcRay.lightPosition - gl_WorldRayOriginEXT));
-  float diff = max(dot(hit_point.normal, lightDir), 0.0);
+    rayQueryEXT rq;
+    const float tmin = 0.1f;
+    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsCullBackFacingTrianglesEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
+    rayQueryProceedEXT(rq);
+    
+    if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
+    {
+        // Retrieve metalness and roughness from texture if available
+        if(material.albedoTexIndex != 0) // Assuming 0 means no texture
+        {
+            vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], uv).rgb;
+            roughness = metalRoughSample.g * material.metal_rough_factors.y;
+            metalness = metalRoughSample.b * material.metal_rough_factors.x; 
+        }
+        else
+        {
+            roughness = material.metal_rough_factors.y;
+            metalness = material.metal_rough_factors.x; 
+        }
+        
+        // Compute the BSDF using the PBR model
+        vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
+        
+        return bsdf * (pcRay.lightIntensity * 0.55);
+    }
 
-  // Light color and intensity
-  vec3 lightColor = vec3(1.0, 1.0, 1.0); // White light
-  float lightIntensity = pcRay.lightIntensity;
-
-  // Diffuse color
-  return (diff * lightIntensity * lightColor * diffuseColor);
+    return vec3(0.f); // in shadow
 }
 
 
@@ -163,16 +199,45 @@ vec3 compute_vert_color() {
 void main()
 {
   // Compute the hitpoint
-  const HitPoint hit_point = compute_hit_point();
+    const HitPoint hit_point = compute_hit_point();
 
-  prd.next_direction = normalize(hit_point.normal + random_unit_vector(prd.seed));
-  prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-6f;
-  // Compute the color
-  vec3 vertex_color = compute_vert_color();
+    // Compute the color
+    vec3 vertex_color = compute_vert_color();
+    const vec3 diffuse_color = compute_diffuse(hit_point);
+    
+    // Combine material colors
+    vec3 material_color = diffuse_color * vertex_color;
+    
+    // Compute direct lighting contribution
+    vec3 direct_light = compute_directional_light_contribution(hit_point.normal, 
+                                                             gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f, 
+                                                             material_color, 
+                                                             hit_point.uv);
+    
+    // Add direct lighting contribution to the path radiance
+    prd.color += prd.strength * direct_light;
+    
+    // Russian roulette termination
+    float max_strength = max(max(prd.strength.r, prd.strength.g), prd.strength.b);
+    if (max_strength < 0.01) {
+        float q = max(0.05, 1.0 - max_strength);
+        if (rand1d(prd.seed) < q) {
+            // Terminate the path
+            prd.next_direction = vec3(0.0);
+            return;
+        }
+        // Boost the strength to account for terminated paths
+        prd.strength /= (1.0 - q);
+    }
+    
+    // Set up next ray
+    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f;
+    prd.next_direction = random_in_hemisphere(hit_point.normal, prd.seed);
 
-  if(pcRay.lightType == 1)
-    prd.strength *= compute_diffuse(hit_point) * vertex_color;
-  else
-    prd.strength *= compute_lambertian(hit_point) * vertex_color;
-  
+    // Update the path strength for the next bounce
+    const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+    const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+    
+    // Update strength based on BRDF and PDF
+    prd.strength *= material_color * cos_theta / HEMISPHERE_PDF;
 }

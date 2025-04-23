@@ -1,6 +1,15 @@
 # ExperiRender
 
-![image](docs/images/Sponza-RT_Mat.png)
+<table>
+  <tr>
+    <td><img src="docs/images/ExperiRender_Sponza.png" width="1000"/></td>
+    <td><img src="docs/images/Sponza-RT_Mat.png" width="1000"/></td>
+  </tr>
+  <tr>
+    <td align="center">Raster Render</td>
+    <td align="center">Raytraced Render</td>
+  </tr>
+</table>
 
 A cross-platform Graphics Renderer written in Vulkan mainly for visualization purposes required in research fields. Current iteration has support for rasterization and ray tracing. 
 
@@ -12,6 +21,8 @@ A cross-platform Graphics Renderer written in Vulkan mainly for visualization pu
     - Blinn-phong lighting 
     - PBR
 - Hardware Ray Tracing
+    - PBR
+    - Shadows
 
 # Build
 
@@ -65,19 +76,10 @@ git clone https://github.com/prathikkaranth/ExperiRender.git
 4. Build using CMake GUI to configure and generate a Visual Studio solution. Set startup project to 'Renderer' and run.
 
 
-## Showcase
-
-Showcase | Details
----------|--------
-![small](docs/images/TheTravelingWagon-RT_NoMat.png) | <b> Ray Traced Geometry, AO </b> <br>Implements gltf geometry loaded with ray tracing using Vulkan Ray Tracing extensions.
-![small](docs/images/TheTravelingWagon-SSAO_ON.png) ![small](docs/images/TheTravelingWagon-SSAO_OFF.png) | <b> Screen Space Ambient Occlusion </b> <br>Implements screen space ambient occlusion.
-![small](docs/images/ExperiRender_Sponza.png) | <b> Shadow Maps </b> <br>Implements shadow mapping.
-
 ## Models Used for Showcase
 
-Model - ["The Traveling Wagon - Cheeeeeeeeeese"](https://sketchfab.com/3d-models/the-traveling-wagon-cheeeeeeeeeese-d9761a00e1f34d7ab4e83cc92e94d6f3) by [Sophie Becker](https://sketchfab.com/sophiebecker) licensed under [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
-
-Model - [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza)
+- [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza)
+- [Flight Helmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet)
 
 ## Dependencies Required:
 

@@ -5,6 +5,7 @@ struct hitPayload
     vec3 next_direction;
     uint seed;
     vec3 strength;
+	bool isHit;
 };
 
 // Push constant structure for the ray tracer

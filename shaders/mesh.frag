@@ -2,7 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 #include "input_structures.glsl"
-#include "pbr_util.glsl"
+#include "PBRMetallicRoughness.glsl"
 
 
 layout(set = 1, binding = 1) uniform sampler2D colorTex;
@@ -115,39 +115,10 @@ vec3 pbr() {
 
 	vec3 V = normalize(sceneData.cameraPosition.xyz - inWorldPos);
 
-	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
-    // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
-    vec3 F0 = vec3(0.04); 
-    F0 = mix(F0, albedo, metallic);
-
-	// reflectance equation
-    vec3 Lo = vec3(0.0);
-	// For a directional light, we only need direction (not position)
 	vec3 L = - normalize(sceneData.sunlightDirection.xyz); // lightDirection is a uniform pointing to the light
-	vec3 H = normalize(V + L);
 
-	// No distance attenuation for directional lights
-	vec3 radiance = sceneData.sunlightColor.xyz * sceneData.sunlightDirection.w; // lightColor is a uniform color for the light
-
-	// Cook-Torrance BRDF
-	float NDF = DistributionGGX(N, H, roughness);
-	float G = GeometrySmith(N, V, L, roughness);
-	vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-
-	vec3 numerator = NDF * G * F;
-	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
-	vec3 specular = numerator / denominator;
-
-	// kS is equal to Fresnel
-	vec3 kS = F;
-	vec3 kD = vec3(1.0) - kS;
-	kD *= 1.0 - metallic;
-
-	// scale light by NdotL
-	float NdotL = max(dot(N, L), 0.0);
-
-	// add to outgoing radiance Lo
-	Lo = (kD * albedo / PI + specular) * radiance * NdotL;
+	vec3 bsdf = BSDF(metallic, roughness, N, V, L, albedo);
+	bsdf *= sceneData.sunlightDirection.w;
 
 	// ambient lighting (note that the next IBL tutorial will replace 
     // this ambient lighting with environment lighting).
@@ -167,12 +138,7 @@ vec3 pbr() {
 		shadow = 0.0f;
 	}
 
-	vec3 color = ambient + Lo * (1.0 - shadow * shadowFactor);
-
-	// HDR tonemapping
-    color = color / (color + vec3(1.0));
-    // gamma correct
-    color = pow(color, vec3(1.0/2.2)); 
+	vec3 color = ambient + bsdf * (1.0 - shadow * shadowFactor);
 
 	return color;
 }
@@ -252,11 +218,6 @@ vec3 blinnPhong() {
 
 	// Final color
 	vec3 lighting = ((ambient*ssao) + (1.0 - (shadow * shadowFactor)) * (diffuse + spec));
-
-	// HDR tonemapping
-    lighting = lighting / (lighting + vec3(1.0));
-    // gamma correct
-    lighting = pow(lighting, vec3(1.0/2.2)); 
 
 	return lighting;
 }

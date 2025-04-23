@@ -11,7 +11,7 @@ void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
 	stbi_set_flip_vertically_on_load(true);
 	std::string hdriPath = (std::filesystem::path("../assets") / "HDRI" / "mirrored_hall_4k.hdr").string();
-	float* data = stbi_loadf("../assets/HDRI/mirrored_hall_4k.hdr", &width, &height, &nrComponents, 0);
+	float* data = stbi_loadf("../assets/HDRI/pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
 
 	if (!data) {
 		spdlog::error("Failed to load HDRI image!");
@@ -71,12 +71,12 @@ void HDRI::init_hdriMap(VulkanEngine* engine) {
 
 	VkShaderModule skyboxVertShader;
 	if (!vkutil::load_shader_module("Skybox.vert.spv", engine->_device, &skyboxVertShader)) {
-		spdlog::error("Error when building the Gbuffer fragment shader module");
+		spdlog::error("Error when building the Skybox fragment shader module");
 	}
 
 	VkShaderModule skyboxFragShader;
 	if (!vkutil::load_shader_module("Skybox.frag.spv", engine->_device, &skyboxFragShader)) {
-		spdlog::error("Error when building the Gbuffer vertex shader module");
+		spdlog::error("Error when building the Skybox vertex shader module");
 	}
 
 	// build the stage-create-info for both vertex and fragment stages. This lets

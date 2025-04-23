@@ -111,11 +111,11 @@ float ssaolerp(float a, float b, float f)
 void VulkanEngine::init_default_data() {
 	
 	//some default lighting parameters
-	sceneData.ambientColor = glm::vec4(.12f);
+	sceneData.ambientColor = glm::vec4(.053f, .049f, .049f, .049f);
 	sceneData.sunlightColor = glm::vec4(2.f);
 	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
-	sceneData.sunlightDirection.w = 3.8f; // sun intensity
+	sceneData.sunlightDirection.w = 1.573f; // sun intensity
 	raytracerPipeline.prevSunDir = glm::vec4(sunDir, sceneData.sunlightDirection.w);	// TODO: Change sunlight code so that prevSunDir can be set in rt file
 	sceneData.enableShadows = true;
 	sceneData.enableSSAO = true;
@@ -154,9 +154,9 @@ void VulkanEngine::init_default_data() {
 	// SSAO data - Sponza scene
 	// ----------------------
 	_ssao.ssaoData.kernelSize = 128;
-	_ssao.ssaoData.radius = 0.032f;
-	_ssao.ssaoData.bias = 0.011f;
-	_ssao.ssaoData.intensity = 2.111f;
+	_ssao.ssaoData.radius = 0.721f;
+	_ssao.ssaoData.bias = 0.023f;
+	_ssao.ssaoData.intensity = 0.713f;
 
 	// generate sample kernel
 	// ----------------------
@@ -383,31 +383,31 @@ void VulkanEngine::draw()
 	_drawExtent.height = std::min(_swapchainExtent.height, _drawImage.imageExtent.height) * renderScale;
 	_drawExtent.width = std::min(_swapchainExtent.width, _drawImage.imageExtent.width) * renderScale;
 
+
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
+	// Check if raytracer is enabled
+	bool useRaytracer = (postProcessor._compositorData.useRayTracer == 1);
+
+	// Always prepare the raytracer output image for either pathway
+	vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
 	if (useRaytracer) {
-
-		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		// Raytracing path
 		raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
+		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-		//transition the draw image and the swapchain image into their correct transfer layouts
-		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		// Skip directly to post-processing using raytraced output
+		vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-		// execute a copy from the draw image into the swapchain
-		vkutil::copy_image_to_image(cmd, raytracerPipeline._rtOutputImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent, VK_FILTER_LINEAR, VK_IMAGE_ASPECT_COLOR_BIT);
+		postProcessor.draw(this, cmd);
 
-		// set swapchain image layout to Attachment Optimal so we can draw it
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		//draw imgui into the swapchain image
-		gui.draw_imgui(this, cmd, _swapchainImageViews[swapchainImageIndex]);
-
-		// set swapchain image layout to Present so we can draw it
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
-
 	else {
+		// Rasterization path - all the normal draw calls
+		vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
 		vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 		vkutil::transition_image(cmd, gbuffer.getGbufferPosInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 		vkutil::transition_image(cmd, gbuffer.getGbufferNormInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -415,61 +415,56 @@ void VulkanEngine::draw()
 		gbuffer.draw_gbuffer(this, cmd);
 
 		vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
 		vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-		// execute a copy from the depth image to the depth map
 		vkutil::copy_image_to_image(cmd, _depthImage.image, _ssao._depthMap.image, _drawExtent, _ssao._depthMapExtent, VK_FILTER_NEAREST, VK_IMAGE_ASPECT_DEPTH_BIT);
-
 		vkutil::transition_image(cmd, _ssao._depthMap.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
 		_ssao.draw_ssao(this, cmd);
-
 		vkutil::transition_image(cmd, _ssao._ssaoImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		vkutil::transition_image(cmd, _ssao._ssaoImageBlurred.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
 		_ssao.draw_ssao_blur(this, cmd);
-
 		vkutil::transition_image(cmd, _ssao._ssaoImageBlurred.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-		// transition our main draw image into general layout so we can write into it
-		// we will overwrite it all so we dont care about what was the older layout
+		// transition main draw image
 		vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		// Shadow pass
 		vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
-
 		_shadowMap.draw_depthShadowMap(this, cmd);
-
 		vkutil::transition_image(cmd, _shadowMap._depthShadowMap.image, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		vkutil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 		hdrImage.draw_hdriMap(this, cmd);
-
 		draw_geometry(cmd);
 
-		//transition the draw image and the swapchain image into their correct transfer layouts
-		vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		// Transition draw image for post-processing
+		vkutil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-		// execute a copy from the draw image into the swapchain
-		vkutil::copy_image_to_image(cmd, _drawImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent, VK_FILTER_LINEAR, VK_IMAGE_ASPECT_COLOR_BIT);
+		postProcessor.draw(this, cmd);
 
-		// set swapchain image layout to Attachment Optimal so we can draw it
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		//draw imgui into the swapchain image
-		gui.draw_imgui(this, cmd, _swapchainImageViews[swapchainImageIndex]);
-
-		// set swapchain image layout to Present so we can draw it
-		vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
+		vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 
-	//finalize the command buffer (we can no longer add commands, but it can now be executed)
+	// Common final steps for both paths
+	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Copy post-processed result to swapchain
+	vkutil::copy_image_to_image(cmd, postProcessor._fullscreenImage.image, _swapchainImages[swapchainImageIndex], _drawExtent, _swapchainExtent, VK_FILTER_LINEAR, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Prepare swapchain for UI
+	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Draw UI
+	gui.draw_imgui(this, cmd, _swapchainImageViews[swapchainImageIndex]);
+
+	// Prepare for presentation
+	vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	// Finalize command buffer
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
 	//prepare the submission to the queue. 
@@ -650,6 +645,10 @@ void VulkanEngine::init_vulkan() {
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.shaderInt64 = true;
 
+	VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
+	rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+	rayQueryFeatures.rayQuery = VK_TRUE;
+
 	const std::vector<const char*> raytracing_extensions{
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
@@ -671,6 +670,7 @@ void VulkanEngine::init_vulkan() {
 		.add_required_extensions(raytracing_extensions)
 		.add_required_extension_features(accelerationStructureFeatures)
 		.add_required_extension_features(raytracingPipelineFeatures)
+		.add_required_extension_features(rayQueryFeatures)
 		.set_required_features(deviceFeatures)
 		.select()
 		.value();
@@ -804,7 +804,7 @@ void VulkanEngine::init_swapchain() {
 	};
 
 	//hardcoding the draw format to 32 bit float
-	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	_drawImage.imageFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
 
 	VkImageUsageFlags drawImageUsages{};
@@ -812,6 +812,7 @@ void VulkanEngine::init_swapchain() {
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	drawImageUsages |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
 	VkImageCreateInfo rimg_info = vkinit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent);
 
@@ -1110,6 +1111,9 @@ void VulkanEngine::init_pipelines()
 	_ssao.init_ssao(this);
 	_ssao.init_ssao_blur(this);
 
+	// FULLSCREEN PIPELINE
+	postProcessor.init(this);
+
 	metalRoughMaterial.build_pipelines(this);
 	
 }
@@ -1328,9 +1332,16 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine* engine, Vk
 	writer.update_set(device, matData.materialSet);
 
 	matData.colImage = resources.colorImage;
+	matData.colSampler = resources.colorSampler;
+
 	matData.normImage = resources.normalImage;
+	matData.normSampler = resources.normalSampler;
+
+	matData.metalRoughImage = resources.metalRoughImage;
+	matData.metalRoughSampler = resources.metalRoughSampler;
 
 	matData.albedo = resources.albedo;
+	matData.metalRoughFactors = resources.metalRoughFactors;
 
 	return matData;
 }
