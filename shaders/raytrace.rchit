@@ -129,17 +129,10 @@ bool is_strength_weak(vec3 strength)
     return max(max(strength.r, strength.g), strength.b) < THRESHOLD;
 }
 
-vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv)
+vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv, const float metalness, const float roughness)
 {
     const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
     const vec3 view_dir = normalize(gl_WorldRayOriginEXT - next_origin); // Direction to camera/viewer
-    
-    // Get the material data
-    const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
-    
-    // Default roughness and metalness values
-    float roughness = 0.5;
-    float metalness = 0.0;
 
     rayQueryEXT rq;
     const float tmin = 0.1f;
@@ -148,23 +141,11 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     
     if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
     {
-        // Retrieve metalness and roughness from texture if available
-        if(material.albedoTexIndex != 0) // Assuming 0 means no texture
-        {
-            vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], uv).rgb;
-            roughness = metalRoughSample.g * material.metal_rough_factors.y;
-            metalness = metalRoughSample.b * material.metal_rough_factors.x; 
-        }
-        else
-        {
-            roughness = material.metal_rough_factors.y;
-            metalness = material.metal_rough_factors.x; 
-        }
         
         // Compute the BSDF using the PBR model
         vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
         
-        return bsdf * (pcRay.lightIntensity * 0.55);
+        return bsdf * (pcRay.lightIntensity);
     }
 
     return vec3(0.f); // in shadow
@@ -201,6 +182,25 @@ void main()
   // Compute the hitpoint
     const HitPoint hit_point = compute_hit_point();
 
+    // Get the material data
+    const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+    // Default roughness and metalness values
+    float roughness = 0.5;
+    float metalness = 0.0;
+
+    // Retrieve metalness and roughness from texture if available
+    if(material.albedoTexIndex != 0) // Assuming 0 means no texture
+    {
+      vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], hit_point.uv).rgb;
+      roughness = metalRoughSample.g * material.metal_rough_factors.y;
+      metalness = metalRoughSample.b * material.metal_rough_factors.x; 
+    }
+    else
+    {
+      roughness = material.metal_rough_factors.y;
+      metalness = material.metal_rough_factors.x; 
+    }
+
     // Compute the color
     vec3 vertex_color = compute_vert_color();
     const vec3 diffuse_color = compute_diffuse(hit_point);
@@ -212,32 +212,27 @@ void main()
     vec3 direct_light = compute_directional_light_contribution(hit_point.normal, 
                                                              gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f, 
                                                              material_color, 
-                                                             hit_point.uv);
+                                                             hit_point.uv,
+                                                             metalness,
+                                                             roughness);
     
     // Add direct lighting contribution to the path radiance
     prd.color += prd.strength * direct_light;
     
-    // Russian roulette termination
-    float max_strength = max(max(prd.strength.r, prd.strength.g), prd.strength.b);
-    if (max_strength < 0.01) {
-        float q = max(0.05, 1.0 - max_strength);
-        if (rand1d(prd.seed) < q) {
-            // Terminate the path
-            prd.next_direction = vec3(0.0);
-            return;
-        }
-        // Boost the strength to account for terminated paths
-        prd.strength /= (1.0 - q);
-    }
-    
     // Set up next ray
-    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f;
+    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-1f;
     prd.next_direction = random_in_hemisphere(hit_point.normal, prd.seed);
+
+    vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, normalize(gl_WorldRayOriginEXT - prd.next_origin), prd.next_direction, material_color);
 
     // Update the path strength for the next bounce
     const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
     const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
     
     // Update strength based on BRDF and PDF
-    prd.strength *= material_color * cos_theta / HEMISPHERE_PDF;
+    prd.strength *= bsdf * cos_theta / HEMISPHERE_PDF;
+
+    // Poor man's russian roulette
+    if (is_strength_weak(prd.strength))
+        prd.next_direction = vec3(0.0f);
 }
