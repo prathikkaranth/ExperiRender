@@ -164,7 +164,7 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
         // Compute the BSDF using the PBR model
         vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
         
-        return bsdf * (pcRay.lightIntensity * 0.25);
+        return bsdf * (pcRay.lightIntensity * 0.55);
     }
 
     return vec3(0.f); // in shadow

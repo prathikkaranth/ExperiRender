@@ -115,7 +115,7 @@ void VulkanEngine::init_default_data() {
 	sceneData.sunlightColor = glm::vec4(2.f);
 	glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
 	sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
-	sceneData.sunlightDirection.w = 3.8f; // sun intensity
+	sceneData.sunlightDirection.w = 1.573f; // sun intensity
 	raytracerPipeline.prevSunDir = glm::vec4(sunDir, sceneData.sunlightDirection.w);	// TODO: Change sunlight code so that prevSunDir can be set in rt file
 	sceneData.enableShadows = true;
 	sceneData.enableSSAO = true;

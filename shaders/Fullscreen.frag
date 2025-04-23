@@ -31,8 +31,9 @@ void main()
     //vec3 rayTraced = texture(rayTracedImage, inUV).rgb;
 
     // Apply tone mapping to rasterized image as before
-    rasterized = rasterized / (rasterized + vec3(1.0));
-    rasterized = pow(rasterized, vec3(1.0/2.2)); 
+    rasterized *= compositorData.exposure;
+    rasterized = ACESFitted(rasterized);
+    rasterized = pow(rasterized, vec3(1.0/2.2));
 
     vec4 rayTraced = vec4(0.0);
     if (compositorData.useDenoiser == 1) {
@@ -42,13 +43,9 @@ void main()
        rayTraced = texture(rayTracedImage, inUV);
     }
 
-    // Apply exposure adjustment before ACES filmic tone mapping
+    // Apply exposure adjustment and ACES filmic tone mapping
     rayTraced *= compositorData.exposure;
-    
-    // Tone mapping for rayTraced
     rayTraced.rgb = ACESFitted(rayTraced.rgb);
-
-    // Gamma correction for rayTraced
     rayTraced.rgb = pow(rayTraced.rgb, vec3(1.0/2.2));
     
     if (compositorData.useRayTracer == 1) {
