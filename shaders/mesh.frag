@@ -225,6 +225,12 @@ vec3 blinnPhong() {
 void main() {
 
 	vec3 color = vec3(0.0f, 0.0f, 0.0f);
+	float alpha = texture(colorTex, inUV).a;
+    
+    // Discard fragments that are nearly transparent
+    if (alpha < 0.01f) {
+        discard;
+    }
 	if(bool(sceneData.enablePBR)) {
 		color = pbr();
 	}
