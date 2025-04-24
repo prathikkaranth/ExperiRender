@@ -125,7 +125,7 @@ vec3 compute_diffuse(in HitPoint hit_point) {
 
 bool is_strength_weak(vec3 strength)
 {
-    const float THRESHOLD = 1e-4f;
+    const float THRESHOLD = 1e-1f;
     return max(max(strength.r, strength.g), strength.b) < THRESHOLD;
 }
 
@@ -220,10 +220,10 @@ void main()
     prd.color += prd.strength * direct_light;
     
     // Set up next ray
-    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-1f;
-    prd.next_direction = random_in_hemisphere(hit_point.normal, prd.seed);
+    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-4f;
+    prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
 
-    vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, normalize(gl_WorldRayOriginEXT - prd.next_origin), prd.next_direction, material_color);
+    vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
 
     // Update the path strength for the next bounce
     const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
