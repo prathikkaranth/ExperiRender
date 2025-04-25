@@ -307,8 +307,9 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 
 void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
+	glm::mat4 helmetModelMatrix = glm::mat4(1.0f);
+	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
+	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
 }
 
 void VulkanEngine::cleanup()
@@ -538,8 +539,9 @@ void VulkanEngine::update_scene()
 	// for (int i = 0; i < 16; i++)         {
 	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
 	//}
-	loadedScenes["Helmet"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	loadedScenes["Helmet"]->translateLoadedScene(glm::vec3(0.0f, -0.015f, 0.0f), mainDrawContext);
+	glm::mat4 helmetModelMatrix = glm::mat4(1.0f);
+	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
+	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);
