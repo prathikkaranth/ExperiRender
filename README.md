@@ -71,7 +71,7 @@ _Instructions tested on Visual Studio 2022_
 git clone https://github.com/prathikkaranth/ExperiRender.git
 ```
 
-3. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/mirrored_hall) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(similar for Flight Helmet) and the HDRI should be `/assets/HDRI/mirrored_hall_4k.hdr`
+3. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/pretoria_gardens) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(similar for Flight Helmet) and the HDRI should be `/assets/HDRI/pretoria_gardens_4K.hdr`
 
 4. Build using CMake GUI to configure and generate a Visual Studio solution. Set startup project to 'Renderer' and run.
 
