@@ -9,8 +9,7 @@ if(WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS 1)
     set(GLSLC_PATH "C:/VulkanSDK/1.3.283.0/Bin/glslc.exe")
 elseif(UNIX AND NOT APPLE)
-    # Set compiler to g++ explicitly on Linux
-    set(CMAKE_CXX_COMPILER /usr/bin/g++)
+    # Use C++20 standard
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
     
     # Find glslc from Linux Vulkan SDK
