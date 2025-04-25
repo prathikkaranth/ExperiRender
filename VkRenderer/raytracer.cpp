@@ -25,20 +25,20 @@ void Raytracer::setRTDefaultData() {
 	m_pcRay.lightType = 1; // Global light
 }
 
-void Raytracer::createBottomLevelAS(VulkanEngine* engine) {
+void Raytracer::createBottomLevelAS(const VulkanEngine* engine) const {
 
 	// BLAS - Storing each primitive in a geometry
 	std::vector<nvvk::RaytracingBuilderKHR::BlasInput> blas_inputs;
 
-	for (int i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
+	for (const auto & OpaqueSurface : engine->mainDrawContext.OpaqueSurfaces) {
 		nvvk::RaytracingBuilderKHR::BlasInput input;
-		input = experirender::vk::objectToVkGeometryKHR(engine->mainDrawContext.OpaqueSurfaces[i]);
+		input = experirender::vk::objectToVkGeometryKHR(OpaqueSurface);
 		blas_inputs.emplace_back(std::move(input));
 	}
 	m_rt_builder->buildBlas(blas_inputs, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 
-void Raytracer::createTopLevelAS(VulkanEngine* engine) {
+void Raytracer::createTopLevelAS(const VulkanEngine* engine) const {
 	// TLAS - Storing each BLAS
 	std::vector<VkAccelerationStructureInstanceKHR> tlas;
 	tlas.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
@@ -70,7 +70,7 @@ void Raytracer::createTopLevelAS(VulkanEngine* engine) {
 				.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
 				.accelerationStructureReference = m_rt_builder->getBlasDeviceAddress(i),
 		};
-		tlas.emplace_back(std::move(instance));
+		tlas.emplace_back(instance);
 	}
 	m_rt_builder->buildTlas(tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
@@ -93,7 +93,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	VkWriteDescriptorSetAccelerationStructureKHR asInfo = { .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR };
 	asInfo.accelerationStructureCount = 1;
 	asInfo.pAccelerationStructures = &tlas;
-	VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
+	//VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
 
 	DescriptorWriter rt_writer;
 	rt_writer.write_accel_struct(0, asInfo, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
@@ -110,11 +110,11 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 
 	std::vector<ObjDesc> objDescs;
 	objDescs.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
-	for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
+	for (auto & OpaqueSurface : engine->mainDrawContext.OpaqueSurfaces) {
 		ObjDesc desc = {
-			.vertexAddress = engine->mainDrawContext.OpaqueSurfaces[i].vertexBufferAddress,
-			.indexAddress = engine->mainDrawContext.OpaqueSurfaces[i].indexBufferAddress,
-			.firstIndex = engine->mainDrawContext.OpaqueSurfaces[i].firstIndex
+			.vertexAddress = OpaqueSurface.vertexBufferAddress,
+			.indexAddress = OpaqueSurface.indexBufferAddress,
+			.firstIndex = OpaqueSurface.firstIndex
 		};
 		objDescs.push_back(desc);
 	}
@@ -210,11 +210,11 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 	// Mat descriptions 
 	std::vector<MaterialRTData> materialRTShaderData;
 
-	for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
+	for (auto & OpaqueSurface : engine->mainDrawContext.OpaqueSurfaces) {
 		MaterialRTData matDesc{};
-		matDesc.albedo = engine->mainDrawContext.OpaqueSurfaces[i].material->albedo;
-		matDesc.albedoTexIndex = engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex;
-		matDesc.metal_rough_factors = engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughFactors;
+		matDesc.albedo = OpaqueSurface.material->albedo;
+		matDesc.albedoTexIndex = OpaqueSurface.material->albedoTexIndex;
+		matDesc.metal_rough_factors = OpaqueSurface.material->metalRoughFactors;
 		materialRTShaderData.push_back(matDesc);
 	}
 
@@ -249,9 +249,9 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		});
 }
 
-void Raytracer::updateRtDescriptorSet(VulkanEngine* engine) {
+void Raytracer::updateRtDescriptorSet(const VulkanEngine* engine) const {
 	// (1) Output buffer
-	VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
+	//VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
 	DescriptorWriter rt_writer;
 	rt_writer.write_image(1, _rtOutputImage.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	rt_writer.update_set(engine->_device, m_rtDescSet);
@@ -416,19 +416,19 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine* engine) {
 
 	// Raygen
 	pData = pSBTBuffer;
-	memcpy(pData, getHandle(handleIdx++), handleSize);
+	memcpy(pData, getHandle(static_cast<int>(handleIdx++)), handleSize);
 
 	// Miss
 	pData = pSBTBuffer + m_rgenRegion.size;
 	for (uint32_t c = 0; c < missCount; c++) {
-		memcpy(pData, getHandle(handleIdx++), handleSize);
+		memcpy(pData, getHandle(static_cast<int>(handleIdx++)), handleSize);
 		pData += m_missRegion.stride;
 	}
 
 	// Hit
 	pData = pSBTBuffer + m_rgenRegion.size + m_missRegion.size;
 	for (uint32_t c = 0; c < hitCount; c++) {
-		memcpy(pData, getHandle(handleIdx++), handleSize);
+		memcpy(pData, getHandle(static_cast<int>(handleIdx++)), handleSize);
 		pData += m_hitRegion.stride;
 	}
 
@@ -450,7 +450,7 @@ void Raytracer::resetSamples() {
 //--------------------------------------------------------------------------------------------------
 // Ray Tracing the scene
 //
-void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
+void Raytracer::raytrace(const VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
 
 	if (m_pcRay.samples_done == max_samples) {
 		return;
@@ -489,7 +489,7 @@ void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, co
 }
 
 // RT updates
-void Raytracer::rtSampleUpdates(VulkanEngine* engine) {
+void Raytracer::rtSampleUpdates(const VulkanEngine* engine) {
 	// Camera movement
 	if (engine->mainCamera.isMoving) {
 		resetSamples();

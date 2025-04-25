@@ -37,15 +37,15 @@ struct MaterialRTData {
 class Raytracer {
 public:
 	void init_ray_tracing(VulkanEngine* engine);
-	void createBottomLevelAS(VulkanEngine* engine);
-	void createTopLevelAS(VulkanEngine* engine);
+	void createBottomLevelAS(const VulkanEngine* engine) const;
+	void createTopLevelAS(const VulkanEngine* engine) const;
 	void createRtDescriptorSet(VulkanEngine* engine);
-	void updateRtDescriptorSet(VulkanEngine* engine);
+	void updateRtDescriptorSet(const VulkanEngine* engine) const;
 	void createRtPipeline(VulkanEngine* engine);
 	void createRtShaderBindingTable(VulkanEngine* engine);
 	void resetSamples();
-	void raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
-	void rtSampleUpdates(VulkanEngine* engine);
+	void raytrace(const VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
+	void rtSampleUpdates(const VulkanEngine* engine);
 	void setRTDefaultData();
 
 	// Ray tracing features
