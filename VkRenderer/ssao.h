@@ -42,7 +42,7 @@ public:
 	void init_ssao(VulkanEngine* engine);
 	void init_ssao_blur(VulkanEngine* engine);
 
-	void draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd);
-	void draw_ssao_blur(VulkanEngine* engine, VkCommandBuffer cmd);
+	void draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd) const;
+	void draw_ssao_blur(const VulkanEngine* engine, VkCommandBuffer cmd) const;
 
 };
