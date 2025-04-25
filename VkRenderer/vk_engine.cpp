@@ -605,112 +605,174 @@ void VulkanEngine::run()
 }
 
 void VulkanEngine::init_vulkan() {
-	vkb::InstanceBuilder builder;
+    vkb::InstanceBuilder builder;
 
-	auto inst_ret = builder.set_app_name("ExperiRender")
-		.set_engine_name("ExperiRender")
-		.request_validation_layers(bUseValidationLayers)
-		.require_api_version(1, 3, 0)
-		.use_default_debug_messenger()
-		.build();
+    auto inst_ret = builder.set_app_name("ExperiRender")
+        .set_engine_name("ExperiRender")
+        .request_validation_layers(bUseValidationLayers)
+        .require_api_version(1, 3, 0)
+        .use_default_debug_messenger()
+        .build();
 
-	vkb::Instance vkb_inst = inst_ret.value();
+    vkb::Instance vkb_inst = inst_ret.value();
 
-	// grab the instance
-	_instance = vkb_inst.instance;
-	_debug_messenger = vkb_inst.debug_messenger;
+    // grab the instance
+    _instance = vkb_inst.instance;
+    _debug_messenger = vkb_inst.debug_messenger;
 
-	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+    SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
 
-	// vulkan 1.3 features
-	VkPhysicalDeviceVulkan13Features features{};
-	features.dynamicRendering = true;
-	features.synchronization2 = true;
+    // vulkan 1.3 features
+    VkPhysicalDeviceVulkan13Features features{};
+    features.dynamicRendering = true;
+    features.synchronization2 = true;
 
-	// vulkan 1.2 features
-	VkPhysicalDeviceVulkan12Features features12{};
-	features12.bufferDeviceAddress = true;
-	features12.descriptorIndexing = true;
-	features12.runtimeDescriptorArray = true;
+    // vulkan 1.2 features
+    VkPhysicalDeviceVulkan12Features features12{};
+    features12.bufferDeviceAddress = true;
+    features12.descriptorIndexing = true;
+    features12.runtimeDescriptorArray = true;
 
-	// Raytracing
-	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
-	accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-	accelerationStructureFeatures.pNext = nullptr;
-	accelerationStructureFeatures.accelerationStructure = true;
+    VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.shaderInt64 = true;
 
-	VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracingPipelineFeatures{};
-	raytracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-	raytracingPipelineFeatures.pNext = nullptr;
-	raytracingPipelineFeatures.rayTracingPipeline = true;
+    // Custom GPU selection - find all GPUs first
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
 
-	VkPhysicalDeviceFeatures deviceFeatures{};
-	deviceFeatures.shaderInt64 = true;
+    if (deviceCount == 0) {
+        throw std::runtime_error("Failed to find GPUs with Vulkan support");
+    }
 
-	VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
-	rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-	rayQueryFeatures.rayQuery = VK_TRUE;
+    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vkEnumeratePhysicalDevices(_instance, &deviceCount, devices.data());
 
-	const std::vector<const char*> raytracing_extensions{
-			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-			VK_KHR_RAY_QUERY_EXTENSION_NAME,
-			VK_KHR_SPIRV_1_4_EXTENSION_NAME,
-			VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
-	};
+    // Try to find NVIDIA RTX GPU first
+    bool foundRTXGPU = false;
+    std::string rtxGpuName;
 
-	// use vkbootsrap to select a GPU
-	vkb::PhysicalDeviceSelector selector{ vkb_inst };
-	vkb::PhysicalDevice physicalDevice = selector
-		.set_minimum_version(1, 3)
-		.set_required_features_13(features)
-		.set_required_features_12(features12)
-		.set_surface(_surface)
-		.add_required_extensions(raytracing_extensions)
-		.add_required_extension_features(accelerationStructureFeatures)
-		.add_required_extension_features(raytracingPipelineFeatures)
-		.add_required_extension_features(rayQueryFeatures)
-		.set_required_features(deviceFeatures)
-		.select()
-		.value();
+    for (const auto& device : devices) {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
 
-	// create the final vulkan device
-	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
-	vkb::Device vkbDevice = deviceBuilder.build().value();
+        std::string deviceName = deviceProperties.deviceName;
+        spdlog::info("Found GPU: {}", deviceName);
 
-	if (vkinit::supports_device_extensions(physicalDevice.physical_device, raytracing_extensions)) {
-		spdlog::info("Ray tracing support available!!");
-		VkPhysicalDeviceProperties deviceProperties;
-		vkGetPhysicalDeviceProperties(physicalDevice.physical_device, &deviceProperties);
-		spdlog::info("GPU: {}", deviceProperties.deviceName);
-		raytracerPipeline.m_is_raytracing_supported = true;
-		experirender::vk::load_raytracing_functions(_instance);
-	}
+        // Check for NVIDIA RTX
+        if (deviceProperties.vendorID == 0x10DE && // NVIDIA vendor ID
+            deviceName.find("RTX") != std::string::npos) {
+            rtxGpuName = deviceName;
+            foundRTXGPU = true;
+            spdlog::info("Found NVIDIA RTX GPU: {}", deviceName);
+            break;
+        }
+    }
 
-	// get the VkDevice handle used in the rest of a Vulkan application
-	_device = vkbDevice.device;
-	_chosenGPU = physicalDevice.physical_device;
+    // Define raytracing extensions for later use
+    const std::vector<const char*> raytracing_extensions{
+        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+        VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        VK_KHR_RAY_QUERY_EXTENSION_NAME,
+        VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+    };
 
-	// vkbootstrap to get a graphics queue
-	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
-	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+    vkb::PhysicalDevice physicalDevice;
 
-	// initialize the memory allocator
-	VmaAllocatorCreateInfo allocatorInfo = {};
-	allocatorInfo.physicalDevice = _chosenGPU;
-	allocatorInfo.device = _device;
-	allocatorInfo.instance = _instance;
-	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-	vmaCreateAllocator(&allocatorInfo, &_allocator);
+    if (foundRTXGPU) {
+        // Raytracing features for RTX GPU
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
+        accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+        accelerationStructureFeatures.pNext = nullptr;
+        accelerationStructureFeatures.accelerationStructure = true;
 
-	_mainDeletionQueue.push_function([&]() {
-		raytracerPipeline.m_rt_builder->destroy();
-		});
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR raytracingPipelineFeatures{};
+        raytracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+        raytracingPipelineFeatures.pNext = nullptr;
+        raytracingPipelineFeatures.rayTracingPipeline = true;
 
+        VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
+        rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+        rayQueryFeatures.rayQuery = VK_TRUE;
+
+        // Try to select the RTX GPU with raytracing features
+        try {
+            vkb::PhysicalDeviceSelector rtxSelector{ vkb_inst };
+            physicalDevice = rtxSelector
+                .set_minimum_version(1, 3)
+                .set_required_features_13(features)
+                .set_required_features_12(features12)
+                .set_surface(_surface)
+                .set_name(rtxGpuName)  // Specifically select our RTX GPU by name
+                .add_required_extensions(raytracing_extensions)
+                .add_required_extension_features(accelerationStructureFeatures)
+                .add_required_extension_features(raytracingPipelineFeatures)
+                .add_required_extension_features(rayQueryFeatures)
+                .set_required_features(deviceFeatures)
+                .select()
+                .value();
+
+            spdlog::info("Selected NVIDIA RTX GPU with ray tracing support: {}", rtxGpuName);
+            raytracerPipeline.m_is_raytracing_supported = true;
+        } catch (const std::exception& e) {
+            spdlog::error("Failed to select RTX GPU with ray tracing: {}", e.what());
+            foundRTXGPU = false;
+            // Fall back to standard selection below
+        }
+    }
+
+    // If no RTX GPU or selection failed, use standard selection without ray tracing
+    if (!foundRTXGPU) {
+        vkb::PhysicalDeviceSelector selector{ vkb_inst };
+        physicalDevice = selector
+            .set_minimum_version(1, 3)
+            .set_required_features_13(features)
+            .set_required_features_12(features12)
+            .set_surface(_surface)
+            .set_required_features(deviceFeatures)
+            .select()
+            .value();
+
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice.physical_device, &deviceProperties);
+        spdlog::info("Selected GPU (without ray tracing support): {}", deviceProperties.deviceName);
+        raytracerPipeline.m_is_raytracing_supported = false;
+    }
+
+    // create the final vulkan device
+    vkb::DeviceBuilder deviceBuilder{ physicalDevice };
+    vkb::Device vkbDevice = deviceBuilder.build().value();
+
+    if (raytracerPipeline.m_is_raytracing_supported) {
+        experirender::vk::load_raytracing_functions(_instance);
+    }
+
+    // get the VkDevice handle used in the rest of a Vulkan application
+    _device = vkbDevice.device;
+    _chosenGPU = physicalDevice.physical_device;
+
+    // vkbootstrap to get a graphics queue
+    _graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+    _graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+
+    // initialize the memory allocator
+    VmaAllocatorCreateInfo allocatorInfo = {};
+    allocatorInfo.physicalDevice = _chosenGPU;
+    allocatorInfo.device = _device;
+    allocatorInfo.instance = _instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &_allocator);
+
+    _mainDeletionQueue.push_function([&]() {
+        if (raytracerPipeline.m_is_raytracing_supported) {
+            raytracerPipeline.m_rt_builder->destroy();
+        }
+    });
 }
+
 
 void VulkanEngine::init_commands() {
 
