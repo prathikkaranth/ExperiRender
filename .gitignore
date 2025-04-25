@@ -2,3 +2,4 @@ build/
 assets/
 .vs/
 .vscode/
+.idea/
