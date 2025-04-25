@@ -50,7 +50,7 @@ sudo apt install libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
 git clone https://github.com/prathikkaranth/ExperiRender.git
 ```
 
-4. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/mirrored_hall) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(same for Flight Helmet) and the HDRI should be `/assets/HDRI/mirrored_hall_4k.hdr`
+4. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/pretoria_gardens) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(same for Flight Helmet) and the HDRI should be `/assets/HDRI/pretoria_gardens_4k.hdr`
 
 5. Build using CMake
 
