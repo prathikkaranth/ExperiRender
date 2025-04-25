@@ -73,13 +73,15 @@ void ui::set_mainpanel_theme() {
 
 void ui::set_font() {
 	ImGuiIO& io = ImGui::GetIO();
-	const char* fontPath = "..\\assets\\fonts\\Roboto_Mono\\RobotoMono-VariableFont_wght.ttf";
-	float fontSize = 15.0f;
+	//const char* fontPath = "..\\assets\\fonts\\Roboto_Mono\\RobotoMono-VariableFont_wght.ttf";
+	const std::string assetsDir = "../assets";
+	std::string fontPath = std::filesystem::path(assetsDir) / "fonts" / "Roboto_Mono" / "RobotoMono-VariableFont_wght.ttf";
 
 	// Check if the font file exists
 	if (std::filesystem::exists(fontPath))
 	{
-		io.Fonts->AddFontFromFileTTF(fontPath, fontSize);
+		constexpr float fontSize = 15.0f;
+		io.Fonts->AddFontFromFileTTF(fontPath.c_str(), fontSize);
 		spdlog::info("Loaded font: {}", fontPath);
 	}
 	else
@@ -113,7 +115,7 @@ void ui::init_imgui(VulkanEngine* engine) {
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
+	pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
 	pool_info.pPoolSizes = pool_sizes;
 
 	VkDescriptorPool imguiPool;
@@ -137,7 +139,7 @@ void ui::init_imgui(VulkanEngine* engine) {
 	init_info.MinImageCount = 3;
 	init_info.ImageCount = 3;
 	init_info.UseDynamicRendering = true;
-	init_info.CheckVkResultFn = [](VkResult res) { VK_CHECK(res); };
+	init_info.CheckVkResultFn = [](const VkResult res) { VK_CHECK(res); };
 
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
@@ -220,13 +222,14 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 				static const char* current_item = visuals[0];
 				if (ImGui::BeginCombo("Light Types", current_item)) // The second parameter is the label previewed before opening the combo.
 				{
-					for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
-					{
-						bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
-						if (ImGui::Selectable(visuals[n], is_selected))
-							current_item = visuals[n];
+					for (auto & visual : visuals) {
+						const bool is_selected = current_item == visual;
+						// You can store your selection however you want, outside or inside your objects
+						if (ImGui::Selectable(visual, is_selected))
+							current_item = visual;
 						if (is_selected)
-							ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+							ImGui::SetItemDefaultFocus();
+						// You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
 					}
 					ImGui::EndCombo();
 				}
@@ -268,13 +271,14 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 		static const char* current_item = visuals[0];
 		if (ImGui::BeginCombo("Image Buffers", current_item)) // The second parameter is the label previewed before opening the combo.
 		{
-			for (int n = 0; n < IM_ARRAYSIZE(visuals); n++)
-			{
-				bool is_selected = (current_item == visuals[n]); // You can store your selection however you want, outside or inside your objects
-				if (ImGui::Selectable(visuals[n], is_selected))
-					current_item = visuals[n];
+			for (auto & visual : visuals) {
+				const bool is_selected = current_item == visual;
+				// You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(visual, is_selected))
+					current_item = visual;
 				if (is_selected)
-					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+					ImGui::SetItemDefaultFocus();
+				// You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
 			}
 			ImGui::EndCombo();
 		}
@@ -286,19 +290,19 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 		else if (strcmp(current_item, "Shadow Map") == 0)
 		{
 			ImGui::Begin("Shadow Map");
-			ImGui::Image((ImTextureID)engine->_shadowMap.shadowMapDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::Image(reinterpret_cast<ImTextureID>(engine->_shadowMap.shadowMapDescriptorSet), ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 			ImGui::End();
 		}
 		else if (strcmp(current_item, "SSAO Map") == 0)
 		{
 			ImGui::Begin("SSAO Map");
-			ImGui::Image((ImTextureID)engine->_ssao._ssaoDescriptorSet, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::Image(reinterpret_cast<ImTextureID>(engine->_ssao._ssaoDescriptorSet), ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 			ImGui::End();
 		}
 		else if (strcmp(current_item, "GBuffer Position") == 0)
 		{
 			ImGui::Begin("GBuffer Position");
-			ImGui::Image((ImTextureID)engine->gbuffer._gbufferPosOutputDescriptor, ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+			ImGui::Image(reinterpret_cast<ImTextureID>(engine->gbuffer._gbufferPosOutputDescriptor), ImVec2(256, 256), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 			ImGui::End();
 		}
 	}
