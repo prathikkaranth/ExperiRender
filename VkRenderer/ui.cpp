@@ -72,7 +72,7 @@ void ui::set_mainpanel_theme() {
 }
 
 void ui::set_font() {
-	ImGuiIO& io = ImGui::GetIO();
+	const ImGuiIO& io = ImGui::GetIO();
 	//const char* fontPath = "..\\assets\\fonts\\Roboto_Mono\\RobotoMono-VariableFont_wght.ttf";
 	const std::string assetsDir = "../assets";
 	std::string fontPath = std::filesystem::path(assetsDir) / "fonts" / "Roboto_Mono" / "RobotoMono-VariableFont_wght.ttf";
@@ -98,7 +98,7 @@ void ui::init_imgui(VulkanEngine* engine) {
 	// 1: create descriptor pool for IMGUI
 	//  the size of the pool is very oversize, but it's copied from imgui demo
 	//  itself.
-	VkDescriptorPoolSize pool_sizes[] = { 
+	const VkDescriptorPoolSize pool_sizes[] = {
 		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -326,10 +326,10 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 	ImGui::Render();
 }
 
-void ui::draw_imgui(VulkanEngine* engine, VkCommandBuffer cmd, VkImageView targetImageView)
+void ui::draw_imgui(const VulkanEngine* engine, VkCommandBuffer cmd, VkImageView targetImageView)
 {
 	VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_swapchainExtent, &colorAttachment, nullptr);
+	const VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_swapchainExtent, &colorAttachment, nullptr);
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -338,6 +338,6 @@ void ui::draw_imgui(VulkanEngine* engine, VkCommandBuffer cmd, VkImageView targe
 	vkCmdEndRendering(cmd);
 }
 
-void ui::handle_sdl_event(SDL_Event* event) {
+void ui::handle_sdl_event(const SDL_Event* event) {
 	ImGui_ImplSDL2_ProcessEvent(event);
 }

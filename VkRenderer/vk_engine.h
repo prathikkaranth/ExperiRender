@@ -68,7 +68,8 @@ struct GLTFMetallic_Roughness {
 	DescriptorWriter writer;
 
 	void build_pipelines(VulkanEngine* engine);
-	void clear_resources(VkDevice device);
+
+	static void clear_resources(VkDevice device);
 
 	MaterialInstance write_material(VulkanEngine* engine, VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocatorGrowable& descriptorAllocator);
 };
@@ -197,18 +198,18 @@ public:
 	VkSampler _defaultSamplerNearest;
 	VkSampler _defaultSamplerShadowDepth;
 
-	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) const;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
 
-	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices);
+	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) const;
 
-	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-	void destroy_buffer(const AllocatedBuffer& buffer);
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) const;
+	void destroy_buffer(const AllocatedBuffer& buffer) const;
 	void upload_to_vma_allocation(const void* src,
 		size_t size,
 		const AllocatedBuffer& dst_allocation,
-		size_t dst_offset = 0);
+		size_t dst_offset = 0) const;
 
 	//initializes everything in the engine
 	void init();
@@ -239,7 +240,7 @@ private:
 	void init_sync_structures();
 
 	void create_swapchain(uint32_t width, uint32_t height);
-	void destroy_swapchain();
+	void destroy_swapchain() const;
 	void resize_swapchain();
 
 	void init_default_data();

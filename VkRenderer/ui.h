@@ -13,11 +13,11 @@ class VulkanEngine;
 
 class ui {
 public:
-	void set_mainpanel_theme();
-	void set_font();
-	void init_imgui(VulkanEngine* engine);
+	static void set_mainpanel_theme();
+	static void set_font();
+	static void init_imgui(VulkanEngine* engine);
 
 	static void setup_imgui_panel(VulkanEngine* engine);
-	void draw_imgui(VulkanEngine* engine, VkCommandBuffer cmd, VkImageView targetImageView);
-	void handle_sdl_event(SDL_Event* event);
+	static void draw_imgui(const VulkanEngine* engine, VkCommandBuffer cmd, VkImageView targetImageView);
+	static void handle_sdl_event(const SDL_Event* event);
 };

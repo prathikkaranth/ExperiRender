@@ -140,8 +140,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 		});
 }
 
-void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd)
-{
+void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd) const {
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer ssaoSceneDataBuffer = engine->create_buffer(sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 	vmaSetAllocationName(engine->_allocator, ssaoSceneDataBuffer.allocation, "SSAO Scene Data Buffer");
@@ -175,8 +174,7 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd)
 	vkCmdDispatch(cmd, std::ceil(engine->_drawExtent.width / 32.0), std::ceil(engine->_drawExtent.height / 32.0), 1);
 }
 
-void ssao::draw_ssao_blur(VulkanEngine* engine, VkCommandBuffer cmd)
-{
+void ssao::draw_ssao_blur(const VulkanEngine* engine, VkCommandBuffer cmd) const {
 	DescriptorWriter ssao_blur_writer;
 	ssao_blur_writer.write_image(0, _ssaoImage.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_blur_writer.write_image(1, _ssaoImageBlurred.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
