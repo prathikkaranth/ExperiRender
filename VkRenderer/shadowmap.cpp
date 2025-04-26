@@ -104,7 +104,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 	vkCreateSampler(engine->_device, &sampl2, nullptr, &_shadowDepthMapSampler);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
 		vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
@@ -113,7 +113,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine* engine) {
 
 }
 
-void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
+void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) const {
 
 	//begin a render pass connected to our draw image
 	VkRenderingAttachmentInfo depthAttachment = vkinit::depth_attachment_info(_depthShadowMap.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -124,7 +124,7 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(VkExtent2D{SHADOWMAP_SIZE, SHADOWMAP_SIZE}, nullptr/*color attachments*/, &depthAttachment);
 	renderInfo.colorAttachmentCount = 0;
-	renderInfo.pColorAttachments = NULL;
+	renderInfo.pColorAttachments = nullptr;
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 
@@ -154,7 +154,7 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "Shadow Map Scene Data Buffer");
 
 	//add it to the deletion queue of this frame so it gets deleted once its been used
-	engine->get_current_frame()._deletionQueue.push_function([=]() {
+	engine->get_current_frame()._deletionQueue.push_function([=] {
 		engine->destroy_buffer(gpuSceneDataBuffer);
 		});
 
@@ -181,8 +181,8 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)SHADOWMAP_SIZE;
-		viewport.height = (float)SHADOWMAP_SIZE;
+		viewport.width = static_cast<float>(SHADOWMAP_SIZE);
+		viewport.height = static_cast<float>(SHADOWMAP_SIZE);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 
@@ -204,7 +204,7 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
 		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
+		GPUDrawPushConstants push_constants{};
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
 

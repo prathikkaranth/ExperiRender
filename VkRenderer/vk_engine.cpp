@@ -205,7 +205,7 @@ void VulkanEngine::init_default_data() {
 
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
 
-	_mainDeletionQueue.push_function([=]() {
+	_mainDeletionQueue.push_function([=] {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 
@@ -911,7 +911,7 @@ void VulkanEngine::init_swapchain() {
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 
 	//add to deletion queues
-	_mainDeletionQueue.push_function([=]() {
+	_mainDeletionQueue.push_function([=] {
 		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
 		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
@@ -1361,7 +1361,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyDescriptorSetLayout(engine->_device, materialLayout, nullptr);
 		vkDestroyPipelineLayout(engine->_device, newLayout, nullptr);
 		vkDestroyPipeline(engine->_device, opaquePipeline.pipeline, nullptr);

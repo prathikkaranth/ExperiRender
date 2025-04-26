@@ -39,7 +39,7 @@ void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
 
 	stbi_set_flip_vertically_on_load(false);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		
 		vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
 		vkutil::destroy_image(engine, _hdriMap);
@@ -105,7 +105,7 @@ void HDRI::init_hdriMap(VulkanEngine* engine) {
 	vkDestroyShaderModule(engine->_device, skyboxVertShader, nullptr);
 	vkDestroyShaderModule(engine->_device, skyboxFragShader, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipelineLayout(engine->_device, _hdriMapPipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, hdriMapDescriptorSetLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _hdriMapPipeline, nullptr);
@@ -140,7 +140,7 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "Skybox Scene Data Buffer");
 
 	// Add it to the deletion queue
-	engine->get_current_frame()._deletionQueue.push_function([=]() {
+	engine->get_current_frame()._deletionQueue.push_function([=] {
 		engine->destroy_buffer(gpuSceneDataBuffer);
 		});
 
@@ -180,8 +180,8 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	VkViewport viewport = {};
 	viewport.x = 0;
 	viewport.y = 0;
-	viewport.width = (float)engine->_windowExtent.width;
-	viewport.height = (float)engine->_windowExtent.height;
+	viewport.width = static_cast<float>(engine->_windowExtent.width);
+	viewport.height = static_cast<float>(engine->_windowExtent.height);
 	viewport.minDepth = 0.f;
 	viewport.maxDepth = 1.f;
 

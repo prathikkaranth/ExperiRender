@@ -10,11 +10,11 @@ public:
 	void init_gbuffer(VulkanEngine* engine);
 	void draw_gbuffer(VulkanEngine* engine, VkCommandBuffer cmd);
 
-	AllocatedImage getGbufferPosInfo() {
+	[[nodiscard]] AllocatedImage getGbufferPosInfo() const {
 		return _gbufferPosition;
 	}
 
-	AllocatedImage getGbufferNormInfo() {
+	[[nodiscard]] AllocatedImage getGbufferNormInfo() const {
 		return _gbufferPosition;
 	}
 
@@ -22,11 +22,11 @@ public:
 		return &_gbufferInputDescriptors;
 	}
 
-	VkDescriptorSetLayout getInputDescriptorSetLayout() {
+	[[nodiscard]] VkDescriptorSetLayout getInputDescriptorSetLayout() const {
 		return _gbufferInputDescriptorLayout;
 	}
 
-	VkSampler getGbufferSampler() {
+	[[nodiscard]] VkSampler getGbufferSampler() const {
 		return _gbufferSampler;
 	}
 
@@ -38,11 +38,11 @@ private:
 	VkDescriptorSet _gbufferInputDescriptors{};
 	VkDescriptorSetLayout _gbufferInputDescriptorLayout{};
 
-	VkPipelineLayout _gbufferPipelineLayout;
-	VkPipeline _gbufferPipeline;
+	VkPipelineLayout _gbufferPipelineLayout{};
+	VkPipeline _gbufferPipeline{};
 
-	VkSampler _gbufferSampler;
+	VkSampler _gbufferSampler{};
 
-	AllocatedImage _gbufferPosition;
-	AllocatedImage _gbufferNormal;
+	AllocatedImage _gbufferPosition{};
+	AllocatedImage _gbufferNormal{};
 };

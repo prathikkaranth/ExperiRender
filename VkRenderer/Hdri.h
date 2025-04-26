@@ -10,19 +10,19 @@ public:
 	void init_hdriMap(VulkanEngine* engine);
 	void draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd);
 
-	AllocatedImage get_hdriMap() { return _hdriMap; }
-	AllocatedImage get_hdriOutImage() { return _hdriOutImage; }
-	VkSampler get_hdriMapSampler() { return _hdriMapSampler; }
+	[[nodiscard]] AllocatedImage get_hdriMap() const { return _hdriMap; }
+	[[nodiscard]] AllocatedImage get_hdriOutImage() const { return _hdriOutImage; }
+	[[nodiscard]] VkSampler get_hdriMapSampler() const { return _hdriMapSampler; }
 private:
 
 	VkDescriptorSet hdriMapDescriptorSet{};
-	VkDescriptorSetLayout hdriMapDescriptorSetLayout;
+	VkDescriptorSetLayout hdriMapDescriptorSetLayout{};
 
-	VkPipelineLayout _hdriMapPipelineLayout;
+	VkPipelineLayout _hdriMapPipelineLayout{};
 	VkPipeline _hdriMapPipeline{};
 
-	AllocatedImage _hdriMap;
-	AllocatedImage _hdriOutImage;
-	VkSampler _hdriMapSampler;
+	AllocatedImage _hdriMap{};
+	AllocatedImage _hdriOutImage{};
+	VkSampler _hdriMapSampler{};
 
 };

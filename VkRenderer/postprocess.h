@@ -22,17 +22,16 @@ class PostProcessor {
 public:
 	void init(VulkanEngine* engine);
 	void draw(VulkanEngine* engine, VkCommandBuffer cmd);
-	void cleanup(VulkanEngine* engine);
 
 	//Fullscreen resources
-	AllocatedImage _fullscreenImage;
-	CompositorData _compositorData;
+	AllocatedImage _fullscreenImage{};
+	CompositorData _compositorData{};
 
 private:
-	VkPipelineLayout _postProcessPipelineLayout;
-	VkPipeline _postProcessPipeline;
+	VkPipelineLayout _postProcessPipelineLayout = nullptr;
+	VkPipeline _postProcessPipeline = nullptr;
 
-	VkDescriptorSet _postProcessDescriptorSet;
-	VkDescriptorSetLayout _postProcessDescriptorSetLayout;
-	VkSampler _fullscreenImageSampler;
+	VkDescriptorSet _postProcessDescriptorSet = nullptr;
+	VkDescriptorSetLayout _postProcessDescriptorSetLayout = nullptr;
+	VkSampler _fullscreenImageSampler = nullptr;
 };

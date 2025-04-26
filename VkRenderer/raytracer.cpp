@@ -202,7 +202,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 		tex_writer.write_images(3, *metalRoughTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbMetalRoughText); // Metal Roughness
 		tex_writer.update_set(engine->_device, m_texDescSet);
 
-		engine->_mainDeletionQueue.push_function([=]() {
+		engine->_mainDeletionQueue.push_function([=] {
 			vkDestroyDescriptorSetLayout(engine->_device, m_texSetLayout, nullptr);
 			});
 	}
@@ -239,7 +239,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine* engine)
 
 	mat_writer.update_set(engine->_device, m_matDescSet);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
@@ -363,7 +363,7 @@ void Raytracer::createRtPipeline(VulkanEngine* engine) {
 	for (auto& s : stages)
 		vkDestroyShaderModule(engine->_device, s.module, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipelineLayout(engine->_device, m_rtPipelineLayout, nullptr);
 		vkDestroyPipeline(engine->_device, m_rtPipeline, nullptr);
 		});
@@ -435,7 +435,7 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine* engine) {
 	// Clean up
 	vmaUnmapMemory(engine->_allocator, m_rtSBTBuffer.allocation);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		engine->destroy_buffer(m_rtSBTBuffer);
 
 		});

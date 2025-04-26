@@ -122,6 +122,10 @@ struct DrawContext;
 
 // base class for a renderable dynamic object
 class IRenderable {
+public:
+	virtual ~IRenderable() = default;
+
+private:
 	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
 };
 

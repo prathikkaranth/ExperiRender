@@ -2,7 +2,6 @@
 
 #include <vk_types.h>
 #include <vk_descriptors.h>
-#include <vk_pipelines.h>
 #include <functional>
 #include "Scene/camera.h"
 #include "Hdri.h"
@@ -82,11 +81,11 @@ struct EngineStats {
 	float mesh_draw_time;
 };
 
-struct MeshNode : public Node {
+struct MeshNode final : Node {
 
 	std::shared_ptr<MeshAsset> mesh;
 
-	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+	void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 };
 
 class VulkanEngine {

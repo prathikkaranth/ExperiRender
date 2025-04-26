@@ -8,7 +8,6 @@
 #include "stb_image.h"
 #include "vk_engine.h"
 #include <vk_images.h>
-#include "vk_initializers.h"
 #include "vk_types.h"
 #include <glm/gtx/quaternion.hpp>
 
@@ -149,11 +148,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
     std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
     scene->creator = engine;
-    LoadedGLTF& file = *scene.get();
+    LoadedGLTF& file = *scene;
 
     fastgltf::Parser parser{};
 
-    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
+    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers;
     // fastgltf::Options::LoadExternalImages;
 
     auto gltfFile = fastgltf::MappedGltfFile::FromPath(filePath);
@@ -248,14 +247,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, file.materialDataBuffer.allocation, "GLTF Material Data Buffer");
     int data_index = 0;
-    GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = (GLTFMetallic_Roughness::MaterialConstants*)file.materialDataBuffer.info.pMappedData;
+    auto* sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants *>(file.materialDataBuffer.info.pMappedData);
 
     for (fastgltf::Material& mat : gltf.materials) {
         std::shared_ptr<GLTFMaterial> newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
         file.materials[mat.name.c_str()] = newMat;
 
-        GLTFMetallic_Roughness::MaterialConstants constants;
+        GLTFMetallic_Roughness::MaterialConstants constants{};
         constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
         constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
         constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
@@ -274,7 +273,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             passType = MaterialPass::Transparent;
         }
 
-        GLTFMetallic_Roughness::MaterialResources materialResources;
+        GLTFMetallic_Roughness::MaterialResources materialResources{};
         // default the material textures
         materialResources.colorImage = engine->_whiteImage;
         materialResources.colorSampler = engine->_defaultSamplerLinear;
@@ -363,7 +362,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
                     [&](glm::vec3 v, size_t index) {
-                        Vertex newvtx;
+                        Vertex newvtx{};
                         newvtx.position = v;
                         newvtx.normal = { 1, 0, 0 };
                         newvtx.color = glm::vec4{ 1.f };
@@ -393,9 +392,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             }
 
             // calculate bi-tangents from normals and tangents
-            for (size_t i = 0; i < vertices.size(); i++) {
-				Vertex& v = vertices[i];
-				v.bitangent = glm::cross(v.normal, v.tangent);
+            for (auto & v : vertices) {
+					v.bitangent = glm::cross(v.normal, v.tangent);
 			}
 
             // load UVs
@@ -410,8 +408,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
             }
 
             // load vertex colors
-            auto colors = p.findAttribute("COLOR_0");
-            if (colors != p.attributes.end()) {
+            if (auto colors = p.findAttribute("COLOR_0"); colors != p.attributes.end()) {
 
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[(*colors).second],
                     [&](glm::vec4 v, size_t index) {
@@ -429,7 +426,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 			//loop the vertices of this surface, find min/max bounds
 			glm::vec3 minpos = vertices[initial_vtx].position;
 			glm::vec3 maxpos = vertices[initial_vtx].position;
-			for (int i = initial_vtx; i < vertices.size(); i++) {
+			for (int i = static_cast<int>(initial_vtx); i < vertices.size(); i++) {
 				minpos = glm::min(minpos, vertices[i].position);
 				maxpos = glm::max(maxpos, vertices[i].position);
 			}
@@ -440,9 +437,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 
 			newmesh->surfaces.push_back(newSurface);
         }
-        newmesh->nbIndices = (uint32_t)indices.size();
-        newmesh->nbVertices = (uint32_t)vertices.size();
-        newmesh->meshIndex = (uint32_t)meshes.size() - 1;
+        newmesh->nbIndices = static_cast<uint32_t>(indices.size());
+        newmesh->nbVertices = static_cast<uint32_t>(vertices.size());
+        newmesh->meshIndex = static_cast<uint32_t>(meshes.size()) - 1;
 
         newmesh->meshBuffers = engine->uploadMesh(indices, vertices);
     }
@@ -454,7 +451,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
         // find if the node has a mesh, and if it does hook it to the mesh pointer and allocate it with the meshnode class
         if (node.meshIndex.has_value()) {
             newNode = std::make_shared<MeshNode>();
-            static_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+            dynamic_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
         }
         else {
             newNode = std::make_shared<Node>();
@@ -507,15 +504,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
 void LoadedGLTF::Draw(const glm::mat4& topMatrix, DrawContext& ctx)
 {
     // create renderables from the scenenodes
-    for (auto& n : topNodes) {
+    for (const auto& n : topNodes) {
         n->Draw(topMatrix, ctx);
     }
-}
-
-void LoadedGLTF::translateLoadedScene(glm::vec3 translation, DrawContext& ctx) {
-    glm::mat4 translationMatrix = glm::translate(glm::mat4{ 1.f }, translation);
-	// create renderables from the scenenodes
-    Draw(translationMatrix, ctx);
 }
 
 void LoadedGLTF::clearAll()
@@ -541,7 +532,7 @@ void LoadedGLTF::clearAll()
         vkutil::destroy_image(creator, v);
     }
 
-    for (auto& sampler : samplers) {
+    for (const auto& sampler : samplers) {
         vkDestroySampler(dv, sampler, nullptr);
     }
 
