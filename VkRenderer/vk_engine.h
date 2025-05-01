@@ -191,7 +191,6 @@ public:
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
 	AllocatedImage _errorCheckerboardImage;
-	AllocatedImage _ssaoNoiseImage;
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;

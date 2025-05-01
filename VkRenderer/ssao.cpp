@@ -2,6 +2,7 @@
 #include "vk_mem_alloc.h"
 #include <spdlog/spdlog.h>
 #include <vk_images.h>
+#include <random>
 
 #include "ssao.h"
 #include "vk_engine.h"
@@ -140,6 +141,61 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 		});
 }
 
+float ssaoLerp(float a, float b, float f)
+{
+	return a + f * (b - a);
+}
+
+void ssao::init_ssao_data(VulkanEngine* engine) {
+	// SSAO data - Sponza scene
+	// ----------------------
+	ssaoData.kernelSize = 128;
+	ssaoData.radius = 0.721f;
+	ssaoData.bias = 0.023f;
+	ssaoData.intensity = 0.713f;
+
+	// generate sample kernel
+	// ----------------------
+	// Use a fixed seed for reproducible results
+	std::default_random_engine generator(42);  // Fixed seed
+	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
+	std::vector<glm::vec3> ssaoKernel;
+	for (unsigned int i = 0; i < ssaoData.kernelSize; ++i)
+	{
+		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
+		sample = glm::normalize(sample);
+		sample *= randomFloats(generator);
+		float scale = static_cast<float>(i) / static_cast<float>(ssaoData.kernelSize);
+
+		// scale samples s.t. they're more aligned to center of kernel
+		scale = ssaoLerp(0.1f, 1.0f, scale * scale);
+		sample *= scale;
+		ssaoKernel.push_back(sample);
+	}
+
+	// generate noise texture
+	// ----------------------
+	std::vector<glm::vec4> ssaoNoise;
+	for (unsigned int i = 0; i < 16; i++)
+	{
+		glm::vec4 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f, 1.0f); // rotate around z-axis (in tangent space)
+		ssaoNoise.push_back(noise);
+	}
+
+	_ssaoNoiseImage = vkutil::create_image(engine, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
+	vmaSetAllocationName(engine->_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
+
+	for (int i = 0; i < 128; i++) {
+		ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
+	}
+
+	engine->_mainDeletionQueue.push_function([=] {
+
+		vkutil::destroy_image(engine, _ssaoNoiseImage);
+	});
+}
+
+
 void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd) const {
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer ssaoSceneDataBuffer = engine->create_buffer(sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -161,7 +217,7 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd) const {
 	ssao_writer.write_image(1, _depthMap.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(2, engine->gbuffer.getGbufferPosInfo().imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(3, engine->gbuffer.getGbufferNormInfo().imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	ssao_writer.write_image(4, engine->_ssaoNoiseImage.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	ssao_writer.write_image(4, _ssaoNoiseImage.imageView, engine->_defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	ssao_writer.write_image(5, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
 	ssao_writer.update_set(engine->_device, _ssaoInputDescriptors);

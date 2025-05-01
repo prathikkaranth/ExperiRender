@@ -103,11 +103,6 @@ void VulkanEngine::init()
 	raytracerPipeline.createRtShaderBindingTable(this);
 }
 
-float ssaolerp(float a, float b, float f)
-{
-	return a + f * (b - a);
-}
-
 void VulkanEngine::init_default_data() {
 	
 	//some default lighting parameters
@@ -151,47 +146,7 @@ void VulkanEngine::init_default_data() {
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
 
-	// SSAO data - Sponza scene
-	// ----------------------
-	_ssao.ssaoData.kernelSize = 128;
-	_ssao.ssaoData.radius = 0.721f;
-	_ssao.ssaoData.bias = 0.023f;
-	_ssao.ssaoData.intensity = 0.713f;
-
-	// generate sample kernel
-	// ----------------------
-	// Use a fixed seed for reproducible results
-	std::default_random_engine generator(42);  // Fixed seed
-	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
-	std::vector<glm::vec3> ssaoKernel;
-	for (unsigned int i = 0; i < _ssao.ssaoData.kernelSize; ++i)
-	{
-		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
-		sample = glm::normalize(sample);
-		sample *= randomFloats(generator);
-		float scale = static_cast<float>(i) / static_cast<float>(_ssao.ssaoData.kernelSize);
-
-		// scale samples s.t. they're more aligned to center of kernel
-		scale = ssaolerp(0.1f, 1.0f, scale * scale);
-		sample *= scale;
-		ssaoKernel.push_back(sample);
-	}
-
-	// generate noise texture
-	// ----------------------
-	std::vector<glm::vec4> ssaoNoise;
-	for (unsigned int i = 0; i < 16; i++)
-	{
-		glm::vec4 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f, 1.0f); // rotate around z-axis (in tangent space)
-		ssaoNoise.push_back(noise);
-	}
-
-	_ssaoNoiseImage = vkutil::create_image(this, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
-	vmaSetAllocationName(_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
-
-	for (int i = 0; i < 128; i++) {
-		_ssao.ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
-	}
+	_ssao.init_ssao_data(this);
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -213,7 +168,6 @@ void VulkanEngine::init_default_data() {
 		vkutil::destroy_image(this, _greyImage);
 		vkutil::destroy_image(this, _blackImage);
 		vkutil::destroy_image(this, _errorCheckerboardImage);
-		vkutil::destroy_image(this, _ssaoNoiseImage);
 		});
 
 	GLTFMetallic_Roughness::MaterialResources materialResources{};

@@ -37,8 +37,10 @@ public:
 	AllocatedImage _depthMap{};
 	VkExtent2D _ssaoExtent{};
 	VkExtent2D _depthMapExtent{};
+	AllocatedImage _ssaoNoiseImage{};
 
 	// SSAO
+	void init_ssao_data(VulkanEngine* engine);
 	void init_ssao(VulkanEngine* engine);
 	void init_ssao_blur(VulkanEngine* engine);
 
