@@ -1,4 +1,6 @@
 build/
+build-release/
+build-release-unix/
 assets/
 .vs/
 .vscode/

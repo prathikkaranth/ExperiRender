@@ -1,6 +1,7 @@
 set(SOURCE_FILES
     src/camera.cpp
     src/PointLight.cpp
+    src/SceneDesc.cpp
 )
 
 file(GLOB_RECURSE HEADERS "include/*.h")
