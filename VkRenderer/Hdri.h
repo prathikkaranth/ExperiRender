@@ -6,7 +6,8 @@ class VulkanEngine;
 
 class HDRI {
 public:
-	void load_hdri_to_buffer(VulkanEngine* engine);
+    void load_hdri_to_buffer(VulkanEngine* engine, const std::string& jsonFilePath);
+	void load_hdri_to_buffer_fallback(VulkanEngine* engine);
 	void init_hdriMap(VulkanEngine* engine);
 	void draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd);
 

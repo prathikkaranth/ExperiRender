@@ -229,12 +229,14 @@ public:
 private: 
 
 	void draw_geometry(VkCommandBuffer cmd);
+    void traverseScenes();
 
 	void init_pipelines();
 
 	void init_descriptors();
 
 	void init_vulkan();
+    void init_scenes(const std::string& jsonPath);
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();

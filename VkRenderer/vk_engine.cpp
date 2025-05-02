@@ -77,9 +77,25 @@ void VulkanEngine::init()
 	// Scene
 	std::string jsonFilePath = "../assets/scenes.json";
 
+    init_scenes(jsonFilePath);
+
+	//everything went fine
+	_isInitialized = true;
+
+	// Ray Tracing initialization
+	traverseScenes();
+	raytracerPipeline.init_ray_tracing(this);
+	raytracerPipeline.createBottomLevelAS(this);
+	raytracerPipeline.createTopLevelAS(this);
+	raytracerPipeline.createRtDescriptorSet(this);
+	raytracerPipeline.createRtPipeline(this);
+	raytracerPipeline.createRtShaderBindingTable(this);
+}
+
+void VulkanEngine::init_scenes(const std::string& jsonPath) {
     try {
         // Load all scenes from JSON
-        std::vector<SceneDesc::SceneInfo> scenes = SceneDesc::getAllScenes(jsonFilePath);
+        std::vector<SceneDesc::SceneInfo> scenes = SceneDesc::getAllScenes(jsonPath);
 
         // Process each scene
         for (const auto& sceneInfo : scenes) {
@@ -91,27 +107,18 @@ void VulkanEngine::init()
                 loadedScenes[sceneInfo.name] = *sceneFile;
                 // Store the scene info separately
                 sceneInfos[sceneInfo.name] = sceneInfo;
-                std::cout << "Loaded scene: " << sceneInfo.name << std::endl;
+                spdlog::info("Loaded scene: {}", sceneInfo.name);
             } else {
-                std::cerr << "Failed to load scene: " << sceneInfo.name << std::endl;
+                spdlog::error("Failed to load scene: {}", sceneInfo.name);
             }
         }
     } catch (const std::exception& e) {
         std::cerr << "Error loading scenes: " << e.what() << std::endl;
     }
-
-	//everything went fine
-	_isInitialized = true;
-
-	// Ray Tracing initialization
-	traverseLoadedMeshNodesOnceForRT();
-	raytracerPipeline.init_ray_tracing(this);
-	raytracerPipeline.createBottomLevelAS(this);
-	raytracerPipeline.createTopLevelAS(this);
-	raytracerPipeline.createRtDescriptorSet(this);
-	raytracerPipeline.createRtPipeline(this);
-	raytracerPipeline.createRtShaderBindingTable(this);
+    // Initialize HDRI with the same JSON file
+    hdrImage.load_hdri_to_buffer(this, jsonPath);
 }
+
 
 void VulkanEngine::init_default_data() {
 	
@@ -149,9 +156,6 @@ void VulkanEngine::init_default_data() {
 	}
 	_errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
-
-	// HDRI map
-	hdrImage.load_hdri_to_buffer(this);
 
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
@@ -268,8 +272,7 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	return true;
 }
 
-void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
-    // Process all loaded scenes
+void VulkanEngine::traverseScenes() {
     for (const auto& [sceneName, scenePtr] : loadedScenes) {
         glm::mat4 modelMatrix(1.0f);
 
@@ -525,31 +528,7 @@ void VulkanEngine::update_scene()
 	_shadowMap.update_lightSpaceMatrix(this);
 	
     // Process all loaded scenes
-    for (const auto& [sceneName, scenePtr] : loadedScenes) {
-        glm::mat4 modelMatrix(1.0f);
-
-        // Check if we have scene info with transformations
-        auto infoIt = sceneInfos.find(sceneName);
-        if (infoIt != sceneInfos.end() && infoIt->second.hasTransform) {
-            const auto& transform = infoIt->second;
-
-            // Apply transformations in order: scale, rotate, translate
-            // Scale
-            modelMatrix = glm::scale(modelMatrix, transform.scale);
-
-            // Rotate (converting Euler angles from degrees to radians)
-            glm::vec3 rotationRad = glm::radians(transform.rotate);
-            modelMatrix = glm::rotate(modelMatrix, rotationRad.x, glm::vec3(1.0f, 0.0f, 0.0f));
-            modelMatrix = glm::rotate(modelMatrix, rotationRad.y, glm::vec3(0.0f, 1.0f, 0.0f));
-            modelMatrix = glm::rotate(modelMatrix, rotationRad.z, glm::vec3(0.0f, 0.0f, 1.0f));
-
-            // Translate
-            modelMatrix = glm::translate(modelMatrix, transform.translate);
-        }
-
-        // Draw the scene with the calculated model matrix
-        scenePtr->Draw(modelMatrix, mainDrawContext);
-    }
+    traverseScenes();
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);

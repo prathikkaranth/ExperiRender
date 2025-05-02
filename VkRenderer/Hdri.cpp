@@ -5,45 +5,99 @@
 #include <spdlog/spdlog.h>
 #include <filesystem>
 
-void HDRI::load_hdri_to_buffer(VulkanEngine* engine) {
+void HDRI::load_hdri_to_buffer(VulkanEngine* engine, const std::string& jsonFilePath) {
+    try {
+        // Get HDRI info from JSON
+        SceneDesc::HDRIInfo hdriInfo = SceneDesc::getHDRIInfo(jsonFilePath);
 
-	int width, height, nrComponents;
+        int width, height, nrComponents;
+        stbi_set_flip_vertically_on_load(true);
 
-	stbi_set_flip_vertically_on_load(true);
-	std::string hdriPath = (std::filesystem::path("../assets") / "HDRI" / "mirrored_hall_4k.hdr").string();
-	float* data = stbi_loadf("../assets/HDRI/pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
+        // Use the filepath from JSON
+        float* data = stbi_loadf(hdriInfo.filePath.c_str(), &width, &height, &nrComponents, 0);
 
-	if (!data) {
-		spdlog::error("Failed to load HDRI image!");
-		return;
-	}
+        if (!data) {
+            spdlog::error("Failed to load HDRI image from {}", hdriInfo.filePath);
+            // Fallback to default if specified path fails
+            std::string defaultPath = "../assets/HDRI/pretoria_gardens_4k.hdr";
+            spdlog::info("Trying default HDRI path: {}", defaultPath);
+            data = stbi_loadf(defaultPath.c_str(), &width, &height, &nrComponents, 0);
 
-	// Use the loaded data...
-	_hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+            if (!data) {
+                spdlog::error("Failed to load default HDRI image!");
+                return;
+            }
+        }
 
-	if (_hdriMap.image == VK_NULL_HANDLE) {
-		spdlog::error("Failed to initialize cubemap!");
-	}
-	else {
-		spdlog::info("Cubemap initialized successfully");
-	}
-	
-	// Sampler configs
-	VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-	sampl2.magFilter = VK_FILTER_LINEAR;
-	sampl2.minFilter = VK_FILTER_LINEAR;
-	sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampl2.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	vkCreateSampler(engine->_device, &sampl2, nullptr, &_hdriMapSampler);
+        // Use the loaded data...
+        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
 
-	stbi_set_flip_vertically_on_load(false);
+        if (_hdriMap.image == VK_NULL_HANDLE) {
+            spdlog::error("Failed to initialize HDRI!");
+        }
+        else {
+            spdlog::info("HDRI initialized successfully from {}", hdriInfo.filePath);
+        }
 
-	engine->_mainDeletionQueue.push_function([=] {
-		
-		vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
-		vkutil::destroy_image(engine, _hdriMap);
-		});
+        // Sampler configs
+        VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+        sampl2.magFilter = VK_FILTER_LINEAR;
+        sampl2.minFilter = VK_FILTER_LINEAR;
+        sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampl2.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        vkCreateSampler(engine->_device, &sampl2, nullptr, &_hdriMapSampler);
+
+        stbi_set_flip_vertically_on_load(false);
+
+        engine->_mainDeletionQueue.push_function([=] {
+            vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
+            vkutil::destroy_image(engine, _hdriMap);
+        });
+
+    } catch (const std::exception& e) {
+        spdlog::error("Error loading HDRI from JSON: {}", e.what());
+        // Fallback to original hardcoded path
+        load_hdri_to_buffer_fallback(engine);
+    }
+}
+
+// Add this fallback method that uses the original hardcoded path
+void HDRI::load_hdri_to_buffer_fallback(VulkanEngine* engine) {
+    int width, height, nrComponents;
+    stbi_set_flip_vertically_on_load(true);
+    float* data = stbi_loadf("../assets/HDRI/pretoria_gardens_4k.hdr", &width, &height, &nrComponents, 0);
+
+    if (!data) {
+       spdlog::error("Failed to load HDRI image!");
+       return;
+    }
+
+    // Use the loaded data...
+    _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+
+    if (_hdriMap.image == VK_NULL_HANDLE) {
+       spdlog::error("Failed to initialize cubemap!");
+    }
+    else {
+       spdlog::info("Cubemap initialized successfully");
+    }
+
+    // Sampler configs
+    VkSamplerCreateInfo sampl2 = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    sampl2.magFilter = VK_FILTER_LINEAR;
+    sampl2.minFilter = VK_FILTER_LINEAR;
+    sampl2.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampl2.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampl2.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    vkCreateSampler(engine->_device, &sampl2, nullptr, &_hdriMapSampler);
+
+    stbi_set_flip_vertically_on_load(false);
+
+    engine->_mainDeletionQueue.push_function([=] {
+       vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
+       vkutil::destroy_image(engine, _hdriMap);
+    });
 }
 
 void HDRI::init_hdriMap(VulkanEngine* engine) {

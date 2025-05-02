@@ -82,6 +82,35 @@ std::vector<SceneDesc::SceneInfo> SceneDesc::getAllScenes(const std::string& jso
     return scenes;
 }
 
+// SceneDesc.cpp
+SceneDesc::HDRIInfo SceneDesc::getHDRIInfo(const std::string& jsonFilePath) {
+    std::ifstream file(jsonFilePath);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open JSON file: " + jsonFilePath);
+    }
+
+    nlohmann::json jsonData;
+    try {
+        file >> jsonData;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("JSON parse error: " + std::string(e.what()));
+    }
+
+    HDRIInfo info;
+
+    // Check if HDRI info exists in the JSON
+    if (jsonData.contains("hdri") && jsonData["hdri"].is_object() &&
+        jsonData["hdri"].contains("filepath") && jsonData["hdri"]["filepath"].is_string()) {
+
+        info.filePath = jsonData["hdri"]["filepath"];
+        } else {
+            // Default HDRI path if not specified in JSON
+            info.filePath = "../assets/HDRI/pretoria_gardens_4k.hdr";
+        }
+
+    return info;
+}
+
 // For backward compatibility
 SceneDesc::SceneInfo SceneDesc::getSceneInfo(const std::string& jsonFilePath) {
     auto scenes = getAllScenes(jsonFilePath);
