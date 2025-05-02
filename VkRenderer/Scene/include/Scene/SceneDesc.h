@@ -1,17 +1,28 @@
+// SceneDesc.h
 #pragma once
 
+#include <nlohmann/json.hpp>
+#include <glm/glm.hpp>
 #include <string>
-#include <vector>
-#include <fstream>
-#include <iostream>
-#include <filesystem>
-#include <map>
-#include <optional>
-#include <cassert>
 
-// Structure to hold model path and name information
-struct ModelEntry {
-    std::string name;  // Name to use in loadedScenes map
-    std::string path;  // Path to the GLTF file
+#include "glm/fwd.hpp"
+
+class SceneDesc {
+public:
+    // Structure to hold scene information
+    struct SceneInfo {
+        std::string name;
+        std::string filePath;
+
+        bool hasTransform;
+        glm::vec3 translate = glm::vec3(0.0f);
+        glm::vec3 scale = glm::vec3(1.0f);
+        glm::vec3 rotate = glm::vec3(0.0f); // Euler angles in degrees
+    };
+
+    // Static method to get information for all scenes from a JSON file
+    static std::vector<SceneInfo> getAllScenes(const std::string& jsonFilePath);
+
+    // Static method to get scene information from a JSON file
+    static SceneInfo getSceneInfo(const std::string& jsonFilePath);
 };
-

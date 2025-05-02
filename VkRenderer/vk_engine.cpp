@@ -17,9 +17,9 @@
 #include <vk_mem_alloc.h>
 #include <glm/gtx/transform.hpp>
 
+#include <filesystem>
 #include <iostream>
 #include <random>
-#include <filesystem>
 
 constexpr bool bUseValidationLayers = true;
 
@@ -75,20 +75,30 @@ void VulkanEngine::init()
 	init_default_data();
 
 	// Scene
-	const std::string assetsDir = "../assets";
-	const std::string structurePath = (std::filesystem::path(assetsDir) / "Sponza" / "glTF" / "Sponza.gltf").string();
-	const std::string helmetPath = (std::filesystem::path(assetsDir) / "FlightHelmet" / "glTF" / "FlightHelmet.gltf").string();
+	std::string jsonFilePath = "../assets/scenes.json";
 
-	const auto structureFile = loadGltf(this, structurePath);
+    try {
+        // Load all scenes from JSON
+        std::vector<SceneDesc::SceneInfo> scenes = SceneDesc::getAllScenes(jsonFilePath);
 
-	assert(structureFile.has_value());
+        // Process each scene
+        for (const auto& sceneInfo : scenes) {
+            // Load the GLTF file
+            const auto sceneFile = loadGltf(this, sceneInfo.filePath);
 
-	const auto helmetFile = loadGltf(this, helmetPath);
-
-	assert(helmetFile.has_value());
-
-	loadedScenes["Sponza"] = *structureFile;
-	loadedScenes["Helmet"] = *helmetFile;
+            if (sceneFile.has_value()) {
+                // Add to loaded scenes (using your existing map type)
+                loadedScenes[sceneInfo.name] = *sceneFile;
+                // Store the scene info separately
+                sceneInfos[sceneInfo.name] = sceneInfo;
+                std::cout << "Loaded scene: " << sceneInfo.name << std::endl;
+            } else {
+                std::cerr << "Failed to load scene: " << sceneInfo.name << std::endl;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading scenes: " << e.what() << std::endl;
+    }
 
 	//everything went fine
 	_isInitialized = true;
@@ -259,10 +269,32 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 }
 
 void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	auto helmetModelMatrix = glm::mat4(1.0f);
-	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
-	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
+    // Process all loaded scenes
+    for (const auto& [sceneName, scenePtr] : loadedScenes) {
+        glm::mat4 modelMatrix(1.0f);
+
+        // Check if we have scene info with transformations
+        auto infoIt = sceneInfos.find(sceneName);
+        if (infoIt != sceneInfos.end() && infoIt->second.hasTransform) {
+            const auto& transform = infoIt->second;
+
+            // Apply transformations in order: scale, rotate, translate
+            // Scale
+            modelMatrix = glm::scale(modelMatrix, transform.scale);
+
+            // Rotate (converting Euler angles from degrees to radians)
+            glm::vec3 rotationRad = glm::radians(transform.rotate);
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.z, glm::vec3(0.0f, 0.0f, 1.0f));
+
+            // Translate
+            modelMatrix = glm::translate(modelMatrix, transform.translate);
+        }
+
+        // Draw the scene with the calculated model matrix
+        scenePtr->Draw(modelMatrix, mainDrawContext);
+    }
 }
 
 void VulkanEngine::cleanup()
@@ -492,12 +524,32 @@ void VulkanEngine::update_scene()
 	// shadows
 	_shadowMap.update_lightSpaceMatrix(this);
 	
-	// for (int i = 0; i < 16; i++)         {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	//}
-	auto helmetModelMatrix = glm::mat4(1.0f);
-	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
-	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
+    // Process all loaded scenes
+    for (const auto& [sceneName, scenePtr] : loadedScenes) {
+        glm::mat4 modelMatrix(1.0f);
+
+        // Check if we have scene info with transformations
+        auto infoIt = sceneInfos.find(sceneName);
+        if (infoIt != sceneInfos.end() && infoIt->second.hasTransform) {
+            const auto& transform = infoIt->second;
+
+            // Apply transformations in order: scale, rotate, translate
+            // Scale
+            modelMatrix = glm::scale(modelMatrix, transform.scale);
+
+            // Rotate (converting Euler angles from degrees to radians)
+            glm::vec3 rotationRad = glm::radians(transform.rotate);
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.z, glm::vec3(0.0f, 0.0f, 1.0f));
+
+            // Translate
+            modelMatrix = glm::translate(modelMatrix, transform.translate);
+        }
+
+        // Draw the scene with the calculated model matrix
+        scenePtr->Draw(modelMatrix, mainDrawContext);
+    }
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);

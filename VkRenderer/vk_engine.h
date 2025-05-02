@@ -4,6 +4,7 @@
 #include <vk_descriptors.h>
 #include <functional>
 #include "Scene/camera.h"
+#include "Scene/SceneDesc.h"
 #include "Hdri.h"
 #include "gbuffer.h"
 #include <ssao.h>
@@ -199,6 +200,7 @@ public:
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) const;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+    std::unordered_map<std::string, SceneDesc::SceneInfo> sceneInfos;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) const;
 
