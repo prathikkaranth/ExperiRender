@@ -77,7 +77,7 @@ void Gbuffer::init_gbuffer(VulkanEngine* engine) {
 	vkDestroyShaderModule(engine->_device, gbufferFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, gbufferVertexShader, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipelineLayout(engine->_device, _gbufferPipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(engine->_device, _gbufferInputDescriptorLayout, nullptr);
 		vkDestroyPipeline(engine->_device, _gbufferPipeline, nullptr);
@@ -114,7 +114,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine* engine, VkCommandBuffer cmd) {
 	vkCmdBeginRendering(cmd, &renderInfo);
 
 	//begin clock
-	auto start = std::chrono::system_clock::now();
+	//auto start = std::chrono::system_clock::now();
 
 	std::vector<uint32_t> opaque_draws;
 	opaque_draws.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
@@ -166,8 +166,8 @@ void Gbuffer::draw_gbuffer(VulkanEngine* engine, VkCommandBuffer cmd) {
 		VkViewport viewport = {};
 		viewport.x = 0;
 		viewport.y = 0;
-		viewport.width = (float)engine->_windowExtent.width;
-		viewport.height = (float)engine->_windowExtent.height;
+		viewport.width = static_cast<float>(engine->_windowExtent.width);
+		viewport.height = static_cast<float>(engine->_windowExtent.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 
@@ -189,7 +189,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine* engine, VkCommandBuffer cmd) {
 			vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
 		// calculate final mesh matrix
-		GPUDrawPushConstants push_constants;
+		GPUDrawPushConstants push_constants{};
 		push_constants.worldMatrix = r.transform;
 		push_constants.vertexBuffer = r.vertexBufferAddress;
 

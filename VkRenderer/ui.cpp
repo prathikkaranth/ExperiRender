@@ -167,7 +167,7 @@ void ui::init_imgui(VulkanEngine* engine) {
 	engine->gbuffer._gbufferPosOutputDescriptor = ImGui_ImplVulkan_AddTexture(engine->gbuffer.getGbufferSampler(), engine->gbuffer.getGbufferPosInfo().imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	// add the destroy the imgui created structures
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		ImGui_ImplVulkan_Shutdown();
 		vkDestroyDescriptorPool(engine->_device, imguiPool, nullptr);
 		});

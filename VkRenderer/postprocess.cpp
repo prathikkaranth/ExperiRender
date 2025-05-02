@@ -40,7 +40,7 @@ void PostProcessor::init(VulkanEngine* engine) {
 	//allocate a descriptor set for our post process input
 	_postProcessDescriptorSet = engine->globalDescriptorAllocator.allocate(engine->_device, _postProcessDescriptorSetLayout);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyDescriptorSetLayout(engine->_device, _postProcessDescriptorSetLayout, nullptr);
 	});
 
@@ -52,7 +52,7 @@ void PostProcessor::init(VulkanEngine* engine) {
 
 	VK_CHECK(vkCreatePipelineLayout(engine->_device, &post_process_layout_info, nullptr, &_postProcessPipelineLayout));
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipelineLayout(engine->_device, _postProcessPipelineLayout, nullptr);
 	});
 
@@ -90,7 +90,7 @@ void PostProcessor::init(VulkanEngine* engine) {
 	vkDestroyShaderModule(engine->_device, fullscreenDrawFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, fullscreenDrawVertShader, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyPipeline(engine->_device, _postProcessPipeline, nullptr);
 		vkDestroySampler(engine->_device, _fullscreenImageSampler, nullptr);
 		vkutil::destroy_image(engine, _fullscreenImage);
@@ -128,7 +128,7 @@ void PostProcessor::draw(VulkanEngine* engine, VkCommandBuffer cmd) {
 	vmaSetAllocationName(engine->_allocator, compositorSceneDataBuffer.allocation, "Compositor Scene Data Buffer");
 
 	// Add it to the deletion queue
-	engine->get_current_frame()._deletionQueue.push_function([=]() {
+	engine->get_current_frame()._deletionQueue.push_function([=] {
 		engine->destroy_buffer(compositorSceneDataBuffer);
 	});
 
@@ -154,8 +154,8 @@ void PostProcessor::draw(VulkanEngine* engine, VkCommandBuffer cmd) {
 	VkViewport viewport = {};
 	viewport.x = 0;
 	viewport.y = 0;
-	viewport.width = (float)engine->_windowExtent.width;
-	viewport.height = (float)engine->_windowExtent.height;
+	viewport.width = static_cast<float>(engine->_windowExtent.width);
+	viewport.height = static_cast<float>(engine->_windowExtent.height);
 	viewport.minDepth = 0.f;
 	viewport.maxDepth = 1.f;
 
@@ -171,8 +171,4 @@ void PostProcessor::draw(VulkanEngine* engine, VkCommandBuffer cmd) {
 	vkCmdDraw(cmd, 3, 1, 0, 0); // 1 triangle, 3 vertices
 
 	vkCmdEndRendering(cmd);
-}
-
-void PostProcessor::cleanup(VulkanEngine* engine) {
-
 }

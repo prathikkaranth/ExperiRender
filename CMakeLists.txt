@@ -97,6 +97,15 @@ FetchContent_Declare (
 )
 FetchContent_MakeAvailable(imgui)
 
+# json
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(json)
+
+
 file(GLOB IMGUI_SRC
     "${imgui_SOURCE_DIR}/*.cpp"
     "${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp"
@@ -179,10 +188,10 @@ endif()
 # Platform-specific libraries
 if(WIN32)
     target_link_libraries(Renderer PRIVATE
-        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json)
 else()
     target_link_libraries(Renderer PRIVATE
-        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb)
+        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json)
 endif()
 
 # Internal Dependencies

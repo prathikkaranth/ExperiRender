@@ -17,9 +17,9 @@
 #include <vk_mem_alloc.h>
 #include <glm/gtx/transform.hpp>
 
+#include <filesystem>
 #include <iostream>
 #include <random>
-#include <filesystem>
 
 constexpr bool bUseValidationLayers = true;
 
@@ -75,26 +75,15 @@ void VulkanEngine::init()
 	init_default_data();
 
 	// Scene
-	const std::string assetsDir = "../assets";
-	const std::string structurePath = (std::filesystem::path(assetsDir) / "Sponza" / "glTF" / "Sponza.gltf").string();
-	const std::string helmetPath = (std::filesystem::path(assetsDir) / "FlightHelmet" / "glTF" / "FlightHelmet.gltf").string();
+	std::string jsonFilePath = "../assets/scenes.json";
 
-	const auto structureFile = loadGltf(this, structurePath);
-
-	assert(structureFile.has_value());
-
-	const auto helmetFile = loadGltf(this, helmetPath);
-
-	assert(helmetFile.has_value());
-
-	loadedScenes["Sponza"] = *structureFile;
-	loadedScenes["Helmet"] = *helmetFile;
+    init_scenes(jsonFilePath);
 
 	//everything went fine
 	_isInitialized = true;
 
 	// Ray Tracing initialization
-	traverseLoadedMeshNodesOnceForRT();
+	traverseScenes();
 	raytracerPipeline.init_ray_tracing(this);
 	raytracerPipeline.createBottomLevelAS(this);
 	raytracerPipeline.createTopLevelAS(this);
@@ -103,10 +92,33 @@ void VulkanEngine::init()
 	raytracerPipeline.createRtShaderBindingTable(this);
 }
 
-float ssaolerp(float a, float b, float f)
-{
-	return a + f * (b - a);
+void VulkanEngine::init_scenes(const std::string& jsonPath) {
+    try {
+        // Load all scenes from JSON
+        std::vector<SceneDesc::SceneInfo> scenes = SceneDesc::getAllScenes(jsonPath);
+
+        // Process each scene
+        for (const auto& sceneInfo : scenes) {
+            // Load the GLTF file
+            const auto sceneFile = loadGltf(this, sceneInfo.filePath);
+
+            if (sceneFile.has_value()) {
+                // Add to loaded scenes (using your existing map type)
+                loadedScenes[sceneInfo.name] = *sceneFile;
+                // Store the scene info separately
+                sceneInfos[sceneInfo.name] = sceneInfo;
+                spdlog::info("Loaded scene: {}", sceneInfo.name);
+            } else {
+                spdlog::error("Failed to load scene: {}", sceneInfo.name);
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading scenes: " << e.what() << std::endl;
+    }
+    // Initialize HDRI with the same JSON file
+    hdrImage.load_hdri_to_buffer(this, jsonPath);
 }
+
 
 void VulkanEngine::init_default_data() {
 	
@@ -145,53 +157,10 @@ void VulkanEngine::init_default_data() {
 	_errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
 
-	// HDRI map
-	hdrImage.load_hdri_to_buffer(this);
-
 	// Shadow light map
 	_shadowMap.init_lightSpaceMatrix(this);
 
-	// SSAO data - Sponza scene
-	// ----------------------
-	_ssao.ssaoData.kernelSize = 128;
-	_ssao.ssaoData.radius = 0.721f;
-	_ssao.ssaoData.bias = 0.023f;
-	_ssao.ssaoData.intensity = 0.713f;
-
-	// generate sample kernel
-	// ----------------------
-	// Use a fixed seed for reproducible results
-	std::default_random_engine generator(42);  // Fixed seed
-	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
-	std::vector<glm::vec3> ssaoKernel;
-	for (unsigned int i = 0; i < _ssao.ssaoData.kernelSize; ++i)
-	{
-		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
-		sample = glm::normalize(sample);
-		sample *= randomFloats(generator);
-		float scale = static_cast<float>(i) / static_cast<float>(_ssao.ssaoData.kernelSize);
-
-		// scale samples s.t. they're more aligned to center of kernel
-		scale = ssaolerp(0.1f, 1.0f, scale * scale);
-		sample *= scale;
-		ssaoKernel.push_back(sample);
-	}
-
-	// generate noise texture
-	// ----------------------
-	std::vector<glm::vec4> ssaoNoise;
-	for (unsigned int i = 0; i < 16; i++)
-	{
-		glm::vec4 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f, 1.0f); // rotate around z-axis (in tangent space)
-		ssaoNoise.push_back(noise);
-	}
-
-	_ssaoNoiseImage = vkutil::create_image(this, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
-	vmaSetAllocationName(_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
-
-	for (int i = 0; i < 128; i++) {
-		_ssao.ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
-	}
+	_ssao.init_ssao_data(this);
 
 	VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -205,7 +174,7 @@ void VulkanEngine::init_default_data() {
 
 	vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
 
-	_mainDeletionQueue.push_function([=]() {
+	_mainDeletionQueue.push_function([=] {
 		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
 		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
 
@@ -213,7 +182,6 @@ void VulkanEngine::init_default_data() {
 		vkutil::destroy_image(this, _greyImage);
 		vkutil::destroy_image(this, _blackImage);
 		vkutil::destroy_image(this, _errorCheckerboardImage);
-		vkutil::destroy_image(this, _ssaoNoiseImage);
 		});
 
 	GLTFMetallic_Roughness::MaterialResources materialResources{};
@@ -304,11 +272,32 @@ bool is_visible(const RenderObject& obj, const glm::mat4& viewproj) {
 	return true;
 }
 
-void VulkanEngine::traverseLoadedMeshNodesOnceForRT() {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	auto helmetModelMatrix = glm::mat4(1.0f);
-	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
-	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
+void VulkanEngine::traverseScenes() {
+    for (const auto& [sceneName, scenePtr] : loadedScenes) {
+        glm::mat4 modelMatrix(1.0f);
+
+        // Check if we have scene info with transformations
+        auto infoIt = sceneInfos.find(sceneName);
+        if (infoIt != sceneInfos.end() && infoIt->second.hasTransform) {
+            const auto& transform = infoIt->second;
+
+            // Apply transformations in order: scale, rotate, translate
+            // Scale
+            modelMatrix = glm::scale(modelMatrix, transform.scale);
+
+            // Rotate (converting Euler angles from degrees to radians)
+            glm::vec3 rotationRad = glm::radians(transform.rotate);
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            modelMatrix = glm::rotate(modelMatrix, rotationRad.z, glm::vec3(0.0f, 0.0f, 1.0f));
+
+            // Translate
+            modelMatrix = glm::translate(modelMatrix, transform.translate);
+        }
+
+        // Draw the scene with the calculated model matrix
+        scenePtr->Draw(modelMatrix, mainDrawContext);
+    }
 }
 
 void VulkanEngine::cleanup()
@@ -538,12 +527,8 @@ void VulkanEngine::update_scene()
 	// shadows
 	_shadowMap.update_lightSpaceMatrix(this);
 	
-	// for (int i = 0; i < 16; i++)         {
-	loadedScenes["Sponza"]->Draw(glm::mat4{ 1.f }, mainDrawContext);
-	//}
-	auto helmetModelMatrix = glm::mat4(1.0f);
-	helmetModelMatrix = glm::translate(helmetModelMatrix, glm::vec3(0.0f, -0.015f, 0.0f));
-	loadedScenes["Helmet"]->Draw(helmetModelMatrix, mainDrawContext);
+    // Process all loaded scenes
+    traverseScenes();
 
 	// RT updates
 	raytracerPipeline.rtSampleUpdates(this);
@@ -911,7 +896,7 @@ void VulkanEngine::init_swapchain() {
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 
 	//add to deletion queues
-	_mainDeletionQueue.push_function([=]() {
+	_mainDeletionQueue.push_function([=] {
 		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
 		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
@@ -1361,7 +1346,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine* engine)
 	vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
 	vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 
-	engine->_mainDeletionQueue.push_function([=]() {
+	engine->_mainDeletionQueue.push_function([=] {
 		vkDestroyDescriptorSetLayout(engine->_device, materialLayout, nullptr);
 		vkDestroyPipelineLayout(engine->_device, newLayout, nullptr);
 		vkDestroyPipeline(engine->_device, opaquePipeline.pipeline, nullptr);

@@ -56,7 +56,7 @@ git clone https://github.com/prathikkaranth/ExperiRender.git
 
 ```bash
 mkdir build && cd build
-cmake -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DCMAKE_CXX_FLAGS="-std=c++20" -DCMAKE_CXX_SCAN_FOR_MODULES=OFF ..
+cmake ..
 make
 ```
 
@@ -75,13 +75,17 @@ git clone https://github.com/prathikkaranth/ExperiRender.git
 
 4. Build using CMake GUI to configure and generate a Visual Studio solution. Set startup project to 'Renderer' and run.
 
+### Custom Assets
+
+Custom assets can be added by editing `assets\scenes.json` file accordingly.
+
 
 ## Models Used for Showcase
 
 - [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza)
 - [Flight Helmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet)
 
-## Dependencies Required:
+## Dependencies:
 
 - [Vulkan SDK 1.3](https://vulkan.lunarg.com/sdk/home)
 - [SDL](https://github.com/libsdl-org/SDL)
@@ -91,5 +95,6 @@ git clone https://github.com/prathikkaranth/ExperiRender.git
 - [FastGLTF](https://github.com/spnda/fastgltf)
 - [DearImGui](https://github.com/ocornut/imgui)
 - [spdlog](https://github.com/gabime/spdlog)
+- [JSON](https://json.nlohmann.me/)
 
 

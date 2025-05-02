@@ -2,9 +2,9 @@
 
 #include <vk_types.h>
 #include <vk_descriptors.h>
-#include <vk_pipelines.h>
 #include <functional>
 #include "Scene/camera.h"
+#include "Scene/SceneDesc.h"
 #include "Hdri.h"
 #include "gbuffer.h"
 #include <ssao.h>
@@ -82,11 +82,11 @@ struct EngineStats {
 	float mesh_draw_time;
 };
 
-struct MeshNode : public Node {
+struct MeshNode final : Node {
 
 	std::shared_ptr<MeshAsset> mesh;
 
-	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
+	void Draw(const glm::mat4& topMatrix, DrawContext& ctx) override;
 };
 
 class VulkanEngine {
@@ -192,7 +192,6 @@ public:
 	AllocatedImage _blackImage;
 	AllocatedImage _greyImage;
 	AllocatedImage _errorCheckerboardImage;
-	AllocatedImage _ssaoNoiseImage;
 
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
@@ -201,6 +200,7 @@ public:
 	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function) const;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
+    std::unordered_map<std::string, SceneDesc::SceneInfo> sceneInfos;
 
 	GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) const;
 
@@ -229,12 +229,14 @@ public:
 private: 
 
 	void draw_geometry(VkCommandBuffer cmd);
+    void traverseScenes();
 
 	void init_pipelines();
 
 	void init_descriptors();
 
 	void init_vulkan();
+    void init_scenes(const std::string& jsonPath);
 	void init_swapchain();
 	void init_commands();
 	void init_sync_structures();

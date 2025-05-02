@@ -22,23 +22,25 @@ public:
 	// Descriptor set for the ImGui SSAO pass
 	VkDescriptorSet _ssaoDescriptorSet{};
 
-	VkPipelineLayout _ssaoPipelineLayout;
-	VkPipeline _ssaoPipeline;
+	VkPipelineLayout _ssaoPipelineLayout{};
+	VkPipeline _ssaoPipeline{};
 
-	VkPipelineLayout _ssaoBlurPipelineLayout;
-	VkPipeline _ssaoBlurPipeline;
+	VkPipelineLayout _ssaoBlurPipelineLayout{};
+	VkPipeline _ssaoBlurPipeline{};
 
-	SSAOSceneData ssaoData;
+	SSAOSceneData ssaoData{};
 
 	//SSAO resources
-	AllocatedImage _ssaoImage;
-	AllocatedImage _ssaoImageBlurred;
-	VkSampler _ssaoSampler;
-	AllocatedImage _depthMap;
+	AllocatedImage _ssaoImage{};
+	AllocatedImage _ssaoImageBlurred{};
+	VkSampler _ssaoSampler{};
+	AllocatedImage _depthMap{};
 	VkExtent2D _ssaoExtent{};
 	VkExtent2D _depthMapExtent{};
+	AllocatedImage _ssaoNoiseImage{};
 
 	// SSAO
+	void init_ssao_data(VulkanEngine* engine);
 	void init_ssao(VulkanEngine* engine);
 	void init_ssao_blur(VulkanEngine* engine);
 
