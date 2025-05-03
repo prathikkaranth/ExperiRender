@@ -5,13 +5,14 @@
 
 #include "raycommon.glsl"
 #include "random.glsl"
+#include "input_structures.glsl"
 
 layout(location = 0) rayPayloadEXT hitPayload prd;
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 1, set = 0, rgba32f) uniform image2D image;
+layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
+layout(binding = 1, set = 1, rgba32f) uniform image2D image;
 
-layout(set = 3, binding = 2) uniform sampler2D texSkybox;
+layout(set = 4, binding = 2) uniform sampler2D texSkybox;
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
@@ -23,9 +24,9 @@ vec3 tracePath() {
     const vec2 inUV = sample_coord / vec2(gl_LaunchSizeEXT.xy);
     const vec2 d = inUV * 2.0 - 1.0;
 
-    prd.next_origin = (pcRay.viewInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-    const vec4 target = pcRay.projInverse * vec4(d.x, d.y, 1.0, 1.0);
-    prd.next_direction = (pcRay.viewInverse * vec4(normalize(target.xyz), 0.0)).xyz;
+    prd.next_origin = (inverse(sceneData.view) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    const vec4 target = (inverse(sceneData.proj) * vec4(d.x, d.y, 1.0, 1.0));
+    prd.next_direction = (inverse(sceneData.view) * vec4(normalize(target.xyz), 0.0)).xyz;
     prd.strength = vec3(1.0f);
     prd.isHit = true;
 

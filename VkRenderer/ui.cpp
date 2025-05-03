@@ -214,39 +214,6 @@ void ui::setup_imgui_panel(VulkanEngine* engine) {
 		ImGui::SliderInt("Max Samples", reinterpret_cast<int*>(&engine->raytracerPipeline.max_samples), 1, 5000);
 		ImGui::SliderInt("Ray Depth", reinterpret_cast<int*>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
 
-		if (ImGui::TreeNode("RT Lighting"))
-		{
-			if (ImGui::CollapsingHeader("Light Type")) {
-				// Dropdown for selecting the visual for debugging
-				const char* visuals[] = { "Directional Light(Lambertian)", "Global Lighting" };
-				static const char* current_item = visuals[0];
-				if (ImGui::BeginCombo("Light Types", current_item)) // The second parameter is the label previewed before opening the combo.
-				{
-					for (auto & visual : visuals) {
-						const bool is_selected = current_item == visual;
-						// You can store your selection however you want, outside or inside your objects
-						if (ImGui::Selectable(visual, is_selected))
-							current_item = visual;
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-						// You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-					}
-					ImGui::EndCombo();
-				}
-
-				if (strcmp(current_item, "Directional Light(Lambertian)") == 0)
-				{
-					engine->raytracerPipeline.m_pcRay.lightType = 0;
-				}
-				else if (strcmp(current_item, "Global Lighting") == 0)
-				{
-					engine->raytracerPipeline.m_pcRay.lightType = 1;
-				}
-			}
-			ImGui::TreePop();
-			ImGui::Spacing();
-		}
-
 	}
 
 	if (ImGui::CollapsingHeader("SSAO Settings")) {

@@ -11,12 +11,6 @@ struct hitPayload
 // Push constant structure for the ray tracer
 struct PushConstantRay
 {
-	vec4  clearColor;
-	vec3  lightPosition;
-	mat4  viewInverse;
-	mat4  projInverse;
-	float lightIntensity;
-	int   lightType;
 	uint seed;
 	uint samples_done;
 	uint depth;

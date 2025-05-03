@@ -1082,7 +1082,7 @@ void VulkanEngine::init_descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR );
+		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 	}
 
 	{

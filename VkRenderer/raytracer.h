@@ -16,12 +16,6 @@ class VulkanEngine;
 // Push constant structure for the ray tracer
 struct PushConstantRay
 {
-	glm::vec4  clearColor;
-	glm::vec4  lightPosition;
-	glm::mat4  viewInverse;
-	glm::mat4  projInverse;
-	float lightIntensity;
-	int   lightType;
 	std::uint32_t seed;
 	std::uint32_t samples_done;
 	std::uint32_t depth;
@@ -44,7 +38,7 @@ public:
 	void createRtPipeline(VulkanEngine* engine);
 	void createRtShaderBindingTable(VulkanEngine* engine);
 	void resetSamples();
-	void raytrace(const VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
+	void raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor);
 	void rtSampleUpdates(const VulkanEngine* engine);
 	void setRTDefaultData();
 
