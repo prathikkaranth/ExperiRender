@@ -22,7 +22,6 @@ void Raytracer::setRTDefaultData() {
 	m_pcRay.samples_done = 0;
 	max_samples = 200;
 	m_pcRay.depth = 3;
-	m_pcRay.lightType = 1; // Global light
 }
 
 void Raytracer::createBottomLevelAS(const VulkanEngine* engine) const {
@@ -330,7 +329,7 @@ void Raytracer::createRtPipeline(VulkanEngine* engine) {
 	pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
 	// Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
-	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { m_rtDescSetLayout, m_objDescSetLayout, m_matDescSetLayout };
+	std::vector<VkDescriptorSetLayout> rtDescSetLayouts = { engine->_gpuSceneDataDescriptorLayout, m_rtDescSetLayout, m_objDescSetLayout, m_matDescSetLayout };
 
 	if (!loadedTextures.empty())
 	{
@@ -450,18 +449,32 @@ void Raytracer::resetSamples() {
 //--------------------------------------------------------------------------------------------------
 // Ray Tracing the scene
 //
-void Raytracer::raytrace(const VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
+void Raytracer::raytrace(VulkanEngine* engine, const VkCommandBuffer& cmdBuf, const glm::vec4& clearColor) {
+
+    //allocate a new uniform buffer for the scene data
+    AllocatedBuffer gpuSceneDataBuffer = engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_drawGeom");
+
+    //add it to the deletion queue of this frame so it gets deleted once its been used
+    engine->get_current_frame()._deletionQueue.push_function([=, this]() {
+        engine->destroy_buffer(gpuSceneDataBuffer);
+        });
+
+    //write the buffer
+    engine->upload_to_vma_allocation(&engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
+
+    //create a descriptor set that binds that buffer and update it
+    VkDescriptorSet globalDescriptor = engine->get_current_frame()._frameDescriptors.allocate(engine->_device, engine->_gpuSceneDataDescriptorLayout);
+
+    DescriptorWriter writer;
+    writer.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    writer.update_set(engine->_device, globalDescriptor);
 
 	if (m_pcRay.samples_done == max_samples) {
 		return;
 	}
 
 	// Initializing the push constants
-	m_pcRay.clearColor = clearColor;
-	m_pcRay.lightPosition = glm::vec4(engine->sceneData.sunlightDirection.x, engine->sceneData.sunlightDirection.y, engine->sceneData.sunlightDirection.z, 0.0f);
-	m_pcRay.viewInverse = glm::inverse(engine->sceneData.view);
-	m_pcRay.projInverse = glm::inverse(engine->sceneData.proj);
-	m_pcRay.lightIntensity = engine->sceneData.sunlightDirection.w;
 	std::random_device rd;  // Non-deterministic seed source
 	std::mt19937 gen(rd()); // Mersenne Twister engine
 	m_pcRay.seed = gen();
@@ -470,15 +483,17 @@ void Raytracer::raytrace(const VulkanEngine* engine, const VkCommandBuffer& cmdB
 
 	// if textures are empty, we don't bind the texture descriptor set
 	if (loadedTextures.empty()) {
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_matDescSet, 0, nullptr);
+	    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &globalDescriptor, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_rtDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_objDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_matDescSet, 0, nullptr);
 	}
 	else {
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &m_rtDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_objDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_matDescSet, 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_texDescSet, 0, nullptr);
+	    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &globalDescriptor, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_rtDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_objDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_matDescSet, 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 4, 1, &m_texDescSet, 0, nullptr);
 	}
 
 	vkCmdPushConstants(cmdBuf, m_rtPipelineLayout, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 0, sizeof(PushConstantRay), &m_pcRay);
@@ -522,12 +537,4 @@ void Raytracer::rtSampleUpdates(const VulkanEngine* engine) {
 
 	// Update previous max depth to the new value
 	prevMaxDepth = m_pcRay.depth;
-
-	// If the light type has changed, reset samples
-	if (m_pcRay.lightType != prevLightType) {
-		resetSamples();
-	}
-
-	// Update previous light type to the new value
-	prevLightType = m_pcRay.lightType;
 }

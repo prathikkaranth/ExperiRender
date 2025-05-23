@@ -138,16 +138,15 @@ void shadowMap::draw_depthShadowMap(VulkanEngine* engine, VkCommandBuffer cmd) c
 	}
 
 	// sort the opaque surfaces by material and mesh
-	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = engine->mainDrawContext.OpaqueSurfaces[iA];
-		const RenderObject& B = engine->mainDrawContext.OpaqueSurfaces[iB];
-		if (A.material == B.material) {
-			return A.indexBuffer < B.indexBuffer;
-		}
-		else {
-			return A.material < B.material;
-		}
-		});
+    auto& surfaces = engine->mainDrawContext.OpaqueSurfaces;
+    std::ranges::sort(opaque_draws, [&](const auto& iA, const auto& iB) {
+        const RenderObject& A = surfaces[iA];
+        const RenderObject& B = surfaces[iB];
+        if (A.material == B.material) {
+            return A.indexBuffer < B.indexBuffer;
+        }
+        return A.material < B.material;
+    });
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);

@@ -948,14 +948,15 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	}
 
 	// sort the opaque surfaces by material and mesh
-	std::sort(opaque_draws.begin(), opaque_draws.end(), [&](const auto& iA, const auto& iB) {
-		const RenderObject& A = mainDrawContext.OpaqueSurfaces[iA];
-		const RenderObject& B = mainDrawContext.OpaqueSurfaces[iB];
-		if (A.material == B.material) {
-			return A.indexBuffer < B.indexBuffer;
-		}
-		return A.material < B.material;
-	});
+    auto& surfaces = mainDrawContext.OpaqueSurfaces;
+    std::ranges::sort(opaque_draws, [&](const auto& iA, const auto& iB) {
+        const RenderObject& A = surfaces[iA];
+        const RenderObject& B = surfaces[iB];
+        if (A.material == B.material) {
+            return A.indexBuffer < B.indexBuffer;
+        }
+        return A.material < B.material;
+    });
 
 	//allocate a new uniform buffer for the scene data
 	AllocatedBuffer gpuSceneDataBuffer = create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1082,7 +1083,7 @@ void VulkanEngine::init_descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR );
+		_gpuSceneDataDescriptorLayout = builder.build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
 	}
 
 	{

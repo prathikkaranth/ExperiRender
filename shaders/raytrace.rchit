@@ -10,8 +10,9 @@
 #include "raycommon.glsl"
 #include "random.glsl"
 #include "PBRMetallicRoughness.glsl"
+#include "input_structures.glsl"
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
 hitAttributeEXT vec2 attribs;
@@ -53,18 +54,18 @@ struct HitPoint {
 
 layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; // Positions of an object
 layout(buffer_reference,  std430) buffer Indices {Index i[]; }; // Triangle indices
-layout(set = 1, binding = 0, std430) buffer ObjDesc_ { 
+layout(set = 2, binding = 0, std430) buffer ObjDesc_ { 
     ObjDesc i[]; 
 } m_objDesc;
 
-layout(set = 2, binding = 0, std140) buffer MaterialsBuffer {
+layout(set = 3, binding = 0, std140) buffer MaterialsBuffer {
     MaterialRTData m[];
 }
 u_materials;
 
-layout(set = 3, binding = 0) uniform sampler2D textures[];
-layout(set = 3, binding = 1) uniform sampler2D normalMaps[];
-layout(set = 3, binding = 3) uniform sampler2D metalRoughMaps[];
+layout(set = 4, binding = 0) uniform sampler2D textures[];
+layout(set = 4, binding = 1) uniform sampler2D normalMaps[];
+layout(set = 4, binding = 3) uniform sampler2D metalRoughMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
@@ -131,7 +132,7 @@ bool is_strength_weak(vec3 strength)
 
 vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv, const float metalness, const float roughness)
 {
-    const vec3 light_dir = -normalize(pcRay.lightPosition); // Direction *from* surface point *to* light
+    const vec3 light_dir = -normalize(sceneData.sunlightDirection.xyz); // Direction *from* surface point *to* light
     const vec3 view_dir = normalize(gl_WorldRayOriginEXT - next_origin); // Direction to camera/viewer
 
     rayQueryEXT rq;
@@ -145,7 +146,7 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
         // Compute the BSDF using the PBR model
         vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
         
-        return bsdf * (pcRay.lightIntensity);
+        return bsdf * (sceneData.sunlightDirection.w);
     }
 
     return vec3(0.f); // in shadow
@@ -250,5 +251,5 @@ void main()
 
     // Poor man's russian roulette
     if (is_strength_weak(prd.strength))
-        prd.next_direction = vec3(0.0f);
+      prd.next_direction = vec3(0.0f);
 }
