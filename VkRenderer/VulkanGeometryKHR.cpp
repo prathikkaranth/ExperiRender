@@ -6,6 +6,7 @@
 
 #include "VulkanGeometryKHR.h"
 #include "raytraceKHR_vk.h"
+#include <Vertex.h>
 
 namespace experirender::vk
 {
