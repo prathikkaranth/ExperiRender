@@ -4,39 +4,10 @@
 #include <vector>
 #include <array>
 #include <glm/mat4x4.hpp>
-#include <glm/vec4.hpp>
-#include <glm/vec3.hpp>
 #include <vulkan/vulkan.h>
 
-#include "vk_mem_alloc.h"
-
-
-struct AllocatedImage {
-
-	VkImage image;
-	VkImageView imageView;
-	VmaAllocation allocation;
-	VkExtent3D imageExtent;
-	VkFormat imageFormat;
-
-};
-
-struct AllocatedBuffer {
-	VkBuffer buffer;
-	VmaAllocation allocation;
-	VmaAllocationInfo info;
-};
-
-struct Vertex {
-
-	glm::vec3 position;
-	float uv_x;
-	glm::vec3 normal;
-	float uv_y;
-	alignas(16) glm::vec4 color;
-	alignas(16) glm::vec3 tangent;
-	alignas(16) glm::vec3 bitangent;
-};
+#include <AllocatedImage.h>
+#include <AllocatedBuffer.h>
 
 // holds the resources needed for a mesh
 struct GPUMeshBuffers {

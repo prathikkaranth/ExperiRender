@@ -14,6 +14,7 @@
 #include <raytracer.h>
 #include <ui.h>
 #include <postprocess.h>
+#include <Vertex.h>
 
 #include <glm/glm.hpp>
 
