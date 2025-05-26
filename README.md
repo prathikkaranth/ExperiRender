@@ -77,7 +77,7 @@ git clone https://github.com/prathikkaranth/ExperiRender.git
 
 ### Custom Assets
 
-Custom assets can be added by editing `assets\scenes.json` file accordingly.
+Custom assets can be added by editing `assets/scenes.json` file accordingly.
 
 
 ## Models Used for Showcase
