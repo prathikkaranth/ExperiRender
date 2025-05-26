@@ -75,7 +75,7 @@ void ui::set_font() {
 	const ImGuiIO& io = ImGui::GetIO();
 	//const char* fontPath = "..\\assets\\fonts\\Roboto_Mono\\RobotoMono-VariableFont_wght.ttf";
 	const std::string assetsDir = "../assets";
-	std::string fontPath = std::filesystem::path(assetsDir) / "fonts" / "Roboto_Mono" / "RobotoMono-VariableFont_wght.ttf";
+	std::string fontPath = (std::filesystem::path(assetsDir) / "fonts" / "Roboto_Mono" / "RobotoMono-VariableFont_wght.ttf").string();
 
 	// Check if the font file exists
 	if (std::filesystem::exists(fontPath))
