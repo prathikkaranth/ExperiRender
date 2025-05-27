@@ -24,11 +24,23 @@ jobs:
     - name: Install Vulkan SDK and SDL2 (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
+        # Install SDL2 first
+        sudo apt update
+        sudo apt install -y libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
+        
+        # Install Vulkan SDK with dependency resolution
         wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
         sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
         sudo apt update
-        sudo apt install vulkan-sdk
-        sudo apt install libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
+        
+        # Install libyaml-cpp dependency manually
+        sudo apt install -y libyaml-cpp-dev
+        
+        # Try to install vulkan-sdk, if it fails, install essential components only
+        sudo apt install -y vulkan-sdk || {
+          echo "Full vulkan-sdk failed, installing essential components..."
+          sudo apt install -y vulkan-tools libvulkan1 libvulkan-dev vulkan-validationlayers-dev spirv-tools
+        }
     
     - name: Install Vulkan SDK (macOS)
       if: matrix.os == 'macos-latest'
