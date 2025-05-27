@@ -21,6 +21,12 @@ jobs:
         sudo apt update
         sudo apt install -y vulkan-sdk
 
+    - name: Install libyaml-cpp0.7
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt update
+        sudo apt install -y libyaml-cpp0.7
+    
     - name: Install SDL2 and dependencies
       run: |
         sudo apt install -y libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
