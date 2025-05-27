@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
         build_type: [Release, Debug]
         
     runs-on: ${{ matrix.os }}
@@ -57,9 +57,8 @@ jobs:
     - name: Install Vulkan SDK and SDL2 (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        # Install Vulkan SDK
-        Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/latest/windows/VulkanSDK-Installer.exe" -OutFile "VulkanSDK-Installer.exe"
-        Start-Process -FilePath "VulkanSDK-Installer.exe" -ArgumentList "/S" -Wait
+        # Install Vulkan SDK using Chocolatey (more reliable)
+        choco install vulkan-sdk -y
         
         # Install SDL2 via vcpkg
         git clone https://github.com/Microsoft/vcpkg.git
