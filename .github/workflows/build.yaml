@@ -1,0 +1,97 @@
+name: Build
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Release, Debug]
+        
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Vulkan SDK and SDL2 (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+        sudo apt update
+        sudo apt install vulkan-sdk
+        sudo apt install libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
+    
+    - name: Install Vulkan SDK (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake ninja
+        # Download and install Vulkan SDK
+        curl -L -o vulkansdk.dmg https://sdk.lunarg.com/sdk/download/latest/mac/vulkan-sdk.dmg
+        hdiutil attach vulkansdk.dmg
+        sudo /Volumes/VulkanSDK/InstallVulkan.app/Contents/MacOS/InstallVulkan --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install
+        hdiutil detach /Volumes/VulkanSDK
+        echo "VULKAN_SDK=$HOME/VulkanSDK/macOS" >> $GITHUB_ENV
+        echo "$HOME/VulkanSDK/macOS/bin" >> $GITHUB_PATH
+    
+    - name: Install Vulkan SDK and SDL2 (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Install Vulkan SDK
+        Invoke-WebRequest -Uri "https://sdk.lunarg.com/sdk/download/latest/windows/VulkanSDK-Installer.exe" -OutFile "VulkanSDK-Installer.exe"
+        Start-Process -FilePath "VulkanSDK-Installer.exe" -ArgumentList "/S" -Wait
+        
+        # Install SDL2 via vcpkg
+        git clone https://github.com/Microsoft/vcpkg.git
+        .\vcpkg\bootstrap-vcpkg.bat
+        .\vcpkg\vcpkg install sdl2:x64-windows sdl2-image:x64-windows
+        
+        # Set environment variables
+        echo "VULKAN_SDK=C:\VulkanSDK" | Out-File -FilePath $env:GITHUB_ENV -Append
+        echo "C:\VulkanSDK\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        echo "CMAKE_TOOLCHAIN_FILE=$PWD\vcpkg\scripts\buildsystems\vcpkg.cmake" | Out-File -FilePath $env:GITHUB_ENV -Append
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE
+        else
+          cmake ..
+        fi
+      shell: bash
+    
+    - name: Build
+      run: |
+        cd build
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          cmake --build . --config ${{ matrix.build_type }}
+        else
+          make
+        fi
+      shell: bash
+    
+    - name: Test
+      working-directory: build
+      run: ctest --output-on-failure --parallel
+      continue-on-error: true
+    
+    - name: Upload build artifacts
+      if: matrix.build_type == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: renderer-${{ matrix.os }}
+        path: |
+          build/bin/
+          build/*.exe
+          build/Release/
+        retention-days: 7
