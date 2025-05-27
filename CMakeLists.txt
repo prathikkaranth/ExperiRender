@@ -88,6 +88,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(spdlog)
 
+# GTest
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        v1.15.2
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
 # IMGUI - Platform-specific setup
 set(IMGUI_VERSION 1.91.8)
 FetchContent_Declare (
@@ -162,40 +172,48 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPV_OUTPUTS})
 # SubFolders
 add_subdirectory(VkRenderer/Scene)
 
-# source and headers
+# Create a library from renderer code (for testing)
 file(GLOB CPP_SRC
         "VkRenderer/*.cpp"
         )
 file(GLOB_RECURSE HEADERS "VkRenderer/*.h")
 
-# Platform-specific executable setup
+# Remove main.cpp from library sources if it exists
+list(FILTER CPP_SRC EXCLUDE REGEX ".*main\\.cpp$")
+
+# Create renderer library
+add_library(RendererLib STATIC ${CPP_SRC} ${HEADERS})
+
+# Platform-specific include directories for library
 if(WIN32)
-    add_executable(Renderer ${CPP_SRC} ${HEADERS} ${SDL2_LIBRARY})
+    target_include_directories(RendererLib PUBLIC VkRenderer/)
 else()
-    add_executable(Renderer ${CPP_SRC} ${HEADERS})
+    target_include_directories(RendererLib PUBLIC VkRenderer/ ${SDL2_INCLUDE_DIRS})
 endif()
+
+# Platform-specific libraries for renderer library
+if(WIN32)
+    target_link_libraries(RendererLib PUBLIC
+        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene)
+else()
+    target_link_libraries(RendererLib PUBLIC
+        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene)
+    target_link_libraries(RendererLib PUBLIC dl pthread X11)
+endif()
+
+# Main executable
+if(WIN32)
+    add_executable(Renderer VkRenderer/main.cpp ${SDL2_LIBRARY})
+else()
+    add_executable(Renderer VkRenderer/main.cpp)
+endif()
+
+# Link main executable to the library
+target_link_libraries(Renderer PRIVATE RendererLib)
 
 # Ensure the shader compilation runs before building the main target
 add_dependencies(Renderer compile_shaders)
-
-# Platform-specific include directories
-if(WIN32)
-    target_include_directories(Renderer PRIVATE VkRenderer/)
-else()
-    target_include_directories(Renderer PRIVATE VkRenderer/ ${SDL2_INCLUDE_DIRS})
-endif()
-
-# Platform-specific libraries
-if(WIN32)
-    target_link_libraries(Renderer PRIVATE
-        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json)
-else()
-    target_link_libraries(Renderer PRIVATE
-        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json)
-endif()
-
-# Internal Dependencies
-target_link_libraries(Renderer PRIVATE Scene)
+add_dependencies(RendererLib compile_shaders)
 
 # Platform-specific post-build steps
 if(WIN32)
@@ -203,6 +221,10 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/lib/x64/SDL2.dll"
             $<TARGET_FILE_DIR:Renderer>)
-elseif(UNIX AND NOT APPLE)
-    target_link_libraries(Renderer PRIVATE dl pthread X11)
 endif()
+
+# Enable testing
+enable_testing()
+
+# Add tests subdirectory
+add_subdirectory(tests)

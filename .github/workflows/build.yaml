@@ -1,0 +1,33 @@
+name: Linux CMake Build
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Vulkan SDK
+      run: |
+        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+        sudo apt update
+        sudo apt install -y vulkan-sdk
+    
+    - name: Install SDL2 and dependencies
+      run: |
+        sudo apt install -y libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
+
+    - name: Create build directory and run CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make -j$(nproc)
