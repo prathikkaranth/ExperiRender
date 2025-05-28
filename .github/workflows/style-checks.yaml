@@ -14,12 +14,56 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Run clang-format lint
-      uses: DoozyX/clang-format-lint-action@v0.20
-      with:
-        source: '.'
-        exclude: './third_party ./external'
-        extensions: 'h,cpp'
-        clangFormatVersion: 20
-        style: LLVM
-        inplace: false
+    - name: Install clang-format
+      run: |
+        # Install clang-format version 20
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+        sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main"
+        sudo apt-get update
+        sudo apt-get install -y clang-format-20
+        sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
+        
+    - name: Verify clang-format version
+      run: clang-format --version
+      
+    - name: Check clang-format compliance
+      run: |
+        # Find all relevant files, excluding specified directories
+        find . -name "*.h" -o -name "*.cpp" | \
+          grep -v "./third_party" | \
+          grep -v "./external" | \
+          grep -v "./build" > files_to_check.txt
+        
+        if [ ! -s files_to_check.txt ]; then
+          echo "No files to check"
+          exit 0
+        fi
+        
+        echo "Files to check:"
+        cat files_to_check.txt
+        echo ""
+        
+        # Check formatting
+        FORMAT_ISSUES=false
+        while IFS= read -r file; do
+          echo "Checking $file..."
+          if ! clang-format --style=llvm --dry-run --Werror "$file" 2>/dev/null; then
+            echo "❌ $file is not properly formatted (LLVM style)"
+            echo "To fix: clang-format --style=llvm -i $file"
+            echo ""
+            FORMAT_ISSUES=true
+          else
+            echo "✅ $file is properly formatted"
+          fi
+        done < files_to_check.txt
+        
+        if [ "$FORMAT_ISSUES" = true ]; then
+          echo ""
+          echo "❌ Some files are not properly formatted."
+          echo "Run the following command to fix all issues:"
+          echo "find . -name '*.h' -o -name '*.cpp' | grep -v './third_party' | grep -v './external' | xargs clang-format --style=llvm -i"
+          exit 1
+        else
+          echo ""
+          echo "✅ All files are properly formatted!"
+        fi
