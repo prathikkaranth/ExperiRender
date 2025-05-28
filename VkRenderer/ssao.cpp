@@ -146,13 +146,7 @@ float ssaoLerp(float a, float b, float f)
 	return a + f * (b - a);
 }
 
-void ssao::init_ssao_data(VulkanEngine* engine) {
-	// SSAO data - Sponza scene
-	// ----------------------
-	ssaoData.kernelSize = 128;
-	ssaoData.radius = 0.721f;
-	ssaoData.bias = 0.023f;
-	ssaoData.intensity = 0.713f;
+std::vector<glm::vec3> ssao::generate_ssao_kernels() {
 
 	// generate sample kernel
 	// ----------------------
@@ -173,8 +167,21 @@ void ssao::init_ssao_data(VulkanEngine* engine) {
 		ssaoKernel.push_back(sample);
 	}
 
+	return ssaoKernel;
+}
+
+void ssao::init_ssao_data(VulkanEngine* engine) {
+	// SSAO data - Sponza scene
+	// ----------------------
+	ssaoData.kernelSize = 128;
+	ssaoData.radius = 0.721f;
+	ssaoData.bias = 0.023f;
+	ssaoData.intensity = 0.713f;
+
 	// generate noise texture
 	// ----------------------
+	std::default_random_engine generator(42);  // Fixed seed
+	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
 	std::vector<glm::vec4> ssaoNoise;
 	for (unsigned int i = 0; i < 16; i++)
 	{
@@ -185,6 +192,7 @@ void ssao::init_ssao_data(VulkanEngine* engine) {
 	_ssaoNoiseImage = vkutil::create_image(engine, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT);
 	vmaSetAllocationName(engine->_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
 
+	std::vector<glm::vec3> ssaoKernel = generate_ssao_kernels();
 	for (int i = 0; i < 128; i++) {
 		ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
 	}
