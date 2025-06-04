@@ -41,6 +41,7 @@ public:
 
 	// SSAO
 	std::vector<glm::vec3> generate_ssao_kernels();
+    float ssaoLerp(float a, float b, float f);
 	void init_ssao_data(VulkanEngine* engine);
 	void init_ssao(VulkanEngine* engine);
 	void init_ssao_blur(VulkanEngine* engine);
