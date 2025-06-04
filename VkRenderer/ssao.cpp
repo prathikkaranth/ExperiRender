@@ -141,7 +141,7 @@ void ssao::init_ssao_blur(VulkanEngine* engine) {
 		});
 }
 
-float ssaoLerp(float a, float b, float f)
+float ssao::ssaoLerp(float a, float b, float f)
 {
 	return a + f * (b - a);
 }

@@ -21,6 +21,14 @@ protected:
     ssao ssaoCaller; 
 };
 
+TEST_F(SSAOTest, SsaoLerp) {
+    float a = 0.0f;
+	float b = 1.0f;
+	float f = 0.5f;
+	float result = ssaoCaller.ssaoLerp(a, b, f);
+	EXPECT_FLOAT_EQ(result, 0.5f) << "Lerp result is not as expected: " << result;
+}
+
 TEST_F(SSAOTest, KernelSizeTest) {
     auto kernel = ssaoCaller.generate_ssao_kernels();
     EXPECT_EQ(kernel.size(), 64);
