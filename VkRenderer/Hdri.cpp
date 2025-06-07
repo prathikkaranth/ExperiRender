@@ -181,7 +181,7 @@ void HDRI::draw_hdriMap(VulkanEngine* engine, VkCommandBuffer cmd) {
 	depthAttachment.clearValue = depthClear;
 	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_windowExtent, nullptr/*color attachments*/, &depthAttachment);
 	renderInfo.pColorAttachments = colorAttachments.data();
-	renderInfo.colorAttachmentCount = colorAttachments.size();
+	renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
 
 	vkCmdBeginRendering(cmd, &renderInfo);
 

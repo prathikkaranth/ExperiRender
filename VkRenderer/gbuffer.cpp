@@ -108,7 +108,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine* engine, VkCommandBuffer cmd) {
 	};
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_drawExtent, nullptr/*color attachments*/, &depthAttachment);
-	renderInfo.colorAttachmentCount = colorAttachments.size();
+	renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
 	renderInfo.pColorAttachments = colorAttachments.data();
 
 	vkCmdBeginRendering(cmd, &renderInfo);
