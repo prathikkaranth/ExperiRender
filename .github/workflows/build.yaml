@@ -54,9 +54,9 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: renderer-tests
-        path: ./tests
+        path: ./RendererTests
 
     - name: Run RendererTests
       run: |
         chmod +x ./tests/RendererTests
-        ./tests/RendererTests
+        ./RendererTests
