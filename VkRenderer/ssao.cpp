@@ -151,7 +151,7 @@ std::vector<glm::vec3> ssao::generate_ssao_kernels() {
 	// generate sample kernel
 	// ----------------------
 	// Use a fixed seed for reproducible results
-	std::default_random_engine generator(42);  // Fixed seed
+	std::mt19937 generator(42);   // Fixed seed
 	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
 	std::vector<glm::vec3> ssaoKernel;
 	for (unsigned int i = 0; i < ssaoData.kernelSize; ++i)
@@ -180,7 +180,7 @@ void ssao::init_ssao_data(VulkanEngine* engine) {
 
 	// generate noise texture
 	// ----------------------
-	std::default_random_engine generator(42);  // Fixed seed
+	std::mt19937 generator(42);  // Fixed seed
 	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
 	std::vector<glm::vec4> ssaoNoise;
 	for (unsigned int i = 0; i < 16; i++)
