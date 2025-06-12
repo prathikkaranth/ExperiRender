@@ -64,7 +64,7 @@ jobs:
     - name: Download RendererTests artifact
       uses: actions/download-artifact@v4
       with:
-        name: renderer-tests
+        name: build-artifact
         path: ./
 
     - name: Run RendererTests
