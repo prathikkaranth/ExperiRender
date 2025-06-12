@@ -32,6 +32,10 @@ jobs:
         cmake .. -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc)
 
+    - name: List build directory contents
+      run: |
+        ls -R build
+
     - name: Upload RendererTests binary
       uses: actions/upload-artifact@v4
       with:
