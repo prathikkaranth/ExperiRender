@@ -34,7 +34,7 @@ jobs:
 
     - name: List build directory contents
       run: |
-        ls -R build
+        ls -l ./tests
 
     - name: Upload RendererTests binary
       uses: actions/upload-artifact@v4
