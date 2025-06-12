@@ -36,11 +36,11 @@ jobs:
       run: |
         ls -l ./tests
 
-    - name: Upload RendererTests binary
+    - name: Upload entire build directory
       uses: actions/upload-artifact@v4
       with:
-        name: renderer-tests
-        path: build/RendererTests 
+        name: build-artifact
+        path: build/
   
   test-linux:
     needs: build-linux
@@ -50,13 +50,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Download RendererTests artifact
+    - name: Download full build artifact
       uses: actions/download-artifact@v4
       with:
-        name: renderer-tests
-        path: ./RendererTests
+        name: build-artifact
+        path: ./build
 
     - name: Run RendererTests
       run: |
-        chmod +x ./tests/RendererTests
-        ./RendererTests
+        chmod +x ./build/RendererTests
+        ./build/RendererTests
