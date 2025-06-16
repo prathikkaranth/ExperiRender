@@ -38,18 +38,18 @@ void Camera::processSDLEvent(SDL_Event& e)
 
 
     if (e.type == SDL_KEYDOWN && fpsCameraEnabled) {
-        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.03; }
-        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.03; }
-        if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.03; }
-        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.03; }
+        if (e.key.keysym.sym == SDLK_w) { velocity.z = -0.03f; }
+        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.03f; }
+        if (e.key.keysym.sym == SDLK_a) { velocity.x = -0.03f; }
+        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.03f; }
 
     }
 
     if (e.type == SDL_KEYUP && fpsCameraEnabled) {
-        if (e.key.keysym.sym == SDLK_w) { velocity.z = 0; }
-        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0; }
-        if (e.key.keysym.sym == SDLK_a) { velocity.x = 0; }
-        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0; }
+        if (e.key.keysym.sym == SDLK_w) { velocity.z = 0.f; }
+        if (e.key.keysym.sym == SDLK_s) { velocity.z = 0.f; }
+        if (e.key.keysym.sym == SDLK_a) { velocity.x = 0.f; }
+        if (e.key.keysym.sym == SDLK_d) { velocity.x = 0.f; }
     }
 
     if (e.type == SDL_MOUSEMOTION && fpsCameraEnabled) {
