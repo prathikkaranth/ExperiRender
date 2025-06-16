@@ -92,10 +92,10 @@ VkPipeline PipelineBuilder::build_pipeline(VkDevice device)
     colorBlending.pNext = nullptr;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = _colorBlendAttachments.size();
+    colorBlending.attachmentCount = static_cast<uint32_t>(_colorBlendAttachments.size());
     colorBlending.pAttachments = _colorBlendAttachments.data();
 
-    _renderInfo.colorAttachmentCount = _colorAttachmentFormats.size();
+    _renderInfo.colorAttachmentCount = static_cast<uint32_t>(_colorAttachmentFormats.size());
     _renderInfo.pColorAttachmentFormats = _colorAttachmentFormats.data();
 
     //completely clear VertexInputStateCreateInfo, as we have no need for it

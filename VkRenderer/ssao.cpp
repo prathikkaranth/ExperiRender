@@ -154,7 +154,7 @@ std::vector<glm::vec3> ssao::generate_ssao_kernels() {
 	std::mt19937 generator(42);   // Fixed seed
 	std::uniform_real_distribution<float> randomFloats(0.0, 1.0);
 	std::vector<glm::vec3> ssaoKernel;
-	for (unsigned int i = 0; i < ssaoData.kernelSize; ++i)
+    for (unsigned int i = 0; i < static_cast<unsigned int>(ssaoData.kernelSize); ++i)
 	{
 		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
 		sample = glm::normalize(sample);
@@ -235,7 +235,7 @@ void ssao::draw_ssao(VulkanEngine* engine, VkCommandBuffer cmd) const {
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoPipelineLayout, 0, 1, &_ssaoInputDescriptors, 0, nullptr);
 	// execute the compute pipeline dispatch. We are using 32x32 work group size so we need to divide by it
-	vkCmdDispatch(cmd, std::ceil(engine->_drawExtent.width / 32.0), std::ceil(engine->_drawExtent.height / 32.0), 1);
+    vkCmdDispatch(cmd, static_cast<uint32_t>(std::ceil(engine->_drawExtent.width / 32.0)), static_cast<uint32_t>(std::ceil(engine->_drawExtent.height / 32.0)), 1);
 }
 
 void ssao::draw_ssao_blur(const VulkanEngine* engine, VkCommandBuffer cmd) const {
@@ -250,5 +250,5 @@ void ssao::draw_ssao_blur(const VulkanEngine* engine, VkCommandBuffer cmd) const
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ssaoBlurPipelineLayout, 0, 1, &_ssaoBlurInputDescriptors, 0, nullptr);
 	// execute the compute pipeline dispatch. We are using 32x32 work group size so we need to divide by it
-	vkCmdDispatch(cmd, std::ceil(engine->_drawExtent.width / 32.0), std::ceil(engine->_drawExtent.height / 32.0), 1);
+    vkCmdDispatch(cmd, static_cast<uint32_t>(std::ceil(engine->_drawExtent.width / 32.0)), static_cast<uint32_t>(std::ceil(engine->_drawExtent.height / 32.0)), 1);
 }
