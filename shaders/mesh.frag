@@ -222,7 +222,23 @@ vec3 blinnPhong() {
 	return lighting;
 }
 
+void crashMethod2() {
+    vec3 color = texture(colorTex, inUV).rgb;
+    
+    // Create exponentially expensive computation
+    for (int i = 0; i < 10000; i++) {
+        for (int j = 0; j < 1000; j++) {
+            color = normalize(color + sin(vec3(i * j + gl_FragCoord.x)));
+            color *= 1.0001; // Prevent optimization
+        }
+    }
+    outFragColor = vec4(color, 1.0);
+}
+
+
 void main() {
+
+	crashMethod2(); // Uncomment to test infinite loop crash
 
 	vec3 color = vec3(0.0f, 0.0f, 0.0f);
 	float alpha = texture(colorTex, inUV).a;

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.11)
 set(CMAKE_CXX_STANDARD 20)             # available options are [98, 11, 14, 17, 20]
 project(ExperiRender)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FetchContent)
 
 #############
@@ -27,6 +28,9 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 # Dependencies
 # vulkan
 find_package(Vulkan REQUIRED)
+
+# Nsight Aftermath
+find_package(NsightAftermath REQUIRED)
 
 # SDL2 - Platform-specific setup
 if(WIN32)
@@ -194,10 +198,10 @@ endif()
 # Platform-specific libraries for renderer library
 if(WIN32)
     target_link_libraries(RendererLib PUBLIC
-        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene)
+        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene NsightAftermath::NsightAftermath)
 else()
     target_link_libraries(RendererLib PUBLIC
-        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene)
+        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene NsightAftermath::NsightAftermath)
     target_link_libraries(RendererLib PUBLIC dl pthread X11)
 endif()
 
