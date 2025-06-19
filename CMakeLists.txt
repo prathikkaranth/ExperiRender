@@ -4,6 +4,9 @@ project(ExperiRender)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FetchContent)
 
+# Option to enable warnings as errors (default OFF)
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+
 #############
 # Platform-specific build options
 if(WIN32)
@@ -15,6 +18,25 @@ elseif(UNIX AND NOT APPLE)
     
     # Find glslc from Linux Vulkan SDK
     find_program(GLSLC_PATH glslc REQUIRED)
+endif()
+
+# Configure warnings and optionally treat them as errors
+if(MSVC)
+    if(WARNINGS_AS_ERRORS)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX")
+        message(STATUS "MSVC: Warnings as errors enabled")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+        message(STATUS "MSVC: High warning level enabled, warnings as errors disabled")
+    endif()
+else()
+    if(WARNINGS_AS_ERRORS)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
+        message(STATUS "GCC/Clang: Warnings as errors enabled")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+        message(STATUS "GCC/Clang: High warning level enabled, warnings as errors disabled")
+    endif()
 endif()
 
 # Common output directories

@@ -55,8 +55,8 @@ void VulkanEngine::init()
 	/*mainCamera.position = glm::vec3(30.f, -00.f, -085.f);*/
 	mainCamera.position = glm::vec3(7.186001f, 0.995692f, -1.103689f);
 
-	mainCamera.pitch = 0.135;
-	mainCamera.yaw = -1.939;
+	mainCamera.pitch = 0.135f;
+	mainCamera.yaw = -1.939f;
 
 	init_vulkan();
 
@@ -380,7 +380,7 @@ void VulkanEngine::draw()
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
 	// Check if raytracer is enabled
-	bool useRaytracer = (postProcessor._compositorData.useRayTracer == 1);
+	useRaytracer = (postProcessor._compositorData.useRayTracer == 1);
 
 	// Always prepare the raytracer output image for either pathway
 	vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -946,7 +946,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd)
 	};
 
 	VkRenderingInfo renderInfo = vkinit::rendering_info(_drawExtent, nullptr/*color attachments*/, &depthAttachment);
-	renderInfo.colorAttachmentCount = colorAttachments.size();
+	renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
 	renderInfo.pColorAttachments = colorAttachments.data();
 
 	vkCmdBeginRendering(cmd, &renderInfo);
