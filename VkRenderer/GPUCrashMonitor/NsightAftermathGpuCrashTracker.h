@@ -24,6 +24,8 @@
 
 #pragma once
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+
 #include <map>
 #include <mutex>
 
@@ -164,3 +166,5 @@ private:
     // App-managed marker tracking
     const MarkerMap& m_markerMap;
 };
+
+#endif // !NSIGHT_AFTERMATH_ENABLED

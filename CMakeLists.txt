@@ -4,7 +4,8 @@ project(ExperiRender)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FetchContent)
 
-# Option to enable warnings as errors (default OFF)
+# Options
+option(ENABLE_NSIGHT_AFTERMATH "Enable Nsight Aftermath crash debugging integration" OFF)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 #############
@@ -52,7 +53,13 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 find_package(Vulkan REQUIRED)
 
 # Nsight Aftermath
-find_package(NsightAftermath REQUIRED)
+if(ENABLE_NSIGHT_AFTERMATH)
+    find_package(NsightAftermath REQUIRED)
+    add_compile_definitions(NSIGHT_AFTERMATH_ENABLED)
+    message(STATUS "Nsight Aftermath is enabled")
+else()
+    message(STATUS "Nsight Aftermath is disabled")
+endif()
 
 # SDL2 - Platform-specific setup
 if(WIN32)
@@ -198,6 +205,11 @@ add_custom_target(compile_shaders ALL DEPENDS ${SPV_OUTPUTS})
 # SubFolders
 add_subdirectory(VkRenderer/Scene)
 
+# GPU Crash Monitor - Conditional compilation based on Nsight Aftermath
+if(ENABLE_NSIGHT_AFTERMATH)
+    add_subdirectory(VkRenderer/GPUCrashMonitor)
+endif()
+
 # Create a library from renderer code (for testing)
 file(GLOB CPP_SRC
         "VkRenderer/*.cpp"
@@ -217,14 +229,40 @@ else()
     target_include_directories(RendererLib PUBLIC VkRenderer/ ${SDL2_INCLUDE_DIRS})
 endif()
 
+# Base libraries for renderer library
+set(RENDERER_BASE_LIBS
+    glm::glm 
+    Vulkan::Vulkan 
+    vk-bootstrap::vk-bootstrap 
+    VulkanMemoryAllocator 
+    imgui 
+    fastgltf 
+    spdlog::spdlog 
+    stb 
+    nlohmann_json::nlohmann_json 
+    Scene
+)
+
 # Platform-specific libraries for renderer library
 if(WIN32)
     target_link_libraries(RendererLib PUBLIC
-        glm::glm Vulkan::Vulkan SDL2::SDL2 SDL2::SDL2main vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene NsightAftermath::NsightAftermath)
+        ${RENDERER_BASE_LIBS}
+        SDL2::SDL2 
+        SDL2::SDL2main
+    )
 else()
     target_link_libraries(RendererLib PUBLIC
-        glm::glm Vulkan::Vulkan ${SDL2_LIBRARIES} vk-bootstrap::vk-bootstrap VulkanMemoryAllocator imgui fastgltf spdlog::spdlog stb nlohmann_json::nlohmann_json Scene NsightAftermath::NsightAftermath)
-    target_link_libraries(RendererLib PUBLIC dl pthread X11)
+        ${RENDERER_BASE_LIBS}
+        ${SDL2_LIBRARIES}
+        dl 
+        pthread 
+        X11
+    )
+endif()
+
+# Conditionally link GPU Crash Monitor
+if(ENABLE_NSIGHT_AFTERMATH)
+    target_link_libraries(RendererLib PUBLIC GPUCrashMonitor)
 endif()
 
 # Main executable

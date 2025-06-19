@@ -22,6 +22,8 @@
 //
 //*********************************************************
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+
 #include <fstream>
 #include <iomanip>
 #include <string>
@@ -382,3 +384,5 @@ void GpuCrashTracker::ShaderSourceDebugInfoLookupCallback(
     GpuCrashTracker* pGpuCrashTracker = reinterpret_cast<GpuCrashTracker*>(pUserData);
     pGpuCrashTracker->OnShaderSourceDebugInfoLookup(*pShaderDebugName, setShaderBinary);
 }
+
+#endif // !NSIGHT_AFTERMATH_ENABLED

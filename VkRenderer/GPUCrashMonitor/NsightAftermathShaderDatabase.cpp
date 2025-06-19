@@ -22,6 +22,8 @@
 //
 //*********************************************************
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+
 #include <fstream>
 #include <iomanip>
 #include <vulkan/vulkan.h>
@@ -173,3 +175,5 @@ bool ShaderDatabase::FindShaderBinaryWithDebugData(const GFSDK_Aftermath_ShaderD
     shader = i_shader->second;
     return true;
 }
+
+#endif // !NSIGHT_AFTERMATH_ENABLED

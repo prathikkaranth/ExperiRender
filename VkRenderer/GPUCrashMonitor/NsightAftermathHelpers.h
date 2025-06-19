@@ -24,6 +24,8 @@
 
 #pragma once
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+
 #include <iomanip>
 #include <string>
 #include <sstream>
@@ -132,3 +134,6 @@ inline std::string  AftermathErrorMessage(GFSDK_Aftermath_Result result)
     }                                                                                                   \
 }()
 #endif
+
+
+#endif // !NSIGHT_AFTERMATH_ENABLED
