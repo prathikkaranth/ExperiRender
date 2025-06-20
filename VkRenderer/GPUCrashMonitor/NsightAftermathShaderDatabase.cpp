@@ -59,13 +59,13 @@ void ShaderDatabase::Initialize(bool applicationUsesStrippedShaders)
         // crash dump.
 
         // Add the shader binaries to the database
-        AddShaderBinary("cube.vert.spirv");
-        AddShaderBinary("cube.frag.spirv");
+        AddShaderBinary("mesh.vert.spirv");
+        AddShaderBinary("mesh.frag.spirv");
 
         // Add the not stripped shader binaries and the names of the corresponding
         // stripped shader binaries to the database.
-        AddShaderBinaryWithDebugInfo("cube.vert.spirv", "cube.vert.full.spirv");
-        AddShaderBinaryWithDebugInfo("cube.frag.spirv", "cube.frag.full.spirv");
+        AddShaderBinaryWithDebugInfo("mesh.vert.spirv", "mesh.vert.full.spirv");
+        AddShaderBinaryWithDebugInfo("mesh.frag.spirv", "mesh.frag.full.spirv");
     }
     else
     {
@@ -73,8 +73,8 @@ void ShaderDatabase::Initialize(bool applicationUsesStrippedShaders)
         // only those shader binaries need to be registered with the database to allow
         // them to be correlated when decoding a GPU crash dump.
 
-        AddShaderBinary("cube.vert.full.spirv");
-        AddShaderBinary("cube.frag.full.spirv");
+        AddShaderBinary("mesh.vert.full.spirv");
+        AddShaderBinary("mesh.frag.full.spirv");
     }
 }
 

@@ -285,6 +285,15 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/deps/SDL2-2.30.3/lib/x64/SDL2.dll"
             $<TARGET_FILE_DIR:Renderer>)
+    
+    # Copy Nsight Aftermath DLL to output directory if enabled
+    if(ENABLE_NSIGHT_AFTERMATH AND NsightAftermath_FOUND AND NsightAftermath_DLL)
+        add_custom_command(TARGET Renderer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${NsightAftermath_DLL}"
+                $<TARGET_FILE_DIR:Renderer>
+            COMMENT "Copying Nsight Aftermath DLL to output directory")
+    endif()
 endif()
 
 # Enable testing
