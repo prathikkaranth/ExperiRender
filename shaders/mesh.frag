@@ -238,7 +238,7 @@ void crashMethod2() {
 
 void main() {
 
-	crashMethod2(); // Uncomment to test infinite loop crash
+	//crashMethod2(); // Uncomment to test infinite loop crash
 
 	vec3 color = vec3(0.0f, 0.0f, 0.0f);
 	float alpha = texture(colorTex, inUV).a;
