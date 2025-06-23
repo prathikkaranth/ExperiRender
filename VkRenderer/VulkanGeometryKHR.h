@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include "vk_loader.h"
-#include "raytraceKHR_vk.h"
 #include "RenderObject.h"
+#include "raytraceKHR_vk.h"
+#include "vk_loader.h"
 
-namespace experirender::vk
-{
-	nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const RenderObject& mesh);
+namespace experirender::vk {
+    nvvk::RaytracingBuilderKHR::BlasInput objectToVkGeometryKHR(const RenderObject &mesh);
 }

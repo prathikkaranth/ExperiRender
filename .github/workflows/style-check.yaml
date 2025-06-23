@@ -1,0 +1,21 @@
+name: Style Check
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  clang-format-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run clang-format style check
+      uses: jidicula/clang-format-action@v4.15.0
+      with:
+        clang-format-version: '20'
+        check-path: 'VkRenderer tests'
+        fallback-style: 'llvm'
+        exclude-regex: '^\./(build|deps)/.*'

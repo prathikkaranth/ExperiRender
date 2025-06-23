@@ -36,36 +36,35 @@
 // Implements GPU crash dump tracking using the Nsight
 // Aftermath API.
 //
-class GpuCrashTracker
-{
+class GpuCrashTracker {
 public:
     // keep four frames worth of marker history
     const static unsigned int c_markerFrameHistory = 4;
     typedef std::array<std::map<uint64_t, std::string>, c_markerFrameHistory> MarkerMap;
 
-    GpuCrashTracker(const MarkerMap& markerMap);
+    GpuCrashTracker(const MarkerMap &markerMap);
     ~GpuCrashTracker();
 
     // Initialize the GPU crash dump tracker.
     void Initialize(bool applicationUsesStrippedShaders);
 
 private:
-
     //*********************************************************
     // Callback handlers for GPU crash dumps and related data.
     //
 
     // Handler for GPU crash dump callbacks.
-    void OnCrashDump(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize);
+    void OnCrashDump(const void *pGpuCrashDump, const uint32_t gpuCrashDumpSize);
 
     // Handler for shader debug information callbacks.
-    void OnShaderDebugInfo(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize);
+    void OnShaderDebugInfo(const void *pShaderDebugInfo, const uint32_t shaderDebugInfoSize);
 
     // Handler for GPU crash dump description callbacks.
     void OnDescription(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription);
 
     // Handler for app-managed marker resolve callback
-    void OnResolveMarker(const void* pMarkerData, const uint32_t markerDataSize, void** ppResolvedMarkerData, uint32_t* pResolvedMarkerDataSize);
+    void OnResolveMarker(const void *pMarkerData, const uint32_t markerDataSize, void **ppResolvedMarkerData,
+                         uint32_t *pResolvedMarkerDataSize);
 
     //*********************************************************
     // Helpers for writing a GPU crash dump and debug information
@@ -73,79 +72,58 @@ private:
     //
 
     // Helper for writing a GPU crash dump to a file.
-    void WriteGpuCrashDumpToFile(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize);
+    void WriteGpuCrashDumpToFile(const void *pGpuCrashDump, const uint32_t gpuCrashDumpSize);
 
     // Helper for writing shader debug information to a file
-    void WriteShaderDebugInformationToFile(
-        GFSDK_Aftermath_ShaderDebugInfoIdentifier identifier,
-        const void* pShaderDebugInfo,
-        const uint32_t shaderDebugInfoSize);
+    void WriteShaderDebugInformationToFile(GFSDK_Aftermath_ShaderDebugInfoIdentifier identifier,
+                                           const void *pShaderDebugInfo, const uint32_t shaderDebugInfoSize);
 
     //*********************************************************
     // Helpers for decoding GPU crash dump to JSON.
     //
 
     // Handler for shader debug info lookup callbacks.
-    void OnShaderDebugInfoLookup(
-        const GFSDK_Aftermath_ShaderDebugInfoIdentifier& identifier,
-        PFN_GFSDK_Aftermath_SetData setShaderDebugInfo) const;
+    void OnShaderDebugInfoLookup(const GFSDK_Aftermath_ShaderDebugInfoIdentifier &identifier,
+                                 PFN_GFSDK_Aftermath_SetData setShaderDebugInfo) const;
 
     // Handler for shader lookup callbacks.
-    void OnShaderLookup(
-        const GFSDK_Aftermath_ShaderBinaryHash& shaderHash,
-        PFN_GFSDK_Aftermath_SetData setShaderBinary) const;
+    void OnShaderLookup(const GFSDK_Aftermath_ShaderBinaryHash &shaderHash,
+                        PFN_GFSDK_Aftermath_SetData setShaderBinary) const;
 
     // Handler for shader source debug info lookup callbacks.
-    void OnShaderSourceDebugInfoLookup(
-        const GFSDK_Aftermath_ShaderDebugName& shaderDebugName,
-        PFN_GFSDK_Aftermath_SetData setShaderBinary) const;
+    void OnShaderSourceDebugInfoLookup(const GFSDK_Aftermath_ShaderDebugName &shaderDebugName,
+                                       PFN_GFSDK_Aftermath_SetData setShaderBinary) const;
 
     //*********************************************************
     // Static callback wrappers.
     //
 
     // GPU crash dump callback.
-    static void GpuCrashDumpCallback(
-        const void* pGpuCrashDump,
-        const uint32_t gpuCrashDumpSize,
-        void* pUserData);
+    static void GpuCrashDumpCallback(const void *pGpuCrashDump, const uint32_t gpuCrashDumpSize, void *pUserData);
 
     // Shader debug information callback.
-    static void ShaderDebugInfoCallback(
-        const void* pShaderDebugInfo,
-        const uint32_t shaderDebugInfoSize,
-        void* pUserData);
+    static void ShaderDebugInfoCallback(const void *pShaderDebugInfo, const uint32_t shaderDebugInfoSize,
+                                        void *pUserData);
 
     // GPU crash dump description callback.
-    static void CrashDumpDescriptionCallback(
-        PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription,
-        void* pUserData);
+    static void CrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription,
+                                             void *pUserData);
 
     // App-managed marker resolve callback
-    static void ResolveMarkerCallback(
-        const void* pMarkerData,
-        const uint32_t markerDataSize,
-        void* pUserData,
-        void** ppResolvedMarkerData,
-        uint32_t* pResolvedMarkerDataSize);
+    static void ResolveMarkerCallback(const void *pMarkerData, const uint32_t markerDataSize, void *pUserData,
+                                      void **ppResolvedMarkerData, uint32_t *pResolvedMarkerDataSize);
 
     // Shader debug information lookup callback.
-    static void ShaderDebugInfoLookupCallback(
-        const GFSDK_Aftermath_ShaderDebugInfoIdentifier* pIdentifier,
-        PFN_GFSDK_Aftermath_SetData setShaderDebugInfo,
-        void* pUserData);
+    static void ShaderDebugInfoLookupCallback(const GFSDK_Aftermath_ShaderDebugInfoIdentifier *pIdentifier,
+                                              PFN_GFSDK_Aftermath_SetData setShaderDebugInfo, void *pUserData);
 
     // Shader lookup callback.
-    static void ShaderLookupCallback(
-        const GFSDK_Aftermath_ShaderBinaryHash* pShaderHash,
-        PFN_GFSDK_Aftermath_SetData setShaderBinary,
-        void* pUserData);
+    static void ShaderLookupCallback(const GFSDK_Aftermath_ShaderBinaryHash *pShaderHash,
+                                     PFN_GFSDK_Aftermath_SetData setShaderBinary, void *pUserData);
 
     // Shader source debug info lookup callback.
-    static void ShaderSourceDebugInfoLookupCallback(
-        const GFSDK_Aftermath_ShaderDebugName* pShaderDebugName,
-        PFN_GFSDK_Aftermath_SetData setShaderBinary,
-        void* pUserData);
+    static void ShaderSourceDebugInfoLookupCallback(const GFSDK_Aftermath_ShaderDebugName *pShaderDebugName,
+                                                    PFN_GFSDK_Aftermath_SetData setShaderBinary, void *pUserData);
 
     //*********************************************************
     // GPU crash tracker state.
@@ -164,7 +142,7 @@ private:
     ShaderDatabase m_shaderDatabase;
 
     // App-managed marker tracking
-    const MarkerMap& m_markerMap;
+    const MarkerMap &m_markerMap;
 };
 
 #endif // !NSIGHT_AFTERMATH_ENABLED

@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <vector>
+#include <gtest/gtest.h>
 #include <span>
+#include <vector>
 
 #include "vk_engine.h"
 
