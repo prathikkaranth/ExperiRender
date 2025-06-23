@@ -6,19 +6,14 @@ on:
 
 jobs:
   clang-format-check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install clang-format
-      run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-        tar -xf clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-        sudo cp clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04/bin/clang-format /usr/local/bin/
-        clang-format --version
-
-    - name: Check clang-format
-      run: |
-        find VkRenderer/ tests/ -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format --dry-run --Werror
+    - name: Run clang-format style check
+      uses: jidicula/clang-format-action@v4.13.0
+      with:
+        clang-format-version: '20'
+        check-path: 'VkRenderer tests'
