@@ -14,8 +14,10 @@ jobs:
 
     - name: Install clang-format
       run: |
-        sudo apt update
-        sudo apt install -y clang-format
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.0/clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+        tar -xf clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+        sudo cp clang+llvm-20.1.0-x86_64-linux-gnu-ubuntu-22.04/bin/clang-format /usr/local/bin/
+        clang-format --version
 
     - name: Check clang-format
       run: |
