@@ -1,13 +1,13 @@
 #include <glm/glm.hpp>
-#include<gtest/gtest.h>
+#include <gtest/gtest.h>
 #include <vector>
 #include "ssao.h"
 
 class SSAOTest : public ::testing::Test {
 public:
-SSAOTest() = default;
+    SSAOTest() = default;
 
-~SSAOTest() = default;
+    ~SSAOTest() = default;
 
     void SetUp() override { ssaoCaller.ssaoData.kernelSize = 64; }
 
