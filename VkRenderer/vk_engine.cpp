@@ -1,6 +1,12 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE 1
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+#include "NsightAftermathGpuCrashTracker.h"
+#include "NsightAftermathHelpers.h"
+#include "NsightAftermathShaderDatabase.h"
+#endif
+
 #include "vk_engine.h"
 #include "vk_loader.h"
 
@@ -592,6 +598,13 @@ void VulkanEngine::run()
 }
 
 void VulkanEngine::init_vulkan() {
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+	GpuCrashTracker::MarkerMap markerMap;
+    GpuCrashTracker gpuCrashTracker(markerMap);
+    gpuCrashTracker.Initialize(false);
+#endif
+
     vkb::InstanceBuilder builder;
 
     auto inst_ret = builder.set_app_name("ExperiRender")
@@ -667,6 +680,12 @@ void VulkanEngine::init_vulkan() {
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
     };
 
+	// Define diagnostic extensions
+    const std::vector<const char *> diagnostic_extensions{
+		VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME,
+        VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME,
+	};
+
     vkb::PhysicalDevice physicalDevice;
 
     if (foundRTXGPU) {
@@ -685,6 +704,14 @@ void VulkanEngine::init_vulkan() {
         rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
         rayQueryFeatures.rayQuery = VK_TRUE;
 
+		VkDeviceDiagnosticsConfigCreateInfoNV diagnosticsConfig = {};
+        diagnosticsConfig.sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV;
+        diagnosticsConfig.flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV |
+                                  VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_RESOURCE_TRACKING_BIT_NV |
+                                  VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV;
+        diagnosticsConfig.pNext = nullptr;
+        
+
         // Try to select the RTX GPU with raytracing features
         try {
             vkb::PhysicalDeviceSelector rtxSelector{ vkb_inst };
@@ -695,9 +722,11 @@ void VulkanEngine::init_vulkan() {
                 .set_surface(_surface)
                 .set_name(rtxGpuName)  // Specifically select our RTX GPU by name
                 .add_required_extensions(raytracing_extensions)
+                .add_required_extensions(diagnostic_extensions)
                 .add_required_extension_features(accelerationStructureFeatures)
                 .add_required_extension_features(raytracingPipelineFeatures)
                 .add_required_extension_features(rayQueryFeatures)
+                .add_required_extension_features(diagnosticsConfig)
                 .set_required_features(deviceFeatures)
                 .select()
                 .value();
