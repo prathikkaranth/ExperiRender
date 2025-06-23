@@ -5,9 +5,9 @@
 
 class SSAOTest : public ::testing::Test {
 public:
-    SSAOTest() = default;
+SSAOTest() = default;
 
-    ~SSAOTest() = default;
+~SSAOTest() = default;
 
     void SetUp() override { ssaoCaller.ssaoData.kernelSize = 64; }
 
