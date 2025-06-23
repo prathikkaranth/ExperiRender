@@ -220,6 +220,9 @@ public:
     // run main loop
     void run();
 
+    // dynamic scene loading
+    void load_scene_from_file(const std::string& filePath);
+
     bool resize_requested{false};
     bool drawGBufferPositions{false};
 

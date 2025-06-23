@@ -33,6 +33,7 @@ public:
     void createBottomLevelAS(const VulkanEngine *engine) const;
     void createTopLevelAS(const VulkanEngine *engine) const;
     void createRtDescriptorSet(VulkanEngine *engine);
+    void createRtOutputImageOnly(VulkanEngine *engine);
     void updateRtDescriptorSet(const VulkanEngine *engine) const;
     void createRtPipeline(VulkanEngine *engine);
     void createRtShaderBindingTable(VulkanEngine *engine);
@@ -66,7 +67,7 @@ public:
     std::vector<AllocatedImage> loadedNormTextures;
     std::vector<AllocatedImage> loadedMetalRoughTextures;
 
-    AllocatedBuffer m_rtSBTBuffer;
+    AllocatedBuffer m_rtSBTBuffer{};
     VkStridedDeviceAddressRegionKHR m_rgenRegion{};
     VkStridedDeviceAddressRegionKHR m_missRegion{};
     VkStridedDeviceAddressRegionKHR m_hitRegion{};
@@ -84,4 +85,7 @@ public:
     std::uint32_t prevMaxDepth;
     int prevLightType;
     glm::vec4 prevSunDir;
+    
+    // Cleanup tracking
+    bool m_cleanupRegistered = false;
 };

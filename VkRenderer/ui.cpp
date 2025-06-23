@@ -185,6 +185,19 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
     constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
     ImGui::Begin("Settings", nullptr, window_flags);
 
+    // Scene Information section
+    if (ImGui::CollapsingHeader("Scene Information", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (engine->loadedScenes.empty()) {
+            ImGui::Text("No scene loaded");
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Drag and drop a .gltf or .glb file to load a scene");
+        } else {
+            ImGui::Text("Loaded scenes:");
+            for (const auto& [name, scene] : engine->loadedScenes) {
+                ImGui::BulletText("%s", name.c_str());
+            }
+        }
+    }
+
     ImGui::Checkbox(
         "Ray Tracer mode",
         reinterpret_cast<bool *>(&engine->postProcessor._compositorData)); // Switch between raster and ray tracing
