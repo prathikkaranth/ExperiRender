@@ -1,11 +1,11 @@
 #pragma once
 
-#include <vk_types.h>
-#include <vk_descriptors.h>
 #include <optional>
+#include <vk_descriptors.h>
+#include <vk_types.h>
 
-#include <unordered_map>
 #include <filesystem>
+#include <unordered_map>
 
 
 struct GLTFMaterial {
@@ -13,9 +13,9 @@ struct GLTFMaterial {
 };
 
 struct Bounds {
-	glm::vec3 origin;
-	float sphereRadius;
-	glm::vec3 extents;
+    glm::vec3 origin;
+    float sphereRadius;
+    glm::vec3 extents;
 };
 
 struct GeoSurface {
@@ -36,7 +36,7 @@ struct MeshAsset {
 };
 
 
-//forward declaration
+// forward declaration
 class VulkanEngine;
 
 struct LoadedGLTF : public IRenderable {
@@ -56,19 +56,19 @@ struct LoadedGLTF : public IRenderable {
 
     AllocatedBuffer materialDataBuffer;
 
-    VulkanEngine* creator;
+    VulkanEngine *creator;
 
     ~LoadedGLTF() { clearAll(); };
 
-    virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx);
+    virtual void Draw(const glm::mat4 &topMatrix, DrawContext &ctx);
 
-    void translateLoadedScene(glm::vec3 translation, DrawContext& ctx);
+    void translateLoadedScene(glm::vec3 translation, DrawContext &ctx);
 
 private:
-
     void clearAll();
 };
 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(VulkanEngine* engine, std::filesystem::path filePath);
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> loadGltfMeshes(VulkanEngine *engine,
+                                                                      std::filesystem::path filePath);
 
-std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::string_view filePath);
+std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::string_view filePath);

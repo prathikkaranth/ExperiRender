@@ -1,8 +1,8 @@
 // SceneDesc.h
 #pragma once
 
-#include <nlohmann/json.hpp>
 #include <glm/glm.hpp>
+#include <nlohmann/json.hpp>
 #include <string>
 
 #include "glm/fwd.hpp"
@@ -26,11 +26,11 @@ public:
     };
 
     // Static method to get information for all scenes from a JSON file
-    static std::vector<SceneInfo> getAllScenes(const std::string& jsonFilePath);
+    static std::vector<SceneInfo> getAllScenes(const std::string &jsonFilePath);
 
     // Static method to get scene information from a JSON file
-    static SceneInfo getSceneInfo(const std::string& jsonFilePath);
+    static SceneInfo getSceneInfo(const std::string &jsonFilePath);
 
     // Static method for HDRI
-    static HDRIInfo getHDRIInfo(const std::string& jsonFilePath);
+    static HDRIInfo getHDRIInfo(const std::string &jsonFilePath);
 };
