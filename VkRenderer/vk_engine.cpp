@@ -48,9 +48,9 @@ void VulkanEngine::init() {
     mainCamera.velocity = glm::vec3(0.f);
 
     // Default camera position for general scene viewing
-    mainCamera.position = glm::vec3(0.0f, 0.25f, 1.2f);
-    mainCamera.pitch = 0.0f;
-    mainCamera.yaw = 0.0f;
+    mainCamera.position = glm::vec3(-0.645665, 0.081437, 1.63236);
+    mainCamera.pitch = -0.276666f;
+    mainCamera.yaw = 0.383333f;
 
     init_vulkan();
 
@@ -93,6 +93,11 @@ void VulkanEngine::load_scene_from_file(const std::string& filePath) {
             std::filesystem::path path(filePath);
             std::string sceneName = path.stem().string();
             
+            // Destroy cube pipeline since we're loading a scene
+            if (cubePipeline.isInitialized()) {
+                cubePipeline.destroy();
+            }
+            
             // Clear existing scenes and ray tracing texture references
             loadedScenes.clear();
             sceneInfos.clear();
@@ -109,10 +114,14 @@ void VulkanEngine::load_scene_from_file(const std::string& filePath) {
             // Add to loaded scenes
             loadedScenes[sceneName] = *sceneFile;
             
-            // Create a basic scene info
+            // Create a scene info with same position as cube
             SceneDesc::SceneInfo sceneInfo;
             sceneInfo.name = sceneName;
             sceneInfo.filePath = filePath;
+            sceneInfo.hasTransform = true;
+            sceneInfo.scale = glm::vec3(1.0f); // Keep original scale
+            sceneInfo.translate = glm::vec3(0.0f, -0.5f, 0.0f); // Same Y offset as cube
+            sceneInfo.rotate = glm::vec3(0.0f); // No rotation
             sceneInfos[sceneName] = sceneInfo;
             
             spdlog::info("Successfully loaded scene: {}", sceneName);
@@ -166,7 +175,7 @@ void VulkanEngine::init_default_data() {
     // some default lighting parameters
     sceneData.ambientColor = glm::vec4(.053f, .049f, .049f, .049f);
     sceneData.sunlightColor = glm::vec4(2.f);
-    glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
+    glm::vec3 sunDir = glm::vec3(0.607f, -10.0f, -1.791f); // this is the default value for 'structure' scene
     sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
     sceneData.sunlightDirection.w = 1.573f; // sun intensity
     raytracerPipeline.prevSunDir = glm::vec4(
@@ -276,7 +285,11 @@ void VulkanEngine::init_default_data() {
 
     // RT defaults
     raytracerPipeline.setRTDefaultData();
+    
+    // Initialize cube pipeline
+    cubePipeline.init(this);
 }
+
 
 // Global function to check if an object is visible in the current view
 bool is_visible(const RenderObject &obj, const glm::mat4 &viewproj) {
@@ -1027,6 +1040,13 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     renderInfo.pColorAttachments = colorAttachments.data();
 
     vkCmdBeginRendering(cmd, &renderInfo);
+
+    // If no scenes are loaded, draw the default cube
+    if (loadedScenes.empty() && cubePipeline.isInitialized()) {
+        cubePipeline.draw(this, cmd);
+        vkCmdEndRendering(cmd);
+        return;
+    }
 
     // begin clock
     auto start = std::chrono::system_clock::now();

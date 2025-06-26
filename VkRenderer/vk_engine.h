@@ -15,6 +15,7 @@
 #include "Scene/SceneDesc.h"
 #include "Scene/camera.h"
 #include "gbuffer.h"
+#include "cube.h"
 
 #include <glm/glm.hpp>
 
@@ -245,4 +246,7 @@ private:
     void resize_swapchain();
 
     void init_default_data();
+    
+    // Cube pipeline
+    CubePipeline cubePipeline;
 };
