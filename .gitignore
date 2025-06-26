@@ -2,7 +2,6 @@ build/
 build-release/
 build-release-unix/
 assets/*
-!assets/scenes.json
 .vs/
 .vscode/
 .idea/
