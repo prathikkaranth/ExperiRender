@@ -18,13 +18,14 @@ A cross-platform Graphics Renderer written in Vulkan mainly for visualization pu
     - Screen Space Ambient Occlusion (SSAO) 
     - Mipmaps 
     - Environment Maps (HDRI)
-    - Blinn-phong lighting 
     - PBR
 - Hardware Ray Tracing
     - PBR
     - Shadows
 
 # Build
+
+[![Linux](https://github.com/prathikkaranth/ExperiRender/workflows/Linux%20CMake%20Build/badge.svg)](https://github.com/prathikkaranth/ExperiRender/actions)
 
 Build system should work for windows and linux based systems. Build configuration currently tested for Windows 11 (x64) and Ubuntu 24.04 (Noble Numbat)
 
@@ -35,7 +36,7 @@ _Note: Non NVIDIA RTX cards could potentially give errors for the raytracer_
 1. Install the [Vulkan SDK](https://vulkan.lunarg.com/doc/view/latest/linux/getting_started_ubuntu.html)
 ```bash
 wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
 sudo apt update
 sudo apt install vulkan-sdk
 ```
@@ -50,9 +51,7 @@ sudo apt install libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
 git clone https://github.com/prathikkaranth/ExperiRender.git
 ```
 
-4. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/pretoria_gardens) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(same for Flight Helmet) and the HDRI should be `/assets/HDRI/pretoria_gardens_4k.hdr`
-
-5. Build using CMake
+4. Build using CMake
 
 ```bash
 mkdir build && cd build
@@ -71,13 +70,17 @@ _Instructions tested on Visual Studio 2022_
 git clone https://github.com/prathikkaranth/ExperiRender.git
 ```
 
-3. Get assets for [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza), [FlightHelmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet) and [HDRI](https://polyhaven.com/a/pretoria_gardens) and paste them in the /assets folder. Important to note here that the file structure should be `/assets/Sponza/glTF/{asset_content}`(similar for Flight Helmet) and the HDRI should be `/assets/HDRI/pretoria_gardens_4K.hdr`
-
-4. Build using CMake GUI to configure and generate a Visual Studio solution. Set startup project to 'Renderer' and run.
+3. Build using CMake
+```cmd
+mkdir build
+cd build
+cmake .. -G "Visual Studio 17 2022" -A x64
+cmake --build . --config Release
+```
 
 ### Custom Assets
 
-Custom assets can be added by editing `assets/scenes.json` file accordingly.
+Custom assets can be drag and dropped to the window. Drag and drop feature currently supports .gltf, .glb and .hdr files.
 
 
 ## Models Used for Showcase
