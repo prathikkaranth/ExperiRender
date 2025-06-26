@@ -472,6 +472,10 @@ void Raytracer::resetSamples() {
 // Ray Tracing the scene
 //
 void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor) {
+    // Safety check: Don't raytrace if no geometry is loaded (acceleration structures not initialized)
+    if (engine->mainDrawContext.OpaqueSurfaces.empty()) {
+        return;
+    }
 
     // allocate a new uniform buffer for the scene data
     AllocatedBuffer gpuSceneDataBuffer =
