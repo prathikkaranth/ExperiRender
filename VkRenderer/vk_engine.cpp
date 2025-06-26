@@ -81,39 +81,39 @@ void VulkanEngine::init() {
     // Skip BLAS/TLAS creation until we have geometry to add
 }
 
-void VulkanEngine::load_scene_from_file(const std::string& filePath) {
+void VulkanEngine::load_scene_from_file(const std::string &filePath) {
     try {
         spdlog::info("Loading GLTF scene from: {}", filePath);
-        
+
         // Load the GLTF file
         const auto sceneFile = loadGltf(this, filePath);
-        
+
         if (sceneFile.has_value()) {
             // Extract filename for scene name
             std::filesystem::path path(filePath);
             std::string sceneName = path.stem().string();
-            
+
             // Destroy cube pipeline since we're loading a scene
             if (cubePipeline.isInitialized()) {
                 cubePipeline.destroy();
             }
-            
+
             // Clear existing scenes and ray tracing texture references
             loadedScenes.clear();
             sceneInfos.clear();
-            
+
             // Clear main draw context from previous scene
             mainDrawContext.OpaqueSurfaces.clear();
             mainDrawContext.TransparentSurfaces.clear();
-            
+
             // Clear ray tracing texture references
             raytracerPipeline.loadedTextures.clear();
             raytracerPipeline.loadedNormTextures.clear();
             raytracerPipeline.loadedMetalRoughTextures.clear();
-            
+
             // Add to loaded scenes
             loadedScenes[sceneName] = *sceneFile;
-            
+
             // Create a scene info with same position as cube
             SceneDesc::SceneInfo sceneInfo;
             sceneInfo.name = sceneName;
@@ -123,9 +123,9 @@ void VulkanEngine::load_scene_from_file(const std::string& filePath) {
             sceneInfo.translate = glm::vec3(0.0f, -0.5f, 0.0f); // Same Y offset as cube
             sceneInfo.rotate = glm::vec3(0.0f); // No rotation
             sceneInfos[sceneName] = sceneInfo;
-            
+
             spdlog::info("Successfully loaded scene: {}", sceneName);
-            
+
             // Update ray tracing structures
             traverseScenes();
             raytracerPipeline.createBottomLevelAS(this);
@@ -133,7 +133,7 @@ void VulkanEngine::load_scene_from_file(const std::string& filePath) {
             raytracerPipeline.createRtDescriptorSet(this);
             raytracerPipeline.createRtPipeline(this);
             raytracerPipeline.createRtShaderBindingTable(this);
-            
+
         } else {
             spdlog::error("Failed to load GLTF file: {}", filePath);
         }
@@ -285,7 +285,7 @@ void VulkanEngine::init_default_data() {
 
     // RT defaults
     raytracerPipeline.setRTDefaultData();
-    
+
     // Initialize cube pipeline
     cubePipeline.init(this);
 }
@@ -639,17 +639,17 @@ void VulkanEngine::run() {
 
             // Handle drag-and-drop events
             if (e.type == SDL_DROPFILE) {
-                char* dropped_filedir = e.drop.file;
+                char *dropped_filedir = e.drop.file;
                 std::string filePath(dropped_filedir);
                 spdlog::info("File dropped: {}", filePath);
-                
+
                 // Check if it's a GLTF file
                 if (filePath.ends_with(".gltf") || filePath.ends_with(".glb")) {
                     load_scene_from_file(filePath);
                 } else {
                     spdlog::warn("Unsupported file type. Please drop a .gltf or .glb file.");
                 }
-                
+
                 SDL_free(dropped_filedir);
             }
 

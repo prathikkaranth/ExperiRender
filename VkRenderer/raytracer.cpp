@@ -43,11 +43,9 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
     vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
-    
+
     // Add to deletion queue
-    engine->_mainDeletionQueue.push_function([=] {
-        vkutil::destroy_image(engine, _rtOutputImage);
-    });
+    engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
 }
 
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
@@ -91,14 +89,13 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     // Only create output image if it doesn't exist yet
     if (_rtOutputImage.image == VK_NULL_HANDLE) {
         _rtOutputImage = vkutil::create_image(
-            engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
+            engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
+            VK_FORMAT_R32G32B32A32_SFLOAT,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
         vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
-        
+
         // Add to deletion queue
-        engine->_mainDeletionQueue.push_function([=] {
-            vkutil::destroy_image(engine, _rtOutputImage);
-        });
+        engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
     }
 
     {

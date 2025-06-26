@@ -103,10 +103,10 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
     if (_hdriMap.image == VK_NULL_HANDLE) {
         // Create a default grey 1x1 HDRI image
         float greyPixel[4] = {0.026f, 0.026f, 0.026f, 1.0f}; // RGBA float - medium grey
-        _hdriMap = vkutil::create_image(engine, (void*)greyPixel, VkExtent3D{1, 1, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT);
+        _hdriMap = vkutil::create_image(engine, (void *) greyPixel, VkExtent3D{1, 1, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
+                                        VK_IMAGE_USAGE_SAMPLED_BIT);
         vmaSetAllocationName(engine->_allocator, _hdriMap.allocation, "Default HDRI Image");
-        
+
         // Create sampler
         VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
         sampl.magFilter = VK_FILTER_LINEAR;
@@ -115,7 +115,7 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
         sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         vkCreateSampler(engine->_device, &sampl, nullptr, &_hdriMapSampler);
-        
+
         engine->_mainDeletionQueue.push_function([=] {
             vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
             vkutil::destroy_image(engine, _hdriMap);

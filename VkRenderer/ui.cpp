@@ -192,7 +192,7 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Drag and drop a .gltf or .glb file to load a scene");
         } else {
             ImGui::Text("Loaded scenes:");
-            for (const auto& [name, scene] : engine->loadedScenes) {
+            for (const auto &[name, scene]: engine->loadedScenes) {
                 ImGui::BulletText("%s", name.c_str());
             }
         }

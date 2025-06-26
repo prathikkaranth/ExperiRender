@@ -15,6 +15,6 @@ private:
     VkPipeline pipeline = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     bool hasPipeline = false;
-    
-    VulkanEngine* enginePtr = nullptr;
+
+    VulkanEngine *enginePtr = nullptr;
 };

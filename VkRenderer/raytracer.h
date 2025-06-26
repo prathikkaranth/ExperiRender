@@ -85,7 +85,7 @@ public:
     std::uint32_t prevMaxDepth;
     int prevLightType;
     glm::vec4 prevSunDir;
-    
+
     // Cleanup tracking
     bool m_cleanupRegistered = false;
 };

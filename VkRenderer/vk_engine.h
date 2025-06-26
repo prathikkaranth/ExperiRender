@@ -14,8 +14,8 @@
 #include "Hdri.h"
 #include "Scene/SceneDesc.h"
 #include "Scene/camera.h"
-#include "gbuffer.h"
 #include "cube.h"
+#include "gbuffer.h"
 
 #include <glm/glm.hpp>
 
@@ -222,7 +222,7 @@ public:
     void run();
 
     // dynamic scene loading
-    void load_scene_from_file(const std::string& filePath);
+    void load_scene_from_file(const std::string &filePath);
 
     bool resize_requested{false};
     bool drawGBufferPositions{false};
@@ -246,7 +246,7 @@ private:
     void resize_swapchain();
 
     void init_default_data();
-    
+
     // Cube pipeline
     CubePipeline cubePipeline;
 };

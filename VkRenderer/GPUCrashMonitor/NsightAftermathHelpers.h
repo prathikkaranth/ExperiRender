@@ -27,7 +27,7 @@
 #ifdef NSIGHT_AFTERMATH_ENABLED
 
 #include <iomanip>
-//#include <shellapi.h>
+// #include <shellapi.h>
 #include <sstream>
 #include <string>
 #include <windows.h>

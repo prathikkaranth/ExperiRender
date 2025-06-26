@@ -5,15 +5,15 @@
 bool vkutil::load_shader_module(const char *spvFilename, VkDevice device, VkShaderModule *outShaderModule) {
     // Try multiple paths to find shaders depending on working directory
     std::vector<std::string> possiblePaths = {
-        std::string("shaders/") + spvFilename,        // When run from project root
-        std::string("../shaders/") + spvFilename,     // When run from build/Debug
-        std::string("../../shaders/") + spvFilename   // When run from nested directories
+        std::string("shaders/") + spvFilename, // When run from project root
+        std::string("../shaders/") + spvFilename, // When run from build/Debug
+        std::string("../../shaders/") + spvFilename // When run from nested directories
     };
-    
+
     std::string filePath;
     bool foundFile = false;
-    
-    for (const auto& path : possiblePaths) {
+
+    for (const auto &path: possiblePaths) {
         std::ifstream testFile(path.c_str());
         if (testFile.is_open()) {
             filePath = path;
@@ -22,7 +22,7 @@ bool vkutil::load_shader_module(const char *spvFilename, VkDevice device, VkShad
             break;
         }
     }
-    
+
     if (!foundFile) {
         return false;
     }
