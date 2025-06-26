@@ -49,15 +49,66 @@ void HDRI::load_hdri_to_buffer(VulkanEngine *engine, const std::string &jsonFile
 
         stbi_set_flip_vertically_on_load(false);
 
-        engine->_mainDeletionQueue.push_function([=] {
-            vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
-            vkutil::destroy_image(engine, _hdriMap);
-        });
+        // Cleanup will be handled by a single deletion queue entry in init_hdriMap
 
     } catch (const std::exception &e) {
         spdlog::error("Error loading HDRI from JSON: {}", e.what());
         // Fallback to original hardcoded path
         load_hdri_to_buffer_fallback(engine);
+    }
+}
+
+void HDRI::load_hdri_from_file(VulkanEngine *engine, const std::string &hdriFilePath) {
+    try {
+        int width, height, nrComponents;
+        stbi_set_flip_vertically_on_load(true);
+
+        spdlog::info("Loading HDRI file: {}", hdriFilePath);
+        float *data = stbi_loadf(hdriFilePath.c_str(), &width, &height, &nrComponents, 0);
+
+        if (!data) {
+            spdlog::error("Failed to load HDRI image from {}", hdriFilePath);
+            return;
+        }
+
+        // Clean up old HDRI allocation before creating new one to prevent VMA leaks
+        // Wait for device to be idle to ensure resources are not in use
+        vkDeviceWaitIdle(engine->_device);
+
+        if (_hdriMap.image != VK_NULL_HANDLE) {
+            vkutil::destroy_image(engine, _hdriMap);
+            _hdriMap = {};
+        }
+        if (_hdriMapSampler != VK_NULL_HANDLE) {
+            vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
+            _hdriMapSampler = VK_NULL_HANDLE;
+        }
+
+        // Create new HDRI image
+        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+
+        if (_hdriMap.image == VK_NULL_HANDLE) {
+            spdlog::error("Failed to initialize HDRI!");
+            return;
+        }
+
+        // Create sampler
+        VkSamplerCreateInfo samplerInfo = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        vkCreateSampler(engine->_device, &samplerInfo, nullptr, &_hdriMapSampler);
+
+        stbi_set_flip_vertically_on_load(false);
+
+        // Cleanup is handled by the single deletion queue entry in init_hdriMap
+
+        spdlog::info("HDRI loaded successfully from {}", hdriFilePath);
+
+    } catch (const std::exception &e) {
+        spdlog::error("Error loading HDRI file: {}", e.what());
     }
 }
 
@@ -99,6 +150,25 @@ void HDRI::load_hdri_to_buffer_fallback(VulkanEngine *engine) {
 }
 
 void HDRI::init_hdriMap(VulkanEngine *engine) {
+    // Check if we have a valid HDRI image loaded
+    if (_hdriMap.image == VK_NULL_HANDLE) {
+        // Create a default grey 1x1 HDRI image
+        float greyPixel[4] = {0.026f, 0.026f, 0.026f, 1.0f}; // RGBA float - medium grey
+        _hdriMap = vkutil::create_image(engine, (void *) greyPixel, VkExtent3D{1, 1, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
+                                        VK_IMAGE_USAGE_SAMPLED_BIT);
+        vmaSetAllocationName(engine->_allocator, _hdriMap.allocation, "Default HDRI Image");
+
+        // Create sampler
+        VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+        sampl.magFilter = VK_FILTER_LINEAR;
+        sampl.minFilter = VK_FILTER_LINEAR;
+        sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        vkCreateSampler(engine->_device, &sampl, nullptr, &_hdriMapSampler);
+
+        // Cleanup will be handled by a single deletion queue entry in init_hdriMap
+    }
 
     _hdriOutImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -160,12 +230,7 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, skyboxVertShader, nullptr);
     vkDestroyShaderModule(engine->_device, skyboxFragShader, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] {
-        vkDestroyPipelineLayout(engine->_device, _hdriMapPipelineLayout, nullptr);
-        vkDestroyDescriptorSetLayout(engine->_device, hdriMapDescriptorSetLayout, nullptr);
-        vkDestroyPipeline(engine->_device, _hdriMapPipeline, nullptr);
-        vkutil::destroy_image(engine, _hdriOutImage);
-    });
+    engine->_mainDeletionQueue.push_function([=] { cleanup(engine); });
 }
 
 void HDRI::draw_hdriMap(VulkanEngine *engine, VkCommandBuffer cmd) {
@@ -258,4 +323,31 @@ void HDRI::draw_hdriMap(VulkanEngine *engine, VkCommandBuffer cmd) {
     // vkCmdDrawIndexed(cmd, cubeIndexCount, 1, 0, 0, 0);
 
     vkCmdEndRendering(cmd);
+}
+
+void HDRI::cleanup(VulkanEngine *engine) {
+    if (_hdriMapSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
+        _hdriMapSampler = VK_NULL_HANDLE;
+    }
+    if (_hdriMap.image != VK_NULL_HANDLE) {
+        vkutil::destroy_image(engine, _hdriMap);
+        _hdriMap = {};
+    }
+    if (_hdriOutImage.image != VK_NULL_HANDLE) {
+        vkutil::destroy_image(engine, _hdriOutImage);
+        _hdriOutImage = {};
+    }
+    if (_hdriMapPipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(engine->_device, _hdriMapPipeline, nullptr);
+        _hdriMapPipeline = VK_NULL_HANDLE;
+    }
+    if (_hdriMapPipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(engine->_device, _hdriMapPipelineLayout, nullptr);
+        _hdriMapPipelineLayout = VK_NULL_HANDLE;
+    }
+    if (hdriMapDescriptorSetLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(engine->_device, hdriMapDescriptorSetLayout, nullptr);
+        hdriMapDescriptorSetLayout = VK_NULL_HANDLE;
+    }
 }

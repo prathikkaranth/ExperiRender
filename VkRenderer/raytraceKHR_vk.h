@@ -100,7 +100,7 @@ class VulkanEngine;
 namespace nvvk {
 
     struct AccelKHR {
-        VkAccelerationStructureKHR accel{nullptr};
+        VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
         AllocatedBuffer buffer;
     };
 

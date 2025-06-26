@@ -37,6 +37,17 @@ void Raytracer::createBottomLevelAS(const VulkanEngine *engine) const {
     m_rt_builder->buildBlas(blas_inputs, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 
+void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
+    // Create just the RT output image without descriptors or acceleration structures
+    _rtOutputImage = vkutil::create_image(
+        engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+    vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
+
+    // Add to deletion queue
+    engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
+}
+
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
@@ -75,11 +86,17 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
 }
 
 void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
-    // Create output image
-    _rtOutputImage = vkutil::create_image(
-        engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
+    // Only create output image if it doesn't exist yet
+    if (_rtOutputImage.image == VK_NULL_HANDLE) {
+        _rtOutputImage = vkutil::create_image(
+            engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
+            VK_FORMAT_R32G32B32A32_SFLOAT,
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+        vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
+
+        // Add to deletion queue
+        engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
+    }
 
     {
         DescriptorLayoutBuilder m_rtDescSetLayoutBind;
@@ -249,7 +266,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
-        vkutil::destroy_image(engine, _rtOutputImage);
+        // _rtOutputImage is already handled by its own deletion function
         engine->destroy_buffer(m_objDescSetBuffer);
         engine->destroy_buffer(m_matDescSetBuffer);
     });
@@ -452,6 +469,10 @@ void Raytracer::resetSamples() {
 // Ray Tracing the scene
 //
 void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor) {
+    // Safety check: Don't raytrace if no geometry is loaded (acceleration structures not initialized)
+    if (engine->mainDrawContext.OpaqueSurfaces.empty()) {
+        return;
+    }
 
     // allocate a new uniform buffer for the scene data
     AllocatedBuffer gpuSceneDataBuffer =

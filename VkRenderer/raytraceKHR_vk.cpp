@@ -164,13 +164,23 @@ nvvk::RaytracingBuilderKHR::RaytracingBuilderKHR(VulkanEngine *engine, uint32_t 
 //
 void nvvk::RaytracingBuilderKHR::destroy() {
 
-    m_engine_ptr->destroy_buffer(m_tlas.buffer);
-    vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, m_tlas.accel, nullptr);
-    for (auto &blas: m_blas) {
-        m_engine_ptr->destroy_buffer(blas.buffer);
-        vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, blas.accel, nullptr);
+    if (m_tlas.buffer.buffer != VK_NULL_HANDLE) {
+        m_engine_ptr->destroy_buffer(m_tlas.buffer);
     }
-    vkDestroyCommandPool(m_engine_ptr->_device, m_cmd_pool, nullptr);
+    if (m_tlas.accel != VK_NULL_HANDLE) {
+        vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, m_tlas.accel, nullptr);
+    }
+    for (auto &blas: m_blas) {
+        if (blas.buffer.buffer != VK_NULL_HANDLE) {
+            m_engine_ptr->destroy_buffer(blas.buffer);
+        }
+        if (blas.accel != VK_NULL_HANDLE) {
+            vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, blas.accel, nullptr);
+        }
+    }
+    if (m_cmd_pool != VK_NULL_HANDLE) {
+        vkDestroyCommandPool(m_engine_ptr->_device, m_cmd_pool, nullptr);
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

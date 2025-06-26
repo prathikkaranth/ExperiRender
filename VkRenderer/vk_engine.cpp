@@ -47,12 +47,10 @@ void VulkanEngine::init() {
 
     mainCamera.velocity = glm::vec3(0.f);
 
-    // camera position for 'structure' scene
-    /*mainCamera.position = glm::vec3(30.f, -00.f, -085.f);*/
-    mainCamera.position = glm::vec3(7.186001f, 0.995692f, -1.103689f);
-
-    mainCamera.pitch = 0.135f;
-    mainCamera.yaw = -1.939f;
+    // Default camera position for general scene viewing
+    mainCamera.position = glm::vec3(-0.645665, 0.081437, 1.63236);
+    mainCamera.pitch = -0.276666f;
+    mainCamera.yaw = 0.383333f;
 
     init_vulkan();
 
@@ -70,22 +68,78 @@ void VulkanEngine::init() {
 
     init_default_data();
 
-    // Scene
-    std::string jsonFilePath = "../assets/scenes.json";
-
-    init_scenes(jsonFilePath);
+    // Start with empty scene - no automatic loading
+    // User can drag-and-drop GLTF files to load scenes
 
     // everything went fine
     _isInitialized = true;
 
-    // Ray Tracing initialization
-    traverseScenes();
+    // Initialize ray tracing with empty scene
     raytracerPipeline.init_ray_tracing(this);
-    raytracerPipeline.createBottomLevelAS(this);
-    raytracerPipeline.createTopLevelAS(this);
-    raytracerPipeline.createRtDescriptorSet(this);
-    raytracerPipeline.createRtPipeline(this);
-    raytracerPipeline.createRtShaderBindingTable(this);
+    // Create RT output image even without geometry
+    raytracerPipeline.createRtOutputImageOnly(this);
+    // Skip BLAS/TLAS creation until we have geometry to add
+}
+
+void VulkanEngine::load_scene_from_file(const std::string &filePath) {
+    try {
+        spdlog::info("Loading GLTF scene from: {}", filePath);
+
+        // Load the GLTF file
+        const auto sceneFile = loadGltf(this, filePath);
+
+        if (sceneFile.has_value()) {
+            // Extract filename for scene name
+            std::filesystem::path path(filePath);
+            std::string sceneName = path.stem().string();
+
+            // Destroy cube pipeline since we're loading a scene
+            if (cubePipeline.isInitialized()) {
+                cubePipeline.destroy();
+            }
+
+            // Clear existing scenes and ray tracing texture references
+            loadedScenes.clear();
+            sceneInfos.clear();
+
+            // Clear main draw context from previous scene
+            mainDrawContext.OpaqueSurfaces.clear();
+            mainDrawContext.TransparentSurfaces.clear();
+
+            // Clear ray tracing texture references
+            raytracerPipeline.loadedTextures.clear();
+            raytracerPipeline.loadedNormTextures.clear();
+            raytracerPipeline.loadedMetalRoughTextures.clear();
+
+            // Add to loaded scenes
+            loadedScenes[sceneName] = *sceneFile;
+
+            // Create a scene info with same position as cube
+            SceneDesc::SceneInfo sceneInfo;
+            sceneInfo.name = sceneName;
+            sceneInfo.filePath = filePath;
+            sceneInfo.hasTransform = true;
+            sceneInfo.scale = glm::vec3(1.0f); // Keep original scale
+            sceneInfo.translate = glm::vec3(0.0f, -0.5f, 0.0f); // Same Y offset as cube
+            sceneInfo.rotate = glm::vec3(0.0f); // No rotation
+            sceneInfos[sceneName] = sceneInfo;
+
+            spdlog::info("Successfully loaded scene: {}", sceneName);
+
+            // Update ray tracing structures
+            traverseScenes();
+            raytracerPipeline.createBottomLevelAS(this);
+            raytracerPipeline.createTopLevelAS(this);
+            raytracerPipeline.createRtDescriptorSet(this);
+            raytracerPipeline.createRtPipeline(this);
+            raytracerPipeline.createRtShaderBindingTable(this);
+
+        } else {
+            spdlog::error("Failed to load GLTF file: {}", filePath);
+        }
+    } catch (const std::exception &e) {
+        spdlog::error("Error loading scene: {}", e.what());
+    }
 }
 
 void VulkanEngine::init_scenes(const std::string &jsonPath) {
@@ -121,7 +175,7 @@ void VulkanEngine::init_default_data() {
     // some default lighting parameters
     sceneData.ambientColor = glm::vec4(.053f, .049f, .049f, .049f);
     sceneData.sunlightColor = glm::vec4(2.f);
-    glm::vec3 sunDir = glm::vec3(0.001f, -10.0f, 0.001f); // this is the default value for 'structure' scene
+    glm::vec3 sunDir = glm::vec3(0.607f, -10.0f, -1.791f); // this is the default value for 'structure' scene
     sceneData.sunlightDirection = glm::vec4(sunDir, 1.0f);
     sceneData.sunlightDirection.w = 1.573f; // sun intensity
     raytracerPipeline.prevSunDir = glm::vec4(
@@ -231,7 +285,11 @@ void VulkanEngine::init_default_data() {
 
     // RT defaults
     raytracerPipeline.setRTDefaultData();
+
+    // Initialize cube pipeline
+    cubePipeline.init(this);
 }
+
 
 // Global function to check if an object is visible in the current view
 bool is_visible(const RenderObject &obj, const glm::mat4 &viewproj) {
@@ -577,6 +635,26 @@ void VulkanEngine::run() {
                 if (e.window.event == SDL_WINDOWEVENT_RESTORED) {
                     stop_rendering = false;
                 }
+            }
+
+            // Handle drag-and-drop events
+            if (e.type == SDL_DROPFILE) {
+                char *dropped_filedir = e.drop.file;
+                std::string filePath(dropped_filedir);
+                spdlog::info("File dropped: {}", filePath);
+
+                // Check if it's a GLTF file
+                if (filePath.ends_with(".gltf") || filePath.ends_with(".glb")) {
+                    load_scene_from_file(filePath);
+                }
+                // Check if it's an HDRI file
+                else if (filePath.ends_with(".hdr") || filePath.ends_with(".exr")) {
+                    hdrImage.load_hdri_from_file(this, filePath);
+                } else {
+                    spdlog::warn("Unsupported file type. Please drop a .gltf, .glb, .hdr, or .exr file.");
+                }
+
+                SDL_free(dropped_filedir);
             }
 
             mainCamera.processSDLEvent(e);
@@ -967,6 +1045,13 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
 
     vkCmdBeginRendering(cmd, &renderInfo);
 
+    // If no scenes are loaded, draw the default cube
+    if (loadedScenes.empty() && cubePipeline.isInitialized()) {
+        cubePipeline.draw(this, cmd);
+        vkCmdEndRendering(cmd);
+        return;
+    }
+
     // begin clock
     auto start = std::chrono::system_clock::now();
 
@@ -1296,7 +1381,9 @@ void VulkanEngine::resize_swapchain() {
 }
 
 void VulkanEngine::destroy_buffer(const AllocatedBuffer &buffer) const {
-    vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
+    if (buffer.buffer != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
+    }
 }
 
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine *engine) {
