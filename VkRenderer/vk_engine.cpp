@@ -646,8 +646,12 @@ void VulkanEngine::run() {
                 // Check if it's a GLTF file
                 if (filePath.ends_with(".gltf") || filePath.ends_with(".glb")) {
                     load_scene_from_file(filePath);
+                }
+                // Check if it's an HDRI file
+                else if (filePath.ends_with(".hdr") || filePath.ends_with(".exr")) {
+                    hdrImage.load_hdri_from_file(this, filePath);
                 } else {
-                    spdlog::warn("Unsupported file type. Please drop a .gltf or .glb file.");
+                    spdlog::warn("Unsupported file type. Please drop a .gltf, .glb, .hdr, or .exr file.");
                 }
 
                 SDL_free(dropped_filedir);
