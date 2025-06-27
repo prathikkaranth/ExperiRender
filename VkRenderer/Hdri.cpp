@@ -76,16 +76,14 @@ void HDRI::load_hdri_from_file(VulkanEngine *engine, const std::string &hdriFile
 
         if (_hdriMap.image != VK_NULL_HANDLE) {
             AllocatedImage oldHdriMap = _hdriMap;
-            engine->get_current_frame()._deletionQueue.push_function([=] {
-                vkutil::destroy_image(engine, oldHdriMap);
-            });
+            engine->get_current_frame()._deletionQueue.push_function(
+                [=] { vkutil::destroy_image(engine, oldHdriMap); });
             _hdriMap = {};
         }
         if (_hdriMapSampler != VK_NULL_HANDLE) {
             VkSampler oldSampler = _hdriMapSampler;
-            engine->get_current_frame()._deletionQueue.push_function([=] {
-                vkDestroySampler(engine->_device, oldSampler, nullptr);
-            });
+            engine->get_current_frame()._deletionQueue.push_function(
+                [=] { vkDestroySampler(engine->_device, oldSampler, nullptr); });
             _hdriMapSampler = VK_NULL_HANDLE;
         }
 
