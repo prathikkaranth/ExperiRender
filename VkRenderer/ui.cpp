@@ -239,6 +239,11 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
         ImGui::SliderFloat("SSAO Strength", &engine->_ssao.ssaoData.intensity, 0.0f, 10.f);
     }
 
+    if (ImGui::CollapsingHeader("Camera Settings")) {
+        ImGui::Text("Press F to toggle FPS camera movement");
+        ImGui::SliderFloat("Move Sensitivity", &engine->mainCamera.moveSensitivity, 0.001f, 5.0f, "%.3f");
+    }
+
     if (ImGui::CollapsingHeader("ShadowMap Settings")) {
         ImGui::SliderFloat("Near Plane", &engine->_shadowMap.near_plane, 0.f, 1.f);
         ImGui::SliderFloat("Far Plane", &engine->_shadowMap.far_plane, 2.f, 150.f);

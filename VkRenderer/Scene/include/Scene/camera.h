@@ -16,6 +16,8 @@ public:
     // To track rotation change
     float prevPitch;
     float prevYaw;
+    // Movement sensitivity
+    float moveSensitivity = 0.03f;
 
     glm::mat4 getViewMatrix() const;
     glm::mat4 getRotationMatrix() const;
