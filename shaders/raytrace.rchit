@@ -104,11 +104,14 @@ HitPoint compute_hit_point() {
   MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
   vec3 normalTex = texture(normalMaps[material.albedoTexIndex], uv).rgb;
 
-  // Transform normal from [0,1] to [-1,1]
-  normalTex = normalize(normalTex * 2.0 - 1.0);
-
-  // Transform from tangent space to world space
-  normal = normalize(TBN * normalTex);
+  // Only apply normal mapping if this isn't the default grey texture
+  // Default grey texture has RGB ~(0.66, 0.66, 0.66)
+  if (length(normalTex - vec3(0.66)) > 0.1) {
+    // Transform normal from [0,1] to [-1,1]
+    normalTex = normalize(normalTex * 2.0 - 1.0);
+    // Transform from tangent space to world space
+    normal = normalize(TBN * normalTex);
+  }
 
   return HitPoint(normal, uv);
 }
@@ -205,18 +208,9 @@ void main()
     float roughness = 0.5;
     float metalness = 0.0;
 
-    // Retrieve metalness and roughness from texture if available
-    if(material.albedoTexIndex != 0) // Assuming 0 means no texture
-    {
-      vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], hit_point.uv).rgb;
-      roughness = metalRoughSample.g * material.metal_rough_factors.y;
-      metalness = metalRoughSample.b * material.metal_rough_factors.x; 
-    }
-    else
-    {
-      roughness = material.metal_rough_factors.y;
-      metalness = material.metal_rough_factors.x; 
-    }
+    vec3 metalRoughSample = texture(metalRoughMaps[material.albedoTexIndex], hit_point.uv).rgb;
+    roughness = metalRoughSample.g * material.metal_rough_factors.y;
+    metalness = metalRoughSample.b * material.metal_rough_factors.x;
 
     // Compute the color
     vec3 vertex_color = compute_vert_color();
