@@ -14,10 +14,9 @@ void main()
 {
 	prd.isHit = false;
 
-	// Sample environment map for lighting contribution
 	vec3 dir = normalize(gl_WorldRayDirectionEXT);
 
-	// Convert direction to spherical coordinates (same as rasterizer)
+	// Convert direction to spherical coordinates
 	const vec2 invAtan = vec2(0.1591, 0.3183);
 	vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
 	uv *= invAtan;
@@ -26,9 +25,7 @@ void main()
 	// Sample the HDRI texture
 	vec4 texColor = texture(texSkybox, uv);
 
-	// Apply HDR color and contribute to lighting (don't multiply by alpha)
 	vec3 hdrColor = texColor.rgb;
 	
-	// Add environment lighting contribution
 	prd.color += prd.strength * hdrColor;
 }

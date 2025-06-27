@@ -242,7 +242,7 @@ void main()
     const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
     const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
     
-    // Update strength based on BRDF and PDF
+    // Update strength based on BSDF and PDF
     vec3 new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
     
     // Safety checks to prevent NaN/infinite values
