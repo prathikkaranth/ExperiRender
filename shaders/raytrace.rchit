@@ -129,8 +129,10 @@ vec3 compute_diffuse(in HitPoint hit_point) {
 
 bool is_strength_weak(vec3 strength)
 {
-    const float THRESHOLD = 1e-1f;
-    return max(max(strength.r, strength.g), strength.b) < THRESHOLD;
+    const float THRESHOLD = 1e-3f;  // More aggressive termination
+    float max_strength = max(max(strength.r, strength.g), strength.b);
+    // Also terminate if strength becomes too large (prevents accumulation of huge values)
+    return max_strength < THRESHOLD || max_strength > 100.0f;
 }
 
 vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv, const float metalness, const float roughness)
@@ -241,7 +243,15 @@ void main()
     const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
     
     // Update strength based on BRDF and PDF
-    prd.strength *= bsdf * cos_theta / HEMISPHERE_PDF;
+    vec3 new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+    
+    // Safety checks to prevent NaN/infinite values
+    if (any(isnan(new_strength)) || any(isinf(new_strength)) || any(lessThan(new_strength, vec3(0.0)))) {
+        prd.next_direction = vec3(0.0f);
+        return;
+    }
+    
+    prd.strength = new_strength;
 
     // Poor man's russian roulette
     if (is_strength_weak(prd.strength))

@@ -29,11 +29,20 @@ void Raytracer::createBottomLevelAS(const VulkanEngine *engine) const {
     // BLAS - Storing each primitive in a geometry
     std::vector<nvvk::RaytracingBuilderKHR::BlasInput> blas_inputs;
 
+    // Add opaque surfaces
     for (const auto &OpaqueSurface: engine->mainDrawContext.OpaqueSurfaces) {
         nvvk::RaytracingBuilderKHR::BlasInput input;
         input = experirender::vk::objectToVkGeometryKHR(OpaqueSurface);
         blas_inputs.emplace_back(std::move(input));
     }
+
+    // Add transparent surfaces
+    for (const auto &TransparentSurface: engine->mainDrawContext.TransparentSurfaces) {
+        nvvk::RaytracingBuilderKHR::BlasInput input;
+        input = experirender::vk::objectToVkGeometryKHR(TransparentSurface);
+        blas_inputs.emplace_back(std::move(input));
+    }
+
     m_rt_builder->buildBlas(blas_inputs, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 
@@ -51,8 +60,10 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
-    tlas.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
+    const uint32_t totalSurfaces = engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    tlas.reserve(totalSurfaces);
 
+    // Add opaque surfaces first
     for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
         VkTransformMatrixKHR vk_transform = {};
         const glm::mat4 &t = engine->mainDrawContext.OpaqueSurfaces[i].transform;
@@ -82,6 +93,39 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
         };
         tlas.emplace_back(instance);
     }
+
+    // Add transparent surfaces after opaque ones
+    const uint32_t opaqueCount = engine->mainDrawContext.OpaqueSurfaces.size();
+    for (std::uint32_t i = 0; i < engine->mainDrawContext.TransparentSurfaces.size(); i++) {
+        VkTransformMatrixKHR vk_transform = {};
+        const glm::mat4 &t = engine->mainDrawContext.TransparentSurfaces[i].transform;
+
+        vk_transform.matrix[0][0] = t[0][0];
+        vk_transform.matrix[0][1] = t[1][0];
+        vk_transform.matrix[0][2] = t[2][0];
+        vk_transform.matrix[0][3] = t[3][0]; // Translation X
+
+        vk_transform.matrix[1][0] = t[0][1];
+        vk_transform.matrix[1][1] = t[1][1];
+        vk_transform.matrix[1][2] = t[2][1];
+        vk_transform.matrix[1][3] = t[3][1]; // Translation Y
+
+        vk_transform.matrix[2][0] = t[0][2];
+        vk_transform.matrix[2][1] = t[1][2];
+        vk_transform.matrix[2][2] = t[2][2];
+        vk_transform.matrix[2][3] = t[3][2]; // Translation Z
+
+        VkAccelerationStructureInstanceKHR instance{
+            .transform = vk_transform,
+            .instanceCustomIndex = opaqueCount + i, // Offset by opaque surface count
+            .mask = 0xFF,
+            .instanceShaderBindingTableRecordOffset = 0,
+            .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+            .accelerationStructureReference = m_rt_builder->getBlasDeviceAddress(opaqueCount + i),
+        };
+        tlas.emplace_back(instance);
+    }
+
     m_rt_builder->buildTlas(tlas, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 }
 
@@ -129,11 +173,22 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     std::vector<ObjDesc> objDescs;
-    objDescs.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
+    const uint32_t totalSurfaces = engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    objDescs.reserve(totalSurfaces);
+    
+    // Add opaque surfaces first
     for (auto &OpaqueSurface: engine->mainDrawContext.OpaqueSurfaces) {
         ObjDesc desc = {.vertexAddress = OpaqueSurface.vertexBufferAddress,
                         .indexAddress = OpaqueSurface.indexBufferAddress,
                         .firstIndex = OpaqueSurface.firstIndex};
+        objDescs.push_back(desc);
+    }
+    
+    // Add transparent surfaces
+    for (auto &TransparentSurface: engine->mainDrawContext.TransparentSurfaces) {
+        ObjDesc desc = {.vertexAddress = TransparentSurface.vertexBufferAddress,
+                        .indexAddress = TransparentSurface.indexBufferAddress,
+                        .firstIndex = TransparentSurface.firstIndex};
         objDescs.push_back(desc);
     }
 
@@ -156,11 +211,22 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
 
     // Tex Descriptions
     // Put all textures in loadScenes to a vector
+    uint32_t textureIndex = 0;
+    
+    // Add opaque surface textures first
     for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
         loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
         loadedNormTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->normImage);
         loadedMetalRoughTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughImage);
-        engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
+        engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = textureIndex++;
+    }
+    
+    // Add transparent surface textures
+    for (std::uint32_t i = 0; i < engine->mainDrawContext.TransparentSurfaces.size(); i++) {
+        loadedTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->colImage);
+        loadedNormTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->normImage);
+        loadedMetalRoughTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->metalRoughImage);
+        engine->mainDrawContext.TransparentSurfaces[i].material->albedoTexIndex = textureIndex++;
     }
 
     // Always create texture descriptor set (even when no textures, we need default ones)
@@ -177,7 +243,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
             m_texSetLayoutBind.add_bindings(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                             nbMetalRoughText); // Metal Rough Maps
             m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-                                                                           VK_SHADER_STAGE_RAYGEN_BIT_KHR);
+                                                                           VK_SHADER_STAGE_RAYGEN_BIT_KHR |
+                                                                           VK_SHADER_STAGE_MISS_BIT_KHR);
         }
 
         m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
@@ -232,11 +299,21 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     // Mat descriptions
     std::vector<MaterialRTData> materialRTShaderData;
 
+    // Add opaque surface materials first
     for (auto &OpaqueSurface: engine->mainDrawContext.OpaqueSurfaces) {
         MaterialRTData matDesc{};
         matDesc.albedo = OpaqueSurface.material->albedo;
         matDesc.albedoTexIndex = OpaqueSurface.material->albedoTexIndex;
         matDesc.metal_rough_factors = OpaqueSurface.material->metalRoughFactors;
+        materialRTShaderData.push_back(matDesc);
+    }
+
+    // Add transparent surface materials
+    for (auto &TransparentSurface: engine->mainDrawContext.TransparentSurfaces) {
+        MaterialRTData matDesc{};
+        matDesc.albedo = TransparentSurface.material->albedo;
+        matDesc.albedoTexIndex = TransparentSurface.material->albedoTexIndex;
+        matDesc.metal_rough_factors = TransparentSurface.material->metalRoughFactors;
         materialRTShaderData.push_back(matDesc);
     }
 
@@ -472,7 +549,7 @@ void Raytracer::resetSamples() {
 //
 void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor) {
     // Safety check: Don't raytrace if no geometry is loaded (acceleration structures not initialized)
-    if (engine->mainDrawContext.OpaqueSurfaces.empty()) {
+    if (engine->mainDrawContext.OpaqueSurfaces.empty() && engine->mainDrawContext.TransparentSurfaces.empty()) {
         return;
     }
 
