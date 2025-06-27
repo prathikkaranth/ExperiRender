@@ -65,16 +65,29 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
     const float bias = max(maxBias * (1.0f - dot(normal, lightDir)), minBias);
 	float shadow = 0.0f;
 	vec2 texelSize = 1.0f / textureSize(depthShadowMap, 0);
-	for(int x = -1; x <= 1; ++x){
-		for(int y = -1; y <= 1; ++y){
-			float pcfDepth = texture(depthShadowMap, shadowTexCoord + vec2(x, y) * texelSize).r;
-			shadow += (currentDepth + bias < pcfDepth) ? 1.0f : 0.0f;
-		}
-	} 
-	shadow /= 9.0f;
+	
+	// Advanced PCF with Poisson disk sampling
+	vec2 poissonDisk[16] = vec2[](
+		vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
+		vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
+		vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
+		vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
+		vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
+		vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
+		vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
+		vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
+	);
+	
+	float shadowFilterRadius = 2.0;
+	for(int i = 0; i < 16; i++){
+		vec2 offset = poissonDisk[i] * shadowFilterRadius * texelSize;
+		float pcfDepth = texture(depthShadowMap, shadowTexCoord + offset).r;
+		shadow += (currentDepth + bias < pcfDepth) ? 1.0f : 0.0f;
+	}
+	shadow /= 16.0;
 
 	if(projCoords.z > 1.0)
-        shadow = 0.0;
+        shadow = 1.0;
 
 	return shadow;
 }
@@ -97,21 +110,26 @@ vec3 pbr() {
 	else
 		roughness = materialData.metal_rough_factors.y;
 
-	// Normalized normal
+	// Start with vertex normal
+	vec3 N = normalize(inNormal);
+
+	// Only apply normal mapping if we have a proper normal map texture
 	vec4 normalFromTex = texture(normalTex, inUV);
-	vec3 normFromTex = normalFromTex.xyz;
-	normFromTex = normFromTex * 2.0f - 1.0f;
-	vec3 normal = normalize(inNormal);
+	// Check if this is the default grey texture (0.66, 0.66, 0.66)
+	if (length(normalFromTex.rgb - vec3(0.66)) > 0.1) {
+		vec3 normFromTex = normalFromTex.xyz;
+		normFromTex = normFromTex * 2.0f - 1.0f;
 
-	// Normalized tangent and bitangent
-	vec3 tangent = normalize(inTangent);
-	vec3 bitangent = normalize(inBitangent);
+		// Normalized tangent and bitangent
+		vec3 tangent = normalize(inTangent);
+		vec3 bitangent = normalize(inBitangent);
 
-	// Construct TBN matrix
-	mat3 TBN = mat3(tangent, bitangent, normal);
+		// Construct TBN matrix
+		mat3 TBN = mat3(tangent, bitangent, N);
 
-	// Normal map
-	vec3 N = normalize(TBN * normFromTex);
+		// Apply normal mapping
+		N = normalize(TBN * normFromTex);
+	}
 
 	vec3 V = normalize(sceneData.cameraPosition.xyz - inWorldPos);
 
@@ -120,11 +138,14 @@ vec3 pbr() {
 	vec3 bsdf = BSDF(metallic, roughness, N, V, L, albedo);
 	bsdf *= sceneData.sunlightDirection.w;
 
-	// ambient lighting (note that the next IBL tutorial will replace 
-    // this ambient lighting with environment lighting).
-	vec2 screenUV = gl_FragCoord.xy / vec2(1600, 900);
+	// ambient lighting
+	vec2 screenUV = gl_FragCoord.xy / textureSize(ssaoMap, 0);
 	vec3 ssao = texture(ssaoMap, screenUV).xxx;
-	vec3 ambient = albedo *  sceneData.ambientColor.xyz;
+	
+	// Proper ambient term for PBR: non-metals use albedo, metals use minimal ambient
+	vec3 kS = mix(vec3(0.04), albedo, metallic); // Base reflectivity
+	vec3 kD = (1.0 - kS) * (1.0 - metallic); // Diffuse contribution
+	vec3 ambient = kD * albedo * sceneData.ambientColor.xyz;
 
 	if (bool(sceneData.enableSSAO == 0)) {
 		ssao = vec3(1.0f);
@@ -132,7 +153,7 @@ vec3 pbr() {
 	ambient *= ssao;
 
 	// Shadow calculation
-	float shadow = shadowCalculation(inFragPosLightSpace, normal, L);
+	float shadow = shadowCalculation(inFragPosLightSpace, N, L);
 
 	if (bool(sceneData.enableShadows == 0)) {
 		shadow = 0.0f;
@@ -168,25 +189,30 @@ vec3 blinnPhong() {
 
 
 	// Ambient light
-	vec2 screenUV = gl_FragCoord.xy / vec2(1600, 900);
+	vec2 screenUV = gl_FragCoord.xy / textureSize(ssaoMap, 0);
 	vec3 ssao = texture(ssaoMap, screenUV).xxx;
 	vec3 ambient = color *  sceneData.ambientColor.xyz;
 
-	// Normalized normal
+	// Start with vertex normal
+	vec3 normalMap = normalize(inNormal);
+
+	// Only apply normal mapping if we have a proper normal map texture
 	vec4 normalFromTex = texture(normalTex, inUV);
-	vec3 normFromTex = normalFromTex.xyz;
-	normFromTex = normFromTex * 2.0f - 1.0f;
-	vec3 normal = normalize(inNormal);
+	// Check if this is the default grey texture (0.66, 0.66, 0.66)
+	if (length(normalFromTex.rgb - vec3(0.66)) > 0.1) {
+		vec3 normFromTex = normalFromTex.xyz;
+		normFromTex = normFromTex * 2.0f - 1.0f;
 
-	// Normalized tangent and bitangent
-	vec3 tangent = normalize(inTangent);
-	vec3 bitangent = normalize(inBitangent);
+		// Normalized tangent and bitangent
+		vec3 tangent = normalize(inTangent);
+		vec3 bitangent = normalize(inBitangent);
 
-	// Construct TBN matrix
-	mat3 TBN = mat3(tangent, bitangent, normal);
+		// Construct TBN matrix
+		mat3 TBN = mat3(tangent, bitangent, normalMap);
 
-	// Normal map
-	vec3 normalMap = normalize(TBN * normFromTex);
+		// Apply normal mapping
+		normalMap = normalize(TBN * normFromTex);
+	}
 
 	// Diffuse light
 	vec3 sunlightDir = - normalize(sceneData.sunlightDirection.xyz);
@@ -201,7 +227,7 @@ vec3 blinnPhong() {
 	vec3 spec = vec3(0.0f, 0.0f, 0.0f);
 
 	// Shadow calculation
-	float shadow = shadowCalculation(inFragPosLightSpace, normal, sunlightDir);
+	float shadow = shadowCalculation(inFragPosLightSpace, normalMap, sunlightDir);
 
 	// Specular light calc for blinn-phong specular
 	spec = blinn_specular(max(dot(normalMap, halfwayDir), 0.0), specular, roughness);
@@ -212,9 +238,6 @@ vec3 blinnPhong() {
 	if (bool(sceneData.enableSSAO == 0)) {
 		ssao = vec3(1.0f);
 	}
-
-	// **Key part: Rendering the HDRI map as a background.**
-    // vec3 hdriColor = texture(hdriMap, inUV).xyz;  // Sampling HDRI based on normals or view direction
 
 	// Final color
 	vec3 lighting = ((ambient*ssao) + (1.0 - (shadow * shadowFactor)) * (diffuse + spec));

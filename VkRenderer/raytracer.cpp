@@ -163,12 +163,11 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = i;
     }
 
-    // if textures are not empty
-    if (!loadedTextures.empty() || !loadedNormTextures.empty() ||
-        engine->hdrImage.get_hdriMap().image != VK_NULL_HANDLE) {
-        auto nbTxt = static_cast<uint32_t>(loadedTextures.size());
-        auto nbNormText = static_cast<uint32_t>(loadedNormTextures.size());
-        auto nbMetalRoughText = static_cast<uint32_t>(loadedMetalRoughTextures.size());
+    // Always create texture descriptor set (even when no textures, we need default ones)
+    {
+        auto nbTxt = static_cast<uint32_t>(std::max(loadedTextures.size(), size_t(1)));
+        auto nbNormText = static_cast<uint32_t>(std::max(loadedNormTextures.size(), size_t(1)));
+        auto nbMetalRoughText = static_cast<uint32_t>(std::max(loadedMetalRoughTextures.size(), size_t(1)));
 
         {
             DescriptorLayoutBuilder m_texSetLayoutBind;
@@ -188,7 +187,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         texDescs.reserve(nbTxt);
         for (uint32_t i = 0; i < nbTxt; i++) {
             VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
-                                            .imageView = loadedTextures[i].imageView,
+                                            .imageView = i < loadedTextures.size() ? loadedTextures[i].imageView
+                                                                                   : engine->_whiteImage.imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             texDescs.push_back(imageInfo);
         }
@@ -198,7 +198,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         normTexDescs.reserve(nbNormText);
         for (uint32_t i = 0; i < nbNormText; i++) {
             VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
-                                            .imageView = loadedNormTextures[i].imageView,
+                                            .imageView = i < loadedNormTextures.size() ? loadedNormTextures[i].imageView
+                                                                                       : engine->_greyImage.imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             normTexDescs.push_back(imageInfo);
         }
@@ -208,7 +209,9 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         metalRoughTexDescs.reserve(nbMetalRoughText);
         for (uint32_t i = 0; i < nbMetalRoughText; i++) {
             VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
-                                            .imageView = loadedMetalRoughTextures[i].imageView,
+                                            .imageView = i < loadedMetalRoughTextures.size()
+                                                             ? loadedMetalRoughTextures[i].imageView
+                                                             : engine->_whiteImage.imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             metalRoughTexDescs.push_back(imageInfo);
         }
@@ -352,9 +355,8 @@ void Raytracer::createRtPipeline(VulkanEngine *engine) {
     std::vector<VkDescriptorSetLayout> rtDescSetLayouts = {engine->_gpuSceneDataDescriptorLayout, m_rtDescSetLayout,
                                                            m_objDescSetLayout, m_matDescSetLayout};
 
-    if (!loadedTextures.empty()) {
-        rtDescSetLayouts.push_back(m_texSetLayout);
-    }
+    // Always include texture descriptor set layout
+    rtDescSetLayouts.push_back(m_texSetLayout);
     pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayouts.size());
     pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayouts.data();
 
@@ -505,28 +507,17 @@ void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, co
 
     vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 
-    // if textures are empty, we don't bind the texture descriptor set
-    if (loadedTextures.empty()) {
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1,
-                                &globalDescriptor, 0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_rtDescSet,
-                                0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_objDescSet,
-                                0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_matDescSet,
-                                0, nullptr);
-    } else {
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1,
-                                &globalDescriptor, 0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_rtDescSet,
-                                0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_objDescSet,
-                                0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_matDescSet,
-                                0, nullptr);
-        vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 4, 1, &m_texDescSet,
-                                0, nullptr);
-    }
+    // Always bind all descriptor sets including textures
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 0, 1, &globalDescriptor,
+                            0, nullptr);
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, 1, &m_rtDescSet, 0,
+                            nullptr);
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 2, 1, &m_objDescSet, 0,
+                            nullptr);
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 3, 1, &m_matDescSet, 0,
+                            nullptr);
+    vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 4, 1, &m_texDescSet, 0,
+                            nullptr);
 
     vkCmdPushConstants(cmdBuf, m_rtPipelineLayout,
                        VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |

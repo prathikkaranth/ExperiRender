@@ -22,13 +22,17 @@ layout(set = 0, binding = 0) uniform SSAOData{
     float intensity;
 } ssaoData;
 
-// tile noise texture over screen based on screen dimensions divided by noise size
-const vec2 noiseScale = vec2(1600.0/4.0, 900.0/4.0); 
 
 // SSAO calculation
 void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
 
     vec4 fragPosWS = texture(GbufferPosition, fragCoord);
+    
+    // Early exit for background pixels (no valid position data)
+    if (fragPosWS.w <= 0.0) {
+        fragColor = vec4(1.0, 0.0, 0.0, 1.0); // No occlusion for background
+        return;
+    }
 
     // NOTE We use a RH coordinate system and therefore the Z decreases as depth increases
     vec4 fragPosVS = ssaoData.view * fragPosWS;
@@ -38,6 +42,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
     fragPosWS /= fragPosWS.w;
     vec3 normalWS = normalize(texture(GbufferNormal, fragCoord).xyz);
 
+    ivec2 imageSize = imageSize(image);
+    vec2 noiseScale = vec2(imageSize) / 4.0; // 4x4 noise texture tiling
     vec2 noiseUV = fragCoord * noiseScale;
     vec3 randomVec = normalize(texture(texNoise, noiseUV).rgb);
 
@@ -65,7 +71,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
         // range check & accumulate
         if(abs(fragDepth - sampleDepth) < ssaoData.radius)
         {
-            occlusion += sampleDepth < fragDepth - ssaoData.bias ? 1.0f : 0.0f;
+            occlusion += sampleDepth > fragDepth + ssaoData.bias ? 1.0f : 0.0f;
         }
 
     }

@@ -55,8 +55,8 @@ void main()
 	outColor = v.color.xyz * materialData.colorFactors.xyz;	
 	outUV.x = v.uv_x;
 	outUV.y = v.uv_y;
-	outTangent = v.tangent;
-	outBitangent = v.bitangent;
+	outTangent = (invTransposeRenderMatrix * vec4(v.tangent, 0.f)).xyz;
+	outBitangent = (invTransposeRenderMatrix * vec4(v.bitangent, 0.f)).xyz;
 
 
 	outWorldPos = worldPos.xyz / worldPos.w;

@@ -72,15 +72,18 @@ void HDRI::load_hdri_from_file(VulkanEngine *engine, const std::string &hdriFile
         }
 
         // Clean up old HDRI allocation before creating new one to prevent VMA leaks
-        // Wait for device to be idle to ensure resources are not in use
-        vkDeviceWaitIdle(engine->_device);
+        // Use frame deletion queue instead of device wait idle to avoid stutters
 
         if (_hdriMap.image != VK_NULL_HANDLE) {
-            vkutil::destroy_image(engine, _hdriMap);
+            AllocatedImage oldHdriMap = _hdriMap;
+            engine->get_current_frame()._deletionQueue.push_function(
+                [=] { vkutil::destroy_image(engine, oldHdriMap); });
             _hdriMap = {};
         }
         if (_hdriMapSampler != VK_NULL_HANDLE) {
-            vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
+            VkSampler oldSampler = _hdriMapSampler;
+            engine->get_current_frame()._deletionQueue.push_function(
+                [=] { vkDestroySampler(engine->_device, oldSampler, nullptr); });
             _hdriMapSampler = VK_NULL_HANDLE;
         }
 
