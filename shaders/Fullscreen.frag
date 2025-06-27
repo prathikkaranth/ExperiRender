@@ -32,7 +32,7 @@ void main()
 
     // Apply tone mapping to rasterized image as before
     rasterized *= compositorData.exposure;
-    rasterized = ACESFitted(rasterized);
+    rasterized = PBRNeutralToneMapping(rasterized);
     rasterized = pow(rasterized, vec3(1.0/2.2));
 
     vec4 rayTraced = vec4(0.0);
@@ -43,9 +43,9 @@ void main()
        rayTraced = texture(rayTracedImage, inUV);
     }
 
-    // Apply exposure adjustment and ACES filmic tone mapping
+    // Apply exposure adjustment and PBR Neutral tone mapping
     rayTraced *= compositorData.exposure;
-    rayTraced.rgb = ACESFitted(rayTraced.rgb);
+    rayTraced.rgb = PBRNeutralToneMapping(rayTraced.rgb);
     rayTraced.rgb = pow(rayTraced.rgb, vec3(1.0/2.2));
     
     if (compositorData.useRayTracer == 1) {
