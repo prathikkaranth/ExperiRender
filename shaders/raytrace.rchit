@@ -9,8 +9,8 @@
 #extension GL_EXT_ray_query : require
 #include "raycommon.glsl"
 #include "random.glsl"
-#include "PBRMetallicRoughness.glsl"
 #include "input_structures.glsl"
+#include "PBRMetallicRoughness.glsl"
 
 layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 

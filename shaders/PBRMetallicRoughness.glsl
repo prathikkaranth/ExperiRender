@@ -3,7 +3,8 @@
 vec3 BSDF(const float metallic, const float roughness, const vec3 normal, const vec3 view_dir, const vec3 light_dir, const vec3 diffuse_color) {
     
     const float NdotL = max(dot(normal, light_dir), 0.0f);
-    const vec3 light_color = vec3(1.f);
+    // Use actual scene light color instead of hardcoded white
+    const vec3 light_color = sceneData.sunlightColor.rgb;
     
     // PBR calculations
     vec3 half_vec = normalize(light_dir + view_dir);
