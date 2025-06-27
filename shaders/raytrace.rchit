@@ -221,7 +221,7 @@ void main()
     // Combine material colors
     vec3 material_color = diffuse_color * vertex_color;
     
-    // Compute direct lighting contribution
+    // Compute direct lighting contribution 
     vec3 direct_light = compute_directional_light_contribution(hit_point.normal, 
                                                              gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f, 
                                                              material_color, 
@@ -234,16 +234,33 @@ void main()
     
     // Set up next ray
     prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-4f;
-    prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
-
-    vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
-
-    // Update the path strength for the next bounce
-    const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
-    const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
     
-    // Update strength based on BSDF and PDF
-    vec3 new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+    vec3 new_strength;
+    
+    // For very high metalness, add specular reflection to ensure proper mirror behavior
+    if (metalness > 0.99f && roughness < 0.05f) {
+      // Mix between perfect reflection and BSDF sampling
+      vec3 incident = gl_WorldRayDirectionEXT;
+      vec3 perfect_reflection = reflect(incident, hit_point.normal);
+      
+      // Use perfect reflection direction
+      prd.next_direction = perfect_reflection;
+      
+      // For perfect reflection, use simple attenuation
+      new_strength = prd.strength * material_color;
+    } else {
+      // Regular BSDF-based sampling approach
+      prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+      
+      vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+      
+      // Update the path strength for the next bounce
+      const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+      const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+      
+      // Update strength based on BRDF and PDF
+      new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+    }
     
     // Safety checks to prevent NaN/infinite values
     if (any(isnan(new_strength)) || any(isinf(new_strength)) || any(lessThan(new_strength, vec3(0.0)))) {
