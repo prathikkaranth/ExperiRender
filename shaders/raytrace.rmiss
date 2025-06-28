@@ -8,11 +8,24 @@
 
 layout(location = 0) rayPayloadInEXT hitPayload prd;
 
+layout(set = 4, binding = 2) uniform sampler2D texSkybox;
 
 void main()
 {
 	prd.isHit = false;
 
-	// Set strength to zero so this miss doesn't contribute to lighting
-  	prd.strength = vec3(0.0);
+	vec3 dir = normalize(gl_WorldRayDirectionEXT);
+
+	// Convert direction to spherical coordinates
+	const vec2 invAtan = vec2(0.1591, 0.3183);
+	vec2 uv = vec2(atan(dir.z, dir.x), asin(dir.y));
+	uv *= invAtan;
+	uv += 0.5;
+
+	// Sample the HDRI texture
+	vec4 texColor = texture(texSkybox, uv);
+
+	vec3 hdrColor = texColor.rgb;
+	
+	prd.color += prd.strength * hdrColor;
 }

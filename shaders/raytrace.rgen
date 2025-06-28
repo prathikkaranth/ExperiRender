@@ -12,8 +12,6 @@ layout(location = 0) rayPayloadEXT hitPayload prd;
 layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 1, set = 1, rgba32f) uniform image2D image;
 
-layout(set = 4, binding = 2) uniform sampler2D texSkybox;
-
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
 vec3 tracePath() {
@@ -40,7 +38,6 @@ vec3 tracePath() {
     const int PAYLOAD = 0;
 
     int depth = 0;
-    vec3 last_direction = prd.next_direction; // Track the last direction
 
     while (prd.next_direction != vec3(0.0, 0.0, 0.0) && depth < pcRay.depth) {
         const vec3 origin = prd.next_origin;
@@ -63,28 +60,17 @@ vec3 tracePath() {
 
         depth++;
     }
-    if (depth == 1 && !prd.isHit)
-    {
-        // Sky color, does not participate in lighting
-        // Use the camera ray direction instead of gl_WorldRayDirectionEXT
-        vec3 dir = normalize(last_direction);  // This is the direction of the ray that missed
-
-        // Convert direction to spherical coordinates
-        float u = 0.5 + atan(dir.z, dir.x) / (2.0 * 3.14159265359);
-        float v = 0.5 - asin(dir.y) / 3.14159265359;
-
-        // Flip the V coordinate to match the rasterizer's flipped texture
-        v = 1.0 - v;
-
-        // Sample the HDRI texture
-        vec4 texColor = texture(texSkybox, vec2(u, v));
-
-        // Apply only HDR color to the skybox
-        vec3 hdrColor = texColor.rgb * texColor.a;
-
-        return hdrColor;
+    
+    // Return the accumulated color from all path contributions
+    vec3 radiance = prd.color.rgb;
+    
+    // Safety clamp to prevent fireflies and invalid values
+    if (any(isnan(radiance)) || any(isinf(radiance))) {
+        radiance = vec3(0.0);
+    } else {
+        radiance = clamp(radiance, vec3(0.0), vec3(100.0));
     }
-    const vec3 radiance = prd.color.rgb;
+    
     return radiance;
 }
 

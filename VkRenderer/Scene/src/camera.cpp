@@ -36,16 +36,16 @@ void Camera::processSDLEvent(SDL_Event &e) {
 
     if (e.type == SDL_KEYDOWN && fpsCameraEnabled) {
         if (e.key.keysym.sym == SDLK_w) {
-            velocity.z = -0.03f;
+            velocity.z = -moveSensitivity;
         }
         if (e.key.keysym.sym == SDLK_s) {
-            velocity.z = 0.03f;
+            velocity.z = moveSensitivity;
         }
         if (e.key.keysym.sym == SDLK_a) {
-            velocity.x = -0.03f;
+            velocity.x = -moveSensitivity;
         }
         if (e.key.keysym.sym == SDLK_d) {
-            velocity.x = 0.03f;
+            velocity.x = moveSensitivity;
         }
     }
 
