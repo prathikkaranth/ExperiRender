@@ -60,7 +60,8 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
-    const uint32_t totalSurfaces = engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    const uint32_t totalSurfaces =
+        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
     tlas.reserve(totalSurfaces);
 
     // Add opaque surfaces first
@@ -173,9 +174,10 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     std::vector<ObjDesc> objDescs;
-    const uint32_t totalSurfaces = engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    const uint32_t totalSurfaces =
+        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
     objDescs.reserve(totalSurfaces);
-    
+
     // Add opaque surfaces first
     for (auto &OpaqueSurface: engine->mainDrawContext.OpaqueSurfaces) {
         ObjDesc desc = {.vertexAddress = OpaqueSurface.vertexBufferAddress,
@@ -183,7 +185,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
                         .firstIndex = OpaqueSurface.firstIndex};
         objDescs.push_back(desc);
     }
-    
+
     // Add transparent surfaces
     for (auto &TransparentSurface: engine->mainDrawContext.TransparentSurfaces) {
         ObjDesc desc = {.vertexAddress = TransparentSurface.vertexBufferAddress,
@@ -212,7 +214,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     // Tex Descriptions
     // Put all textures in loadScenes to a vector
     uint32_t textureIndex = 0;
-    
+
     // Add opaque surface textures first
     for (std::uint32_t i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
         loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
@@ -220,7 +222,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         loadedMetalRoughTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughImage);
         engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = textureIndex++;
     }
-    
+
     // Add transparent surface textures
     for (std::uint32_t i = 0; i < engine->mainDrawContext.TransparentSurfaces.size(); i++) {
         loadedTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->colImage);
