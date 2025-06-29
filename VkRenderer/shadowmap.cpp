@@ -41,8 +41,8 @@ void shadowMap::update_lightSpaceMatrix(VulkanEngine *engine) {
 void shadowMap::init_depthShadowMap(VulkanEngine *engine) {
 
     _depthShadowMap = vkutil::create_image(engine, VkExtent3D{SHADOWMAP_SIZE, SHADOWMAP_SIZE, 1}, VK_FORMAT_D32_SFLOAT,
-                                           VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _depthShadowMap.allocation, "Shadow Depth Map");
+                                           VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                           false, "Shadow Depth Map");
 
     VkPushConstantRange matrixRange{};
     matrixRange.offset = 0;
@@ -148,8 +148,9 @@ void shadowMap::draw_depthShadowMap(VulkanEngine *engine, VkCommandBuffer cmd) c
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "Shadow Map Scene Data Buffer");
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Shadow Map Scene Data Buffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

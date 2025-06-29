@@ -506,9 +506,10 @@ void nvvk::RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer cmdBuf, uint32_t 
     }
 
     // Allocate the scratch memory
-    scratchBuffer = vkutil::create_buffer(
-        vk_engine, sizeInfo.buildScratchSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_UNKNOWN, "RT TLAS Scratch Buffer");
+    scratchBuffer =
+        vkutil::create_buffer(vk_engine, sizeInfo.buildScratchSize,
+                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                              VMA_MEMORY_USAGE_UNKNOWN, "RT TLAS Scratch Buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer};
     VkDeviceAddress scratchAddress = vkGetBufferDeviceAddress(raw_device, &bufferInfo);
@@ -557,9 +558,10 @@ void nvvk::RaytracingBuilderKHR::updateBlas(uint32_t blasIdx, BlasInput &blas,
                                             maxPrimCount.data(), &sizeInfo);
 
     // Allocate the scratch buffer and setting the scratch info
-    const auto scratchBuffer = vkutil::create_buffer(
-        vk_engine, sizeInfo.buildScratchSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_UNKNOWN, "RT BLAS Scratch Buffer");
+    const auto scratchBuffer =
+        vkutil::create_buffer(vk_engine, sizeInfo.buildScratchSize,
+                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                              VMA_MEMORY_USAGE_UNKNOWN, "RT BLAS Scratch Buffer");
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer = scratchBuffer.buffer;
     buildInfos.scratchData.deviceAddress = vkGetBufferDeviceAddress(raw_device, &bufferInfo);

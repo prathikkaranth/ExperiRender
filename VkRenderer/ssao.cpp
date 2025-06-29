@@ -12,12 +12,11 @@ void ssao::init_ssao(VulkanEngine *engine) {
 
     _depthMapExtent = {engine->_windowExtent.width, engine->_windowExtent.height};
     _ssaoImage = vkutil::create_image(engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
-                                      VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _ssaoImage.allocation, "SSAO Image");
-    _depthMap =
-        vkutil::create_image(engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
-                             VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
-    vmaSetAllocationName(engine->_allocator, _depthMap.allocation, "Depth Map");
+                                      VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                      false, "SSAO Image");
+    _depthMap = vkutil::create_image(engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
+                                     VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                     false, "Depth Map");
 
     // SSAO
     {
@@ -77,10 +76,9 @@ void ssao::init_ssao(VulkanEngine *engine) {
 
 void ssao::init_ssao_blur(VulkanEngine *engine) {
 
-    _ssaoImageBlurred =
-        vkutil::create_image(engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
-                             VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _ssaoImageBlurred.allocation, "SSAO Blurred Image");
+    _ssaoImageBlurred = vkutil::create_image(
+        engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32_SFLOAT,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false, "SSAO Blurred Image");
 
     // SSAO Blur
     {
@@ -189,8 +187,7 @@ void ssao::init_ssao_data(VulkanEngine *engine) {
     }
 
     _ssaoNoiseImage = vkutil::create_image(engine, &ssaoNoise[0], VkExtent3D{4, 4, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _ssaoNoiseImage.allocation, "ssaoNoiseImage");
+                                           VK_IMAGE_USAGE_SAMPLED_BIT, false, "ssaoNoiseImage");
 
     std::vector<glm::vec3> ssaoKernel = generate_ssao_kernels();
     for (int i = 0; i < 128; i++) {
@@ -203,8 +200,9 @@ void ssao::init_ssao_data(VulkanEngine *engine) {
 
 void ssao::draw_ssao(VulkanEngine *engine, VkCommandBuffer cmd) const {
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer ssaoSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SSAO Scene Data Buffer");
+    AllocatedBuffer ssaoSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "SSAO Scene Data Buffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

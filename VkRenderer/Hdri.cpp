@@ -31,7 +31,7 @@ void HDRI::load_hdri_to_buffer(VulkanEngine *engine, const std::string &jsonFile
         }
 
         // Use the loaded data...
-        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents, "HDRI Map Image");
 
         if (_hdriMap.image == VK_NULL_HANDLE) {
             spdlog::error("Failed to initialize HDRI!");
@@ -89,7 +89,7 @@ void HDRI::load_hdri_from_file(VulkanEngine *engine, const std::string &hdriFile
         }
 
         // Create new HDRI image
-        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+        _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents, "HDRI Map Image");
 
         if (_hdriMap.image == VK_NULL_HANDLE) {
             spdlog::error("Failed to initialize HDRI!");
@@ -128,7 +128,7 @@ void HDRI::load_hdri_to_buffer_fallback(VulkanEngine *engine) {
     }
 
     // Use the loaded data...
-    _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents);
+    _hdriMap = vkutil::create_hdri_image(engine, data, width, height, nrComponents, "HDRI Map Image");
 
     if (_hdriMap.image == VK_NULL_HANDLE) {
         spdlog::error("Failed to initialize cubemap!");
@@ -159,8 +159,7 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
         // Create a default grey 1x1 HDRI image
         float greyPixel[4] = {0.026f, 0.026f, 0.026f, 1.0f}; // RGBA float - medium grey
         _hdriMap = vkutil::create_image(engine, (void *) greyPixel, VkExtent3D{1, 1, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-                                        VK_IMAGE_USAGE_SAMPLED_BIT);
-        vmaSetAllocationName(engine->_allocator, _hdriMap.allocation, "Default HDRI Image");
+                                        VK_IMAGE_USAGE_SAMPLED_BIT, false, "Default HDRI Image");
 
         // Create sampler
         VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
@@ -176,8 +175,8 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
 
     _hdriOutImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-    vmaSetAllocationName(engine->_allocator, _hdriOutImage.allocation, "HDRI Output Image");
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, false,
+        "HDRI Output Image");
 
     // HDRI
     {
@@ -258,8 +257,9 @@ void HDRI::draw_hdriMap(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdBeginRendering(cmd, &renderInfo);
 
     // Allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "Skybox Scene Data Buffer");
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Skybox Scene Data Buffer");
 
     // Add it to the deletion queue
     engine->get_current_frame()._deletionQueue.push_function(

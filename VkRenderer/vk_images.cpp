@@ -7,7 +7,7 @@
 #include "vk_initializers.h"
 
 AllocatedImage vkutil::create_image(const VulkanEngine *engine, VkExtent3D size, VkFormat format,
-                                    VkImageUsageFlags usage, bool mipmapped) {
+                                    VkImageUsageFlags usage, bool mipmapped, const char *name) {
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
@@ -24,6 +24,11 @@ AllocatedImage vkutil::create_image(const VulkanEngine *engine, VkExtent3D size,
 
     // allocate and create the image
     VK_CHECK(vmaCreateImage(engine->_allocator, &img_info, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+
+    // Set allocation name if provided
+    if (name != nullptr) {
+        vmaSetAllocationName(engine->_allocator, newImage.allocation, name);
+    }
 
     // if the format is a depth format, we will need to have it use the correct
     // aspect flag
@@ -42,18 +47,17 @@ AllocatedImage vkutil::create_image(const VulkanEngine *engine, VkExtent3D size,
 }
 
 AllocatedImage vkutil::create_image(const VulkanEngine *engine, void *data, VkExtent3D size, VkFormat format,
-                                    VkImageUsageFlags usage, bool mipmapped) {
+                                    VkImageUsageFlags usage, bool mipmapped, const char *name) {
     const size_t pixel_size = format == VK_FORMAT_R32G32B32A32_SFLOAT ? 16 : 4;
     size_t data_size = size.depth * size.width * size.height * pixel_size;
-    AllocatedBuffer uploadbuffer =
-        vkutil::create_buffer(engine, data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, uploadbuffer.allocation, "Image Upload Buffer");
+    AllocatedBuffer uploadbuffer = vkutil::create_buffer(engine, data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU, "Image Upload Buffer");
 
     memcpy(uploadbuffer.info.pMappedData, data, data_size);
 
-    AllocatedImage new_image = create_image(
-        engine, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, mipmapped);
-    vmaSetAllocationName(engine->_allocator, new_image.allocation, "Image Allocation");
+    AllocatedImage new_image =
+        create_image(engine, size, format, usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                     mipmapped, name);
 
     engine->immediate_submit([&](VkCommandBuffer cmd) {
         vkutil::transition_image(cmd, new_image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -87,7 +91,7 @@ AllocatedImage vkutil::create_image(const VulkanEngine *engine, void *data, VkEx
 }
 
 AllocatedImage vkutil::create_hdri_image(const VulkanEngine *engine, float *data, int width, int height,
-                                         int nrComponents) {
+                                         int nrComponents, const char *name) {
     VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
     // Calculate source size based on nrComponents from stb_image
@@ -119,9 +123,8 @@ AllocatedImage vkutil::create_hdri_image(const VulkanEngine *engine, float *data
     newImage.imageFormat = format;
 
     // Create a staging buffer
-    AllocatedBuffer uploadBuffer =
-        vkutil::create_buffer(engine, dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, uploadBuffer.allocation, "HDRI Upload Buffer");
+    AllocatedBuffer uploadBuffer = vkutil::create_buffer(engine, dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU, "HDRI Upload Buffer");
 
     // Verify buffer is mapped
     if (uploadBuffer.info.pMappedData == nullptr) {
@@ -185,7 +188,11 @@ AllocatedImage vkutil::create_hdri_image(const VulkanEngine *engine, float *data
 
     // Allocate and create the image
     VK_CHECK(vmaCreateImage(engine->_allocator, &imgInfo, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
-    vmaSetAllocationName(engine->_allocator, newImage.allocation, "HDRI Image");
+
+    // Set allocation name if provided
+    if (name != nullptr) {
+        vmaSetAllocationName(engine->_allocator, newImage.allocation, name);
+    }
 
     // Create the image view
     VkImageViewCreateInfo viewInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};

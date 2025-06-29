@@ -19,7 +19,7 @@ namespace vkutil {
 
     // Buffer creation and destruction functions
     AllocatedBuffer create_buffer(const VulkanEngine *engine, size_t allocSize, VkBufferUsageFlags usage,
-                                  VmaMemoryUsage memoryUsage, const char* name = nullptr);
+                                  VmaMemoryUsage memoryUsage, const char *name = nullptr);
     void destroy_buffer(const VulkanEngine *engine, const AllocatedBuffer &buffer);
 
     // Memory upload utility

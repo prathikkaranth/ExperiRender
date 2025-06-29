@@ -16,8 +16,8 @@ void PostProcessor::init(VulkanEngine *engine) {
 
     _fullscreenImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
-    vmaSetAllocationName(engine->_allocator, _fullscreenImage.allocation, "Post Process Image");
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, false,
+        "Post Process Image");
 
     // Create a sampler for the image
     VkSamplerCreateInfo samplerInfo{};
@@ -116,8 +116,9 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
         engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _postProcessDescriptorSetLayout);
 
     // Allocate a new uniform buffer for the scene data
-    AllocatedBuffer compositorSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "Compositor Scene Data Buffer");
+    AllocatedBuffer compositorSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Compositor Scene Data Buffer");
 
     // Add it to the deletion queue
     engine->get_current_frame()._deletionQueue.push_function(

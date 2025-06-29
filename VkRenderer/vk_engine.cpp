@@ -183,18 +183,15 @@ void VulkanEngine::init_default_data() {
     // 3 default textures, white, grey and black. 1 pixel each.
     uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
     _whiteImage = vkutil::create_image(this, (void *) &white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(_allocator, _whiteImage.allocation, "whiteImage");
+                                       VK_IMAGE_USAGE_SAMPLED_BIT, false, "whiteImage");
 
     uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
     _greyImage = vkutil::create_image(this, (void *) &grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                      VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(_allocator, _greyImage.allocation, "greyImage");
+                                      VK_IMAGE_USAGE_SAMPLED_BIT, false, "greyImage");
 
     uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
     _blackImage = vkutil::create_image(this, (void *) &black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(_allocator, _blackImage.allocation, "blackImage");
+                                       VK_IMAGE_USAGE_SAMPLED_BIT, false, "blackImage");
 
     // checkerboard texture
     uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
@@ -205,8 +202,7 @@ void VulkanEngine::init_default_data() {
         }
     }
     _errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                                   VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(_allocator, _errorCheckerboardImage.allocation, "errorCheckerboardImage");
+                                                   VK_IMAGE_USAGE_SAMPLED_BIT, false, "errorCheckerboardImage");
 
     // Shadow light map
     _shadowMap.init_lightSpaceMatrix(this);
@@ -245,9 +241,9 @@ void VulkanEngine::init_default_data() {
     materialResources.normalSampler = _defaultSamplerLinear;
 
     // set the uniform buffer for the material data
-    AllocatedBuffer materialConstants =
-        vkutil::create_buffer(this, sizeof(GLTFMetallic_Roughness::MaterialConstants),
-                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "Material Constants Buffer");
+    AllocatedBuffer materialConstants = vkutil::create_buffer(this, sizeof(GLTFMetallic_Roughness::MaterialConstants),
+                                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Material Constants Buffer");
 
     // write the buffer
     vkutil::run_with_mapped_memory(_allocator, materialConstants.allocation, [&](void *data) {
@@ -1072,8 +1068,9 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        this, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_drawGeom");
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(this, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_drawGeom");
 
     // add it to the deletion queue of this frame so it gets deleted once it's been used
     get_current_frame()._deletionQueue.push_function([=, this] { vkutil::destroy_buffer(this, gpuSceneDataBuffer); });
@@ -1312,8 +1309,9 @@ GPUMeshBuffers VulkanEngine::uploadMesh(const std::span<uint32_t> indices, const
                                                       .buffer = newSurface.indexBuffer.buffer};
     newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo2);
 
-    const AllocatedBuffer staging = vkutil::create_buffer(this, vertexBufferSize + indexBufferSize,
-                                                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, "Staging Buffer");
+    const AllocatedBuffer staging =
+        vkutil::create_buffer(this, vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                              VMA_MEMORY_USAGE_CPU_ONLY, "Staging Buffer");
 
     vkutil::upload_to_buffer(this, vertices.data(), vertexBufferSize, staging);
     vkutil::upload_to_buffer(this, indices.data(), indexBufferSize, staging, vertexBufferSize);

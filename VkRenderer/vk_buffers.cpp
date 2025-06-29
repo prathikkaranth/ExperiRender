@@ -4,7 +4,7 @@
 namespace vkutil {
 
     AllocatedBuffer create_buffer(const VulkanEngine *engine, size_t allocSize, VkBufferUsageFlags usage,
-                                  VmaMemoryUsage memoryUsage, const char* name) {
+                                  VmaMemoryUsage memoryUsage, const char *name) {
         // allocate buffer
         VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bufferInfo.pNext = nullptr;

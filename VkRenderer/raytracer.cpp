@@ -51,8 +51,8 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
     // Create just the RT output image without descriptors or acceleration structures
     _rtOutputImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false,
+        "RT Output Image");
 
     // Add to deletion queue
     engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
@@ -137,8 +137,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         _rtOutputImage = vkutil::create_image(
             engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
             VK_FORMAT_R32G32B32A32_SFLOAT,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-        vmaSetAllocationName(engine->_allocator, _rtOutputImage.allocation, "RT Output Image");
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false,
+            "RT Output Image");
 
         // Add to deletion queue
         engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
@@ -197,8 +197,9 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
 
     m_objDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_objDescSetLayout);
 
-    AllocatedBuffer m_objDescSetBuffer = vkutil::create_buffer(
-        engine, sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "RT ObjDesc Buffer");
+    AllocatedBuffer m_objDescSetBuffer =
+        vkutil::create_buffer(engine, sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "RT ObjDesc Buffer");
 
     ObjDesc *objDescsToMap;
     VK_CHECK(
@@ -554,8 +555,9 @@ void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, co
     }
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_drawGeom");
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_drawGeom");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

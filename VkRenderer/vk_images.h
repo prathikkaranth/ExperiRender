@@ -11,9 +11,10 @@ namespace vkutil {
                              VkExtent2D dstSize, VkFilter filter, VkImageAspectFlags mask);
     void generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D imageSize);
     AllocatedImage create_image(const VulkanEngine *engine, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-                                bool mipmapped = false);
+                                bool mipmapped = false, const char *name = nullptr);
     AllocatedImage create_image(const VulkanEngine *engine, void *data, VkExtent3D size, VkFormat format,
-                                VkImageUsageFlags usage, bool mipmapped = false);
-    AllocatedImage create_hdri_image(const VulkanEngine *engine, float *data, int width, int height, int nrComponents);
+                                VkImageUsageFlags usage, bool mipmapped = false, const char *name = nullptr);
+    AllocatedImage create_hdri_image(const VulkanEngine *engine, float *data, int width, int height, int nrComponents,
+                                     const char *name = nullptr);
     void destroy_image(const VulkanEngine *engine, const AllocatedImage &image);
 } // namespace vkutil
