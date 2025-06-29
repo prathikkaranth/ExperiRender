@@ -7,6 +7,7 @@
 #include "NsightAftermathShaderDatabase.h"
 #endif
 
+#include "vk_buffers.h"
 #include "vk_engine.h"
 #include "vk_loader.h"
 
@@ -29,11 +30,6 @@
 
 constexpr bool bUseValidationLayers = true;
 
-void VulkanEngine::upload_to_vma_allocation(const void *src, size_t size, const AllocatedBuffer &dst_allocation,
-                                            size_t dst_offset) const {
-    run_with_mapped_memory(_allocator, dst_allocation.allocation,
-                           [&](void *dst) { memcpy(static_cast<std::uint8_t *>(dst) + dst_offset, src, size); });
-}
 
 void VulkanEngine::init() {
     // We initialize SDL and create a window with it.
@@ -249,19 +245,20 @@ void VulkanEngine::init_default_data() {
     materialResources.normalSampler = _defaultSamplerLinear;
 
     // set the uniform buffer for the material data
-    AllocatedBuffer materialConstants = create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants),
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer materialConstants =
+        vkutil::create_buffer(this, sizeof(GLTFMetallic_Roughness::MaterialConstants),
+                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(_allocator, materialConstants.allocation, "Material Constants Buffer");
 
     // write the buffer
-    run_with_mapped_memory(_allocator, materialConstants.allocation, [&](void *data) {
+    vkutil::run_with_mapped_memory(_allocator, materialConstants.allocation, [&](void *data) {
         auto *sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants *>(data);
         sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
         sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 0};
         sceneUniformData->hasMetalRoughTex = 0;
     });
 
-    _mainDeletionQueue.push_function([=, this]() { destroy_buffer(materialConstants); });
+    _mainDeletionQueue.push_function([=, this]() { vkutil::destroy_buffer(this, materialConstants); });
 
     materialResources.dataBuffer = materialConstants.buffer;
     materialResources.dataBufferOffset = 0;
@@ -1076,12 +1073,12 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer =
-        create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
+        this, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_drawGeom");
 
     // add it to the deletion queue of this frame so it gets deleted once it's been used
-    get_current_frame()._deletionQueue.push_function([=, this] { destroy_buffer(gpuSceneDataBuffer); });
+    get_current_frame()._deletionQueue.push_function([=, this] { vkutil::destroy_buffer(this, gpuSceneDataBuffer); });
 
     // write the buffer
     GPUSceneData *sceneUniformData;
@@ -1240,26 +1237,6 @@ void VulkanEngine::init_descriptors() {
     }
 }
 
-AllocatedBuffer VulkanEngine::create_buffer(const size_t allocSize, const VkBufferUsageFlags usage,
-                                            const VmaMemoryUsage memoryUsage) const {
-    // allocate buffer
-    VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.pNext = nullptr;
-    bufferInfo.size = allocSize;
-
-    bufferInfo.usage = usage;
-
-    VmaAllocationCreateInfo vmaallocInfo = {};
-    vmaallocInfo.usage = memoryUsage;
-    vmaallocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    AllocatedBuffer newBuffer{};
-
-    // allocate the buffer
-    VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation,
-                             &newBuffer.info));
-
-    return newBuffer;
-}
 
 void VulkanEngine::init_pipelines() {
     // HDRI PIPELINE
@@ -1313,11 +1290,12 @@ GPUMeshBuffers VulkanEngine::uploadMesh(const std::span<uint32_t> indices, const
     GPUMeshBuffers newSurface{};
 
     // create vertex buffer
-    newSurface.vertexBuffer = create_buffer(vertexBufferSize,
-                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-                                                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                            VMA_MEMORY_USAGE_GPU_ONLY);
+    newSurface.vertexBuffer =
+        vkutil::create_buffer(this, vertexBufferSize,
+                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                              VMA_MEMORY_USAGE_GPU_ONLY);
     vmaSetAllocationName(_allocator, newSurface.vertexBuffer.allocation, "Vertex Buffer");
 
     // find the address of the vertex buffer
@@ -1326,23 +1304,24 @@ GPUMeshBuffers VulkanEngine::uploadMesh(const std::span<uint32_t> indices, const
     newSurface.vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo);
 
     // create index buffer
-    newSurface.indexBuffer = create_buffer(indexBufferSize,
-                                           VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                               VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                           VMA_MEMORY_USAGE_GPU_ONLY);
+    newSurface.indexBuffer =
+        vkutil::create_buffer(this, indexBufferSize,
+                              VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                              VMA_MEMORY_USAGE_GPU_ONLY);
     vmaSetAllocationName(_allocator, newSurface.indexBuffer.allocation, "Index Buffer");
 
     const VkBufferDeviceAddressInfo deviceAdressInfo2{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
                                                       .buffer = newSurface.indexBuffer.buffer};
     newSurface.indexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAdressInfo2);
 
-    const AllocatedBuffer staging =
-        create_buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    const AllocatedBuffer staging = vkutil::create_buffer(this, vertexBufferSize + indexBufferSize,
+                                                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     vmaSetAllocationName(_allocator, staging.allocation, "Staging Buffer");
 
-    upload_to_vma_allocation(vertices.data(), vertexBufferSize, staging);
-    upload_to_vma_allocation(indices.data(), indexBufferSize, staging, vertexBufferSize);
+    vkutil::upload_to_buffer(this, vertices.data(), vertexBufferSize, staging);
+    vkutil::upload_to_buffer(this, indices.data(), indexBufferSize, staging, vertexBufferSize);
 
     immediate_submit([&](VkCommandBuffer cmd) {
         VkBufferCopy vertexCopy{};
@@ -1360,7 +1339,7 @@ GPUMeshBuffers VulkanEngine::uploadMesh(const std::span<uint32_t> indices, const
         vkCmdCopyBuffer(cmd, staging.buffer, newSurface.indexBuffer.buffer, 1, &indexCopy);
     });
 
-    destroy_buffer(staging);
+    vkutil::destroy_buffer(this, staging);
 
     return newSurface;
 }
@@ -1380,11 +1359,6 @@ void VulkanEngine::resize_swapchain() {
     resize_requested = false;
 }
 
-void VulkanEngine::destroy_buffer(const AllocatedBuffer &buffer) const {
-    if (buffer.buffer != VK_NULL_HANDLE) {
-        vmaDestroyBuffer(_allocator, buffer.buffer, buffer.allocation);
-    }
-}
 
 void GLTFMetallic_Roughness::build_pipelines(VulkanEngine *engine) {
     VkShaderModule meshFragShader;

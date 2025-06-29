@@ -1,5 +1,6 @@
 #include "cube.h"
 #include <spdlog/spdlog.h>
+#include "vk_buffers.h"
 #include "vk_descriptors.h"
 #include "vk_engine.h"
 #include "vk_initializers.h"
@@ -87,11 +88,11 @@ void CubePipeline::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     // Create scene uniform buffer
-    AllocatedBuffer gpuSceneDataBuffer =
-        engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
+        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // Update scene data
-    engine->upload_to_vma_allocation(&engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
+    vkutil::upload_to_buffer(engine, &engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
 
     // Create descriptor set
     VkDescriptorSet sceneDescriptor =
@@ -107,5 +108,6 @@ void CubePipeline::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdDraw(cmd, 36, 1, 0, 0);
 
     // Clean up buffer
-    engine->get_current_frame()._deletionQueue.push_function([=] { engine->destroy_buffer(gpuSceneDataBuffer); });
+    engine->get_current_frame()._deletionQueue.push_function(
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
 }

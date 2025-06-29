@@ -6,6 +6,7 @@
 // header for std::visit
 
 #include <glm/gtx/quaternion.hpp>
+#include <vk_buffers.h>
 #include <vk_images.h>
 #include "stb_image.h"
 #include "vk_engine.h"
@@ -240,7 +241,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
 
     // create buffer to hold the material data
     file.materialDataBuffer =
-        engine->create_buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
+        vkutil::create_buffer(engine, sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, file.materialDataBuffer.allocation, "GLTF Material Data Buffer");
     int data_index = 0;
@@ -505,12 +506,12 @@ void LoadedGLTF::clearAll() {
     VkDevice dv = creator->_device;
 
     descriptorPool.destroy_pools(dv);
-    creator->destroy_buffer(materialDataBuffer);
+    vkutil::destroy_buffer(creator, materialDataBuffer);
 
     for (auto &[k, v]: meshes) {
 
-        creator->destroy_buffer(v->meshBuffers.indexBuffer);
-        creator->destroy_buffer(v->meshBuffers.vertexBuffer);
+        vkutil::destroy_buffer(creator, v->meshBuffers.indexBuffer);
+        vkutil::destroy_buffer(creator, v->meshBuffers.vertexBuffer);
     }
 
     for (auto &[k, v]: images) {

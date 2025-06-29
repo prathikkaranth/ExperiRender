@@ -1,5 +1,6 @@
 #include "gbuffer.h"
 #include <spdlog/spdlog.h>
+#include "vk_buffers.h"
 #include "vk_images.h"
 
 void Gbuffer::init_gbuffer(VulkanEngine *engine) {
@@ -146,16 +147,16 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer =
-        engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
+        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_DrawGbuffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(
-        [=, this]() { engine->destroy_buffer(gpuSceneDataBuffer); });
+        [=, this]() { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
 
     // write the buffer
-    engine->upload_to_vma_allocation(&engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
+    vkutil::upload_to_buffer(engine, &engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);
 
     // create a descriptor set that binds that buffer and update it
     VkDescriptorSet globalDescriptor =

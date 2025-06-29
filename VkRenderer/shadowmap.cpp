@@ -1,5 +1,6 @@
 
 #include <spdlog/spdlog.h>
+#include <vk_buffers.h>
 #include <vk_images.h>
 #include "vk_mem_alloc.h"
 
@@ -147,12 +148,13 @@ void shadowMap::draw_depthShadowMap(VulkanEngine *engine, VkCommandBuffer cmd) c
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer =
-        engine->create_buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
+        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "Shadow Map Scene Data Buffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
-    engine->get_current_frame()._deletionQueue.push_function([=] { engine->destroy_buffer(gpuSceneDataBuffer); });
+    engine->get_current_frame()._deletionQueue.push_function(
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
 
     // write the buffer
     GPUSceneData *sceneUniformData;

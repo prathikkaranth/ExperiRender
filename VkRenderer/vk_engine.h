@@ -204,10 +204,6 @@ public:
 
     GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) const;
 
-    AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage) const;
-    void destroy_buffer(const AllocatedBuffer &buffer) const;
-    void upload_to_vma_allocation(const void *src, size_t size, const AllocatedBuffer &dst_allocation,
-                                  size_t dst_offset = 0) const;
 
     // initializes everything in the engine
     void init();

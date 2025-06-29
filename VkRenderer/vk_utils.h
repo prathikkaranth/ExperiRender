@@ -20,13 +20,3 @@ template<class integral>
 constexpr integral align_up(integral x, size_t a) noexcept {
     return integral((x + (integral(a) - 1)) & ~integral(a - 1));
 }
-
-namespace {
-    template<typename Fn>
-    void run_with_mapped_memory(VmaAllocator allocator, VmaAllocation allocation, Fn &&fn) {
-        void *mapped_memory;
-        VK_CHECK(vmaMapMemory(allocator, allocation, &mapped_memory));
-        fn(mapped_memory);
-        vmaUnmapMemory(allocator, allocation);
-    }
-} // namespace

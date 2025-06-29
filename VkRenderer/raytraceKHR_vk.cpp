@@ -20,6 +20,7 @@
 #include "raytraceKHR_vk.h"
 #include <cinttypes>
 #include <numeric>
+#include "vk_buffers.h"
 #include "vk_engine.h"
 
 namespace {
@@ -129,7 +130,7 @@ namespace {
     nvvk::AccelKHR create_acceleration(VulkanEngine *engine, VkAccelerationStructureCreateInfoKHR &accel_create_info) {
 
         nvvk::AccelKHR accel;
-        accel.buffer = engine->create_buffer(accel_create_info.size,
+        accel.buffer = vkutil::create_buffer(engine, accel_create_info.size,
                                              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
                                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                              VMA_MEMORY_USAGE_GPU_ONLY);
@@ -165,14 +166,14 @@ nvvk::RaytracingBuilderKHR::RaytracingBuilderKHR(VulkanEngine *engine, uint32_t 
 void nvvk::RaytracingBuilderKHR::destroy() {
 
     if (m_tlas.buffer.buffer != VK_NULL_HANDLE) {
-        m_engine_ptr->destroy_buffer(m_tlas.buffer);
+        vkutil::destroy_buffer(m_engine_ptr, m_tlas.buffer);
     }
     if (m_tlas.accel != VK_NULL_HANDLE) {
         vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, m_tlas.accel, nullptr);
     }
     for (auto &blas: m_blas) {
         if (blas.buffer.buffer != VK_NULL_HANDLE) {
-            m_engine_ptr->destroy_buffer(blas.buffer);
+            vkutil::destroy_buffer(m_engine_ptr, blas.buffer);
         }
         if (blas.accel != VK_NULL_HANDLE) {
             vkDestroyAccelerationStructureKHR(m_engine_ptr->_device, blas.accel, nullptr);
@@ -246,8 +247,8 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput> &input,
     }
 
     // Allocate the scratch buffers holding the temporary data of the acceleration structure builder
-    const auto scratchBuffer = vk_engine->create_buffer(
-        maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    const auto scratchBuffer = vkutil::create_buffer(
+        vk_engine, maxScratchSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT BLAS Scratch Buffer");
 
@@ -322,7 +323,7 @@ void nvvk::RaytracingBuilderKHR::buildBlas(const std::vector<BlasInput> &input,
     // Clean up
     vkDestroyQueryPool(raw_device, queryPool, nullptr);
     // m_alloc->finalizeAndReleaseStaging();
-    vk_engine->destroy_buffer(scratchBuffer);
+    vkutil::destroy_buffer(vk_engine, scratchBuffer);
     // m_cmdPool.deinit();
 }
 
@@ -507,9 +508,9 @@ void nvvk::RaytracingBuilderKHR::cmdCreateTlas(VkCommandBuffer cmdBuf, uint32_t 
     }
 
     // Allocate the scratch memory
-    scratchBuffer = vk_engine->create_buffer(
-        sizeInfo.buildScratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_UNKNOWN);
+    scratchBuffer = vkutil::create_buffer(
+        vk_engine, sizeInfo.buildScratchSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_UNKNOWN);
     vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT TLAS Scratch Buffer");
 
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, scratchBuffer.buffer};
@@ -559,9 +560,9 @@ void nvvk::RaytracingBuilderKHR::updateBlas(uint32_t blasIdx, BlasInput &blas,
                                             maxPrimCount.data(), &sizeInfo);
 
     // Allocate the scratch buffer and setting the scratch info
-    const auto scratchBuffer = vk_engine->create_buffer(
-        sizeInfo.buildScratchSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_UNKNOWN);
+    const auto scratchBuffer = vkutil::create_buffer(
+        vk_engine, sizeInfo.buildScratchSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_UNKNOWN);
     vmaSetAllocationName(vk_engine->_allocator, scratchBuffer.allocation, "RT BLAS Scratch Buffer");
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
     bufferInfo.buffer = scratchBuffer.buffer;
@@ -610,13 +611,13 @@ void nvvk::RaytracingBuilderKHR::buildTlas(size_t num_instances, void *instance_
     // Create a buffer holding the actual instance data (matrices++) for use by the AS builder
     size_t instancesBufferSize = num_instances * sizeof_instance;
     const auto instancesBuffer =
-        vk_engine->create_buffer(instancesBufferSize,
-                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                     VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
+        vkutil::create_buffer(vk_engine, instancesBufferSize,
+                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(vk_engine->_allocator, instancesBuffer.allocation, "RT TLAS Instance Buffer");
     // Copy the instance data into the buffer
-    vk_engine->upload_to_vma_allocation(instance_data, instancesBufferSize, instancesBuffer);
+    vkutil::upload_to_buffer(vk_engine, instance_data, instancesBufferSize, instancesBuffer);
 
     // NAME_VK(instancesBuffer.buffer);
     VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, instancesBuffer.buffer};
@@ -636,6 +637,6 @@ void nvvk::RaytracingBuilderKHR::buildTlas(size_t num_instances, void *instance_
     // Finalizing and destroying temporary data
     VK_CHECK(vkEndCommandBuffer(cmdBuf));
     vkinit::submit_command_buffer_and_wait(vk_engine->_graphicsQueue, cmdBuf);
-    vk_engine->destroy_buffer(scratchBuffer);
-    vk_engine->destroy_buffer(instancesBuffer);
+    vkutil::destroy_buffer(vk_engine, scratchBuffer);
+    vkutil::destroy_buffer(vk_engine, instancesBuffer);
 }

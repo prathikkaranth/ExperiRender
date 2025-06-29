@@ -2,11 +2,12 @@
 #include <glm/gtc/packing.hpp>
 #include <stb_image.h>
 
+#include "vk_buffers.h"
 #include "vk_images.h"
 #include "vk_initializers.h"
 
-AllocatedImage vkutil::create_image(VulkanEngine *engine, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-                                    bool mipmapped) {
+AllocatedImage vkutil::create_image(const VulkanEngine *engine, VkExtent3D size, VkFormat format,
+                                    VkImageUsageFlags usage, bool mipmapped) {
     AllocatedImage newImage;
     newImage.imageFormat = format;
     newImage.imageExtent = size;
@@ -40,12 +41,12 @@ AllocatedImage vkutil::create_image(VulkanEngine *engine, VkExtent3D size, VkFor
     return newImage;
 }
 
-AllocatedImage vkutil::create_image(VulkanEngine *engine, void *data, VkExtent3D size, VkFormat format,
+AllocatedImage vkutil::create_image(const VulkanEngine *engine, void *data, VkExtent3D size, VkFormat format,
                                     VkImageUsageFlags usage, bool mipmapped) {
     const size_t pixel_size = format == VK_FORMAT_R32G32B32A32_SFLOAT ? 16 : 4;
     size_t data_size = size.depth * size.width * size.height * pixel_size;
     AllocatedBuffer uploadbuffer =
-        engine->create_buffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        vkutil::create_buffer(engine, data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, uploadbuffer.allocation, "Image Upload Buffer");
 
     memcpy(uploadbuffer.info.pMappedData, data, data_size);
@@ -81,11 +82,12 @@ AllocatedImage vkutil::create_image(VulkanEngine *engine, void *data, VkExtent3D
                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
         }
     });
-    engine->destroy_buffer(uploadbuffer);
+    vkutil::destroy_buffer(engine, uploadbuffer);
     return new_image;
 }
 
-AllocatedImage vkutil::create_hdri_image(VulkanEngine *engine, float *data, int width, int height, int nrComponents) {
+AllocatedImage vkutil::create_hdri_image(const VulkanEngine *engine, float *data, int width, int height,
+                                         int nrComponents) {
     VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
     // Calculate source size based on nrComponents from stb_image
@@ -118,7 +120,7 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine *engine, float *data, int 
 
     // Create a staging buffer
     AllocatedBuffer uploadBuffer =
-        engine->create_buffer(dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        vkutil::create_buffer(engine, dstSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, uploadBuffer.allocation, "HDRI Upload Buffer");
 
     // Verify buffer is mapped
@@ -233,12 +235,12 @@ AllocatedImage vkutil::create_hdri_image(VulkanEngine *engine, float *data, int 
     });
 
     // Clean up the staging buffer
-    engine->destroy_buffer(uploadBuffer);
+    vkutil::destroy_buffer(engine, uploadBuffer);
 
     return newImage;
 }
 
-void vkutil::destroy_image(VulkanEngine *engine, const AllocatedImage &image) {
+void vkutil::destroy_image(const VulkanEngine *engine, const AllocatedImage &image) {
     vkDestroyImageView(engine->_device, image.imageView, nullptr);
     vmaDestroyImage(engine->_allocator, image.image, image.allocation);
 }

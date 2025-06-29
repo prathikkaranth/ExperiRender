@@ -1,5 +1,6 @@
 #include "postprocess.h"
 #include <spdlog/spdlog.h>
+#include <vk_buffers.h>
 #include <vk_images.h>
 #include <vk_pipelines.h>
 
@@ -115,13 +116,13 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
         engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _postProcessDescriptorSetLayout);
 
     // Allocate a new uniform buffer for the scene data
-    AllocatedBuffer compositorSceneDataBuffer =
-        engine->create_buffer(sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    AllocatedBuffer compositorSceneDataBuffer = vkutil::create_buffer(
+        engine, sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     vmaSetAllocationName(engine->_allocator, compositorSceneDataBuffer.allocation, "Compositor Scene Data Buffer");
 
     // Add it to the deletion queue
     engine->get_current_frame()._deletionQueue.push_function(
-        [=] { engine->destroy_buffer(compositorSceneDataBuffer); });
+        [=] { vkutil::destroy_buffer(engine, compositorSceneDataBuffer); });
 
     // Write the scene data
     CompositorData *compositorUniformBuffer;
