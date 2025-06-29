@@ -204,8 +204,7 @@ void ssao::init_ssao_data(VulkanEngine *engine) {
 void ssao::draw_ssao(VulkanEngine *engine, VkCommandBuffer cmd) const {
     // allocate a new uniform buffer for the scene data
     AllocatedBuffer ssaoSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, ssaoSceneDataBuffer.allocation, "SSAO Scene Data Buffer");
+        engine, sizeof(SSAOSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SSAO Scene Data Buffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

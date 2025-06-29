@@ -242,8 +242,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     // create buffer to hold the material data
     file.materialDataBuffer =
         vkutil::create_buffer(engine, sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
-                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, file.materialDataBuffer.allocation, "GLTF Material Data Buffer");
+                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "GLTF Material Data Buffer");
     int data_index = 0;
     auto *sceneMaterialConstants =
         static_cast<GLTFMetallic_Roughness::MaterialConstants *>(file.materialDataBuffer.info.pMappedData);

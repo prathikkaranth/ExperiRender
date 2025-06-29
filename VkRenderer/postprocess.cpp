@@ -117,8 +117,7 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     // Allocate a new uniform buffer for the scene data
     AllocatedBuffer compositorSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, compositorSceneDataBuffer.allocation, "Compositor Scene Data Buffer");
+        engine, sizeof(CompositorData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "Compositor Scene Data Buffer");
 
     // Add it to the deletion queue
     engine->get_current_frame()._deletionQueue.push_function(

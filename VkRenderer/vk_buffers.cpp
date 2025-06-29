@@ -4,7 +4,7 @@
 namespace vkutil {
 
     AllocatedBuffer create_buffer(const VulkanEngine *engine, size_t allocSize, VkBufferUsageFlags usage,
-                                  VmaMemoryUsage memoryUsage) {
+                                  VmaMemoryUsage memoryUsage, const char* name) {
         // allocate buffer
         VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         bufferInfo.pNext = nullptr;
@@ -19,6 +19,11 @@ namespace vkutil {
         // allocate the buffer
         VK_CHECK(vmaCreateBuffer(engine->_allocator, &bufferInfo, &vmaallocInfo, &newBuffer.buffer,
                                  &newBuffer.allocation, &newBuffer.info));
+
+        // Set allocation name if provided
+        if (name != nullptr) {
+            vmaSetAllocationName(engine->_allocator, newBuffer.allocation, name);
+        }
 
         return newBuffer;
     }

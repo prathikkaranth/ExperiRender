@@ -148,8 +148,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     // allocate a new uniform buffer for the scene data
     AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_DrawGbuffer");
+        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_DrawGbuffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

@@ -198,8 +198,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     m_objDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_objDescSetLayout);
 
     AllocatedBuffer m_objDescSetBuffer = vkutil::create_buffer(
-        engine, sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, m_objDescSetBuffer.allocation, "RT ObjDesc Buffer");
+        engine, sizeof(ObjDesc) * objDescs.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "RT ObjDesc Buffer");
 
     ObjDesc *objDescsToMap;
     VK_CHECK(
@@ -330,8 +329,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
 
     AllocatedBuffer m_matDescSetBuffer =
         vkutil::create_buffer(engine, sizeof(MaterialRTData) * materialRTShaderData.size(),
-                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, m_matDescSetBuffer.allocation, "RT MatDesc Buffer");
+                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "RT MatDesc Buffer");
 
     MaterialRTData *matDescsToMap;
     VK_CHECK(
@@ -499,8 +497,7 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine *engine) {
     m_rtSBTBuffer = vkutil::create_buffer(engine, sbtBufferSize,
                                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                               VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-                                          VMA_MEMORY_USAGE_CPU_ONLY);
-    vmaSetAllocationName(engine->_allocator, m_rtSBTBuffer.allocation, "RT Shader Binding Table Buffer");
+                                          VMA_MEMORY_USAGE_CPU_ONLY, "RT Shader Binding Table Buffer");
 
     // Find the SBT addresses for each group
     VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_rtSBTBuffer.buffer};
@@ -558,8 +555,7 @@ void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, co
 
     // allocate a new uniform buffer for the scene data
     AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_drawGeom");
+        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_drawGeom");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(
