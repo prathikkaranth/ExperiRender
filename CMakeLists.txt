@@ -214,7 +214,7 @@ endif()
 file(GLOB CPP_SRC
         "VkRenderer/*.cpp"
         )
-file(GLOB_RECURSE HEADERS "VkRenderer/*.h")
+file(GLOB HEADERS "VkRenderer/*.h")
 
 # Remove main.cpp from library sources if it exists
 list(FILTER CPP_SRC EXCLUDE REGEX ".*main\\.cpp$")

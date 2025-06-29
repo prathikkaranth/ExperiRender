@@ -7,12 +7,10 @@ void Gbuffer::init_gbuffer(VulkanEngine *engine) {
 
     _gbufferPosition = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _gbufferPosition.allocation, "GBuffer Position Image");
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false, "GBuffer Position Image");
     _gbufferNormal = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-    vmaSetAllocationName(engine->_allocator, _gbufferNormal.allocation, "GBuffer Normal Image");
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, false, "GBuffer Normal Image");
 
     VkPushConstantRange matrixRange{};
     matrixRange.offset = 0;
@@ -147,9 +145,9 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
     });
 
     // allocate a new uniform buffer for the scene data
-    AllocatedBuffer gpuSceneDataBuffer = vkutil::create_buffer(
-        engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, gpuSceneDataBuffer.allocation, "SceneDataBuffer_DrawGbuffer");
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "SceneDataBuffer_DrawGbuffer");
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(

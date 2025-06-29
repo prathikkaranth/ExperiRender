@@ -47,9 +47,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine *engine, fastgltf::Asset &
                     imagesize.depth = 1;
 
                     newImage = vkutil::create_image(engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                                    VK_IMAGE_USAGE_SAMPLED_BIT, true);
-
-                    vmaSetAllocationName(engine->_allocator, newImage.allocation, path.c_str());
+                                                    VK_IMAGE_USAGE_SAMPLED_BIT, true, path.c_str());
 
                     stbi_image_free(data);
                 }
@@ -64,8 +62,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine *engine, fastgltf::Asset &
                     imagesize.depth = 1;
 
                     newImage = vkutil::create_image(engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                                    VK_IMAGE_USAGE_SAMPLED_BIT, true);
-                    vmaSetAllocationName(engine->_allocator, newImage.allocation, "Loader Img alloc for Vector");
+                                                    VK_IMAGE_USAGE_SAMPLED_BIT, true, "Loader Img alloc for Vector");
 
                     stbi_image_free(data);
                 }
@@ -89,11 +86,10 @@ std::optional<AllocatedImage> load_image(VulkanEngine *engine, fastgltf::Asset &
                                                      imagesize.height = height;
                                                      imagesize.depth = 1;
 
-                                                     newImage = vkutil::create_image(engine, data, imagesize,
-                                                                                     VK_FORMAT_R8G8B8A8_UNORM,
-                                                                                     VK_IMAGE_USAGE_SAMPLED_BIT, true);
-                                                     vmaSetAllocationName(engine->_allocator, newImage.allocation,
-                                                                          "Loader Image Allocation from Buffer view");
+                                                     newImage = vkutil::create_image(
+                                                         engine, data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+                                                         VK_IMAGE_USAGE_SAMPLED_BIT, true,
+                                                         "Loader Image Allocation from Buffer view");
 
                                                      stbi_image_free(data);
                                                  }
@@ -240,10 +236,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
 
 
     // create buffer to hold the material data
-    file.materialDataBuffer =
-        vkutil::create_buffer(engine, sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
-                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    vmaSetAllocationName(engine->_allocator, file.materialDataBuffer.allocation, "GLTF Material Data Buffer");
+    file.materialDataBuffer = vkutil::create_buffer(
+        engine, sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, "GLTF Material Data Buffer");
     int data_index = 0;
     auto *sceneMaterialConstants =
         static_cast<GLTFMetallic_Roughness::MaterialConstants *>(file.materialDataBuffer.info.pMappedData);
