@@ -162,8 +162,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
 
     DescriptorWriter rt_writer;
     rt_writer.write_accel_struct(0, asInfo, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
-    rt_writer.write_image(1, _rtOutputImage.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL,
-                          VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    rt_writer.write_image(1, _rtOutputImage.imageView, engine->_resourceManager.getLinearSampler(),
+                          VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
     rt_writer.update_set(engine->_device, m_rtDescSet);
 
@@ -256,9 +256,10 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         std::vector<VkDescriptorImageInfo> texDescs;
         texDescs.reserve(nbTxt);
         for (uint32_t i = 0; i < nbTxt; i++) {
-            VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
-                                            .imageView = i < loadedTextures.size() ? loadedTextures[i].imageView
-                                                                                   : engine->_whiteImage.imageView,
+            VkDescriptorImageInfo imageInfo{.sampler = engine->_resourceManager.getLinearSampler(),
+                                            .imageView = i < loadedTextures.size()
+                                                             ? loadedTextures[i].imageView
+                                                             : engine->_resourceManager.getWhiteImage().imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             texDescs.push_back(imageInfo);
         }
@@ -267,9 +268,10 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         std::vector<VkDescriptorImageInfo> normTexDescs;
         normTexDescs.reserve(nbNormText);
         for (uint32_t i = 0; i < nbNormText; i++) {
-            VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
-                                            .imageView = i < loadedNormTextures.size() ? loadedNormTextures[i].imageView
-                                                                                       : engine->_greyImage.imageView,
+            VkDescriptorImageInfo imageInfo{.sampler = engine->_resourceManager.getLinearSampler(),
+                                            .imageView = i < loadedNormTextures.size()
+                                                             ? loadedNormTextures[i].imageView
+                                                             : engine->_resourceManager.getGreyImage().imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             normTexDescs.push_back(imageInfo);
         }
@@ -278,10 +280,10 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         std::vector<VkDescriptorImageInfo> metalRoughTexDescs;
         metalRoughTexDescs.reserve(nbMetalRoughText);
         for (uint32_t i = 0; i < nbMetalRoughText; i++) {
-            VkDescriptorImageInfo imageInfo{.sampler = engine->_defaultSamplerLinear,
+            VkDescriptorImageInfo imageInfo{.sampler = engine->_resourceManager.getLinearSampler(),
                                             .imageView = i < loadedMetalRoughTextures.size()
                                                              ? loadedMetalRoughTextures[i].imageView
-                                                             : engine->_whiteImage.imageView,
+                                                             : engine->_resourceManager.getWhiteImage().imageView,
                                             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             metalRoughTexDescs.push_back(imageInfo);
         }
@@ -358,8 +360,8 @@ void Raytracer::updateRtDescriptorSet(const VulkanEngine *engine) const {
     // (1) Output buffer
     // VkDescriptorImageInfo imageInfo{ {}, _rtOutputImage.imageView, VK_IMAGE_LAYOUT_GENERAL };
     DescriptorWriter rt_writer;
-    rt_writer.write_image(1, _rtOutputImage.imageView, engine->_defaultSamplerLinear, VK_IMAGE_LAYOUT_GENERAL,
-                          VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    rt_writer.write_image(1, _rtOutputImage.imageView, engine->_resourceManager.getLinearSampler(),
+                          VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     rt_writer.update_set(engine->_device, m_rtDescSet);
 }
 

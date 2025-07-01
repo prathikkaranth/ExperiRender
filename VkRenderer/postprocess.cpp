@@ -133,9 +133,10 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     {
         DescriptorWriter writer;
-        writer.write_image(0, engine->raytracerPipeline._rtOutputImage.imageView, engine->_defaultSamplerLinear,
-                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writer.write_image(1, engine->_drawImage.imageView, engine->_defaultSamplerLinear,
+        writer.write_image(0, engine->raytracerPipeline._rtOutputImage.imageView,
+                           engine->_resourceManager.getLinearSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.write_image(1, engine->_drawImage.imageView, engine->_resourceManager.getLinearSampler(),
                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         writer.write_buffer(2, compositorSceneDataBuffer.buffer, sizeof(CompositorData), 0,
                             VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);

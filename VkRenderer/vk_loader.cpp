@@ -229,7 +229,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         } else {
             // we failed to load, so lets give the slot a default white texture to not
             // completely break loading
-            images.push_back(engine->_errorCheckerboardImage);
+            images.push_back(engine->_resourceManager.getErrorCheckerboardImage());
             std::cout << "gltf failed to load texture " << image.name << std::endl;
         }
     }
@@ -269,12 +269,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
 
         GLTFMetallic_Roughness::MaterialResources materialResources{};
         // default the material textures
-        materialResources.colorImage = engine->_whiteImage;
-        materialResources.colorSampler = engine->_defaultSamplerLinear;
-        materialResources.metalRoughImage = engine->_whiteImage;
-        materialResources.metalRoughSampler = engine->_defaultSamplerLinear;
-        materialResources.normalImage = engine->_greyImage;
-        materialResources.normalSampler = engine->_defaultSamplerLinear;
+        materialResources.colorImage = engine->_resourceManager.getWhiteImage();
+        materialResources.colorSampler = engine->_resourceManager.getLinearSampler();
+        materialResources.metalRoughImage = engine->_resourceManager.getWhiteImage();
+        materialResources.metalRoughSampler = engine->_resourceManager.getLinearSampler();
+        materialResources.normalImage = engine->_resourceManager.getGreyImage();
+        materialResources.normalSampler = engine->_resourceManager.getLinearSampler();
 
         // For RT
         materialResources.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1],
@@ -512,7 +512,7 @@ void LoadedGLTF::clearAll() {
     for (auto &[k, v]: images) {
         VmaAllocationInfo info;
         vmaGetAllocationInfo(creator->_allocator, v.allocation, &info);
-        if (v.image == creator->_errorCheckerboardImage.image) {
+        if (v.image == creator->_resourceManager.getErrorCheckerboardImage().image) {
             // dont destroy the default images
             continue;
         }
