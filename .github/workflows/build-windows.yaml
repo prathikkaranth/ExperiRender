@@ -55,26 +55,78 @@ jobs:
         }
         Write-Host ""
         
-        # Try different installation approaches
+        # Try different installation approaches with timeouts
         Write-Host "=== Installation Attempt 1: Standard Silent Install ==="
         try {
-          Write-Host "Running: $InstallerPath /S"
-          $process1 = Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Wait -PassThru -NoNewWindow
-          Write-Host "Process exit code: $($process1.ExitCode)"
+          Write-Host "Running: $InstallerPath /S (with 10-minute timeout)"
+          $process1 = Start-Process -FilePath $InstallerPath -ArgumentList "/S" -PassThru -NoNewWindow
           
-          if ($process1.ExitCode -eq 0) {
-            Write-Host "Standard silent install succeeded"
+          # Wait with timeout (10 minutes = 600 seconds)
+          $timeout = 600
+          if ($process1.WaitForExit($timeout * 1000)) {
+            Write-Host "Process completed. Exit code: $($process1.ExitCode)"
+            $installSuccess = ($process1.ExitCode -eq 0)
           } else {
+            Write-Host "Process timed out after $timeout seconds, killing process"
+            $process1.Kill()
+            $installSuccess = $false
+          }
+          
+          if (-not $installSuccess) {
             Write-Host "Standard silent install failed, trying alternative approaches..."
             
-            Write-Host "=== Installation Attempt 2: NSIS Silent Install ==="
-            $process2 = Start-Process -FilePath $InstallerPath -ArgumentList "/SILENT" -Wait -PassThru -NoNewWindow
-            Write-Host "NSIS silent install exit code: $($process2.ExitCode)"
+            Write-Host "=== Installation Attempt 2: InstallShield Silent Install ==="
+            $process2 = Start-Process -FilePath $InstallerPath -ArgumentList "/s", "/v/qn" -PassThru -NoNewWindow
+            if ($process2.WaitForExit($timeout * 1000)) {
+              Write-Host "InstallShield install exit code: $($process2.ExitCode)"
+              $installSuccess = ($process2.ExitCode -eq 0)
+            } else {
+              Write-Host "InstallShield install timed out"
+              $process2.Kill()
+            }
             
-            if ($process2.ExitCode -ne 0) {
-              Write-Host "=== Installation Attempt 3: Administrative Install ==="
-              $process3 = Start-Process -FilePath $InstallerPath -ArgumentList "/S" -Verb RunAs -Wait -PassThru -NoNewWindow
-              Write-Host "Administrative install exit code: $($process3.ExitCode)"
+            if (-not $installSuccess) {
+              Write-Host "=== Installation Attempt 3: MSI Extract and Install ==="
+              # Try to extract and run as MSI if it's wrapped
+              $extractDir = "$env:TEMP\VulkanExtract"
+              New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
+              
+              try {
+                # Try to extract the installer
+                Write-Host "Attempting to extract installer to $extractDir"
+                $extractProcess = Start-Process -FilePath $InstallerPath -ArgumentList "/extract:$extractDir" -PassThru -NoNewWindow
+                if ($extractProcess.WaitForExit(300 * 1000)) {  # 5 minute timeout for extraction
+                  Write-Host "Extraction completed with exit code: $($extractProcess.ExitCode)"
+                  
+                  # Look for MSI files in extracted content
+                  $msiFiles = Get-ChildItem $extractDir -Recurse -Filter "*.msi" -ErrorAction SilentlyContinue
+                  if ($msiFiles.Count -gt 0) {
+                    Write-Host "Found MSI files: $($msiFiles.Count)"
+                    foreach ($msi in $msiFiles) {
+                      Write-Host "  - $($msi.FullName)"
+                    }
+                    
+                    # Install the main MSI
+                    $mainMsi = $msiFiles[0]
+                    Write-Host "Installing MSI: $($mainMsi.FullName)"
+                    $msiProcess = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$($mainMsi.FullName)`"", "/quiet", "/norestart" -PassThru -NoNewWindow
+                    if ($msiProcess.WaitForExit($timeout * 1000)) {
+                      Write-Host "MSI install exit code: $($msiProcess.ExitCode)"
+                      $installSuccess = ($msiProcess.ExitCode -eq 0)
+                    } else {
+                      Write-Host "MSI install timed out"
+                      $msiProcess.Kill()
+                    }
+                  } else {
+                    Write-Host "No MSI files found in extracted content"
+                  }
+                } else {
+                  Write-Host "Extraction timed out"
+                  $extractProcess.Kill()
+                }
+              } catch {
+                Write-Host "Extraction attempt failed: $_"
+              }
             }
           }
         } catch {
