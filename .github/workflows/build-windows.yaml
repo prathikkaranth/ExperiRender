@@ -20,6 +20,7 @@ jobs:
         msbuild-architecture: x64
 
     - name: Manual Vulkan SDK Installation with Full Logging
+      shell: powershell
       run: |
         $VulkanVersion = "1.3.283.0"
         $VulkanUrl = "https://sdk.lunarg.com/sdk/download/$VulkanVersion/windows/VulkanSDK-$VulkanVersion-Installer.exe"
@@ -34,18 +35,17 @@ jobs:
         # Check initial system state
         Write-Host "=== Pre-installation System Check ==="
         Write-Host "Current user: $env:USERNAME"
-        Write-Host "Available disk space on C:\"
+        Write-Host "Available disk space on C:"
         Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'" | Select-Object Size,FreeSpace
         Write-Host ""
         
         # Download with detailed progress
         Write-Host "=== Downloading Vulkan SDK ==="
         try {
-          $ProgressPreference = 'SilentlyContinue'  # Disable progress bar for cleaner output
+          $ProgressPreference = 'SilentlyContinue'
           Invoke-WebRequest -Uri $VulkanUrl -OutFile $InstallerPath -TimeoutSec 300 -Verbose
           Write-Host "Download completed successfully"
           
-          # Check downloaded file
           $fileInfo = Get-Item $InstallerPath
           Write-Host "Downloaded file size: $($fileInfo.Length) bytes"
           Write-Host "Downloaded file path: $($fileInfo.FullName)"
@@ -82,10 +82,8 @@ jobs:
         }
         Write-Host ""
         
-        # Comprehensive post-installation check
-        Write-Host "=== Post-installation System Scan ==="
-        
         # Check common Vulkan SDK locations
+        Write-Host "=== Post-installation System Scan ==="
         $CommonPaths = @(
           "C:\VulkanSDK\$VulkanVersion",
           "C:\VulkanSDK",
@@ -103,36 +101,38 @@ jobs:
             $contents = Get-ChildItem $path -ErrorAction SilentlyContinue
             Write-Host "  - Contains $($contents.Count) items"
             
-            # Look for glslc.exe specifically
             $glslcPath = Join-Path $path "Bin\glslc.exe"
             if (Test-Path $glslcPath) {
-              Write-Host "  - ✓ Found glslc.exe at $glslcPath"
+              Write-Host "  - Found glslc.exe at $glslcPath"
               $FoundPath = $path
               break
             } else {
-              Write-Host "  - ✗ glslc.exe not found in Bin subdirectory"
-              # List contents to see what's actually there
+              Write-Host "  - glslc.exe not found in Bin subdirectory"
               Write-Host "  - Directory contents:"
-              Get-ChildItem $path -Recurse -Filter "*.exe" | ForEach-Object { Write-Host "    $($_.FullName)" }
+              $exeFiles = Get-ChildItem $path -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue
+              foreach ($exe in $exeFiles) {
+                Write-Host "    $($exe.FullName)"
+              }
             }
           } else {
             Write-Host "  - Directory does not exist"
           }
         }
         
-        # If not found in common locations, do a comprehensive search
+        # Comprehensive search if not found
         if (-not $FoundPath) {
           Write-Host "=== Comprehensive Search for Vulkan SDK ==="
           Write-Host "Searching entire C: drive for VulkanSDK directories..."
           
           try {
-            Get-ChildItem -Path "C:\" -Directory -Recurse -Filter "*Vulkan*" -ErrorAction SilentlyContinue | ForEach-Object {
-              Write-Host "Found Vulkan-related directory: $($_.FullName)"
+            $vulkanDirs = Get-ChildItem -Path "C:\" -Directory -Recurse -Filter "*Vulkan*" -ErrorAction SilentlyContinue
+            foreach ($dir in $vulkanDirs) {
+              Write-Host "Found Vulkan-related directory: $($dir.FullName)"
               
-              # Look for glslc.exe in this directory
-              Get-ChildItem $_.FullName -Recurse -Filter "glslc.exe" -ErrorAction SilentlyContinue | ForEach-Object {
-                Write-Host "  - Found glslc.exe at: $($_.FullName)"
-                $FoundPath = $_.Directory.Parent.FullName
+              $glslcFiles = Get-ChildItem $dir.FullName -Recurse -Filter "glslc.exe" -ErrorAction SilentlyContinue
+              foreach ($glslc in $glslcFiles) {
+                Write-Host "  - Found glslc.exe at: $($glslc.FullName)"
+                $FoundPath = $glslc.Directory.Parent.FullName
               }
             }
           } catch {
@@ -145,11 +145,9 @@ jobs:
           Write-Host "=== SUCCESS: Vulkan SDK Found ==="
           Write-Host "Vulkan SDK Path: $FoundPath"
           
-          # Set environment variables
           echo "VULKAN_SDK=$FoundPath" >> $env:GITHUB_ENV
           echo "$FoundPath\Bin" >> $env:GITHUB_PATH
           
-          # Test glslc
           $glslcExe = Join-Path $FoundPath "Bin\glslc.exe"
           Write-Host "Testing glslc:"
           & $glslcExe --version
@@ -161,11 +159,13 @@ jobs:
           Write-Host ""
           Write-Host "Final system state:"
           Write-Host "Temp directory contents:"
-          Get-ChildItem $env:TEMP -Filter "*Vulkan*" | ForEach-Object { Write-Host "  $($_.FullName)" }
+          $tempFiles = Get-ChildItem $env:TEMP -Filter "*Vulkan*" -ErrorAction SilentlyContinue
+          foreach ($file in $tempFiles) {
+            Write-Host "  $($file.FullName)"
+          }
           
           exit 1
         }
-      shell: powershell
 
     - name: Create build directory and run CMake
       run: |
