@@ -197,6 +197,13 @@ public:
     VkSampler _defaultSamplerNearest;
     VkSampler _defaultSamplerShadowDepth;
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Nsight Aftermath marker support
+    PFN_vkCmdSetCheckpointNV vkCmdSetCheckpointNV;
+    std::array<std::map<uint64_t, std::string>, 4> m_markerMap;  // 4 frames of marker history
+    uint32_t m_currentFrameIndex;
+#endif
+
     void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function) const;
 
     std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> loadedScenes;
@@ -242,6 +249,12 @@ private:
     void resize_swapchain();
 
     void init_default_data();
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Helper functions for GPU crash markers
+    void insertGPUMarker(VkCommandBuffer cmd, const std::string& markerName);
+    void updateFrameMarkers();
+#endif
 
     // Cube pipeline
     CubePipeline cubePipeline;

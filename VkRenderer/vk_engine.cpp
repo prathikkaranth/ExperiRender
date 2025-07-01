@@ -380,6 +380,11 @@ void VulkanEngine::cleanup() {
 void VulkanEngine::draw() {
     update_scene();
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Update frame markers for GPU crash tracking
+    updateFrameMarkers();
+#endif
+
     // Double buffering
     // wait until the GPU has finished rendering the last frame. Timeout of 1
     // second
@@ -682,8 +687,8 @@ void VulkanEngine::run() {
 void VulkanEngine::init_vulkan() {
 
 #ifdef NSIGHT_AFTERMATH_ENABLED
-    GpuCrashTracker::MarkerMap markerMap;
-    GpuCrashTracker gpuCrashTracker(markerMap);
+    // Initialize GPU crash tracker with engine's marker map
+    GpuCrashTracker gpuCrashTracker(m_markerMap);
     gpuCrashTracker.Initialize(false);
 #endif
 
@@ -848,6 +853,16 @@ void VulkanEngine::init_vulkan() {
 
     // get the VkDevice handle used in the rest of a Vulkan application
     _device = vkbDevice.device;
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Load vkCmdSetCheckpointNV function pointer for custom markers
+    vkCmdSetCheckpointNV = (PFN_vkCmdSetCheckpointNV)vkGetDeviceProcAddr(_device, "vkCmdSetCheckpointNV");
+    if (!vkCmdSetCheckpointNV) {
+        spdlog::warn("Failed to load vkCmdSetCheckpointNV function pointer - custom GPU markers will not work");
+    } else {
+        spdlog::info("Successfully loaded vkCmdSetCheckpointNV for custom GPU crash markers");
+    }
+#endif
     _chosenGPU = physicalDevice.physical_device;
 
     // vkbootstrap to get a graphics queue
@@ -861,6 +876,15 @@ void VulkanEngine::init_vulkan() {
     allocatorInfo.instance = _instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &_allocator);
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Initialize marker map and frame index for GPU crash tracking
+    for (auto& frameMap : m_markerMap) {
+        frameMap.clear();
+    }
+    m_currentFrameIndex = 0;
+    spdlog::info("Initialized Nsight Aftermath marker tracking system");
+#endif
 
     _mainDeletionQueue.push_function([&]() {
         if (raytracerPipeline.m_is_raytracing_supported) {
@@ -1019,6 +1043,10 @@ void VulkanEngine::destroy_swapchain() const {
 }
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Begin draw_geometry");
+#endif
+
     // reset counters
     stats.drawcall_count = 0;
     stats.triangle_count = 0;
@@ -1035,10 +1063,17 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
     renderInfo.pColorAttachments = colorAttachments.data();
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Begin Render Pass Setup");
+#endif
+
     vkCmdBeginRendering(cmd, &renderInfo);
 
     // If no scenes are loaded, draw the default cube
     if (loadedScenes.empty() && cubePipeline.isInitialized()) {
+#ifdef NSIGHT_AFTERMATH_ENABLED
+        insertGPUMarker(cmd, "Drawing Default Cube");
+#endif
         cubePipeline.draw(this, cmd);
         vkCmdEndRendering(cmd);
         return;
@@ -1144,19 +1179,38 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
 
         stats.drawcall_count++;
         stats.triangle_count += static_cast<int>(r.indexCount) / 3;
+        
+#ifdef NSIGHT_AFTERMATH_ENABLED
+        // Mark individual draw call - this is where TDR might occur
+        std::string drawMarker = "DrawCall #" + std::to_string(stats.drawcall_count);
+        insertGPUMarker(cmd, drawMarker);
+#endif
+        
         vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
     };
 
     stats.drawcall_count = 0;
     stats.triangle_count = 0;
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Drawing Opaque Surfaces");
+#endif
+
     for (auto &r: opaque_draws) {
         draw(mainDrawContext.OpaqueSurfaces[r]);
     }
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Drawing Transparent Surfaces");
+#endif
+
     for (auto &r: mainDrawContext.TransparentSurfaces) {
         draw(r);
     }
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "End Geometry Drawing");
+#endif
 
     // we delete the draw commands now that we processed them
     mainDrawContext.OpaqueSurfaces.clear();
@@ -1515,3 +1569,33 @@ void MeshNode::Draw(const glm::mat4 &topMatrix, DrawContext &ctx) {
     // recurse down
     Node::Draw(topMatrix, ctx);
 }
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+// Insert a GPU marker for crash tracking
+void VulkanEngine::insertGPUMarker(VkCommandBuffer cmd, const std::string& markerName) {
+    if (vkCmdSetCheckpointNV) {
+        // Create a unique marker ID from string hash
+        std::hash<std::string> hasher;
+        uint64_t markerId = hasher(markerName);
+        
+        // Store the marker in the current frame's map
+        uint32_t frameIndex = m_currentFrameIndex % 4;
+        m_markerMap[frameIndex][markerId] = markerName;
+        
+        // Insert the checkpoint
+        vkCmdSetCheckpointNV(cmd, (void*)markerId);
+        
+        // Optional: Log marker insertion for debugging
+        // spdlog::debug("GPU Marker inserted: {} (ID: {})", markerName, markerId);
+    }
+}
+
+// Update frame markers - call this at the start of each frame
+void VulkanEngine::updateFrameMarkers() {
+    m_currentFrameIndex++;
+    
+    // Clear old marker data (keep only last 4 frames)
+    uint32_t frameIndex = m_currentFrameIndex % 4;
+    m_markerMap[frameIndex].clear();
+}
+#endif
