@@ -3,6 +3,7 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "vk_engine.h"
 
 void ui::set_mainpanel_theme() {
@@ -121,6 +122,11 @@ void ui::init_imgui(VulkanEngine *engine) {
 
     // this initializes the core structures of imgui
     ImGui::CreateContext();
+    
+    // Enable docking and multi-viewport features
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
     // this initializes imgui for SDL
     ImGui_ImplSDL2_InitForVulkan(engine->_window);
@@ -149,8 +155,6 @@ void ui::init_imgui(VulkanEngine *engine) {
 
     set_font();
 
-    ImGui_ImplVulkan_CreateFontsTexture();
-
     set_mainpanel_theme();
 
     // For Drawing shadow depth map on ImGui
@@ -168,6 +172,11 @@ void ui::init_imgui(VulkanEngine *engine) {
         ImGui_ImplVulkan_AddTexture(engine->gbuffer.getGbufferSampler(), engine->gbuffer.getGbufferPosInfo().imageView,
                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+    // For Drawing final rendered output in viewport
+    engine->_viewportTextureDescriptorSet = ImGui_ImplVulkan_AddTexture(
+        engine->postProcessor.getFullscreenImageSampler(), engine->postProcessor._fullscreenImage.imageView,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     // add the destroy the imgui created structures
     engine->_mainDeletionQueue.push_function([=] {
         ImGui_ImplVulkan_Shutdown();
@@ -182,8 +191,109 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
 
     ImGui::NewFrame();
 
-    constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_AlwaysAutoResize;
-    ImGui::Begin("Settings", nullptr, window_flags);
+    // Setup main dockspace
+    setup_dockspace(engine);
+    
+    // Create docked panels
+    create_settings_panel(engine);
+    create_stats_panel(engine);
+    create_debug_panel(engine);
+    create_viewport_panel(engine);
+
+    ImGui::Render();
+
+    // Update and Render additional Platform Windows
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+}
+
+void ui::setup_dockspace(VulkanEngine *engine) {
+    // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
+    // because it would be confusing to have two docking targets within each others.
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+    
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
+    // and handle the pass-thru hole, so we ask Begin() to not render a background.
+    ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+    window_flags |= ImGuiWindowFlags_NoBackground;
+
+    // Important: note that we proceed even if Begin() returns false (aka window is collapsed).
+    // This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
+    // all active windows docked into it will lose their parent and become undocked.
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("DockSpace", nullptr, window_flags);
+    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(2);
+
+    // Submit the DockSpace
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+        
+        // Setup default layout on first run
+        static bool first_time = true;
+        if (first_time) {
+            first_time = false;
+            setup_default_layout(dockspace_id);
+        }
+    }
+
+    // Menu bar
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Exit")) {
+                // Handle exit
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Settings", nullptr, nullptr);
+            ImGui::MenuItem("Stats", nullptr, nullptr);
+            ImGui::MenuItem("Debug Tools", nullptr, nullptr);
+            ImGui::MenuItem("Viewport", nullptr, nullptr);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
+    ImGui::End();
+}
+
+void ui::setup_default_layout(ImGuiID dockspace_id) {
+    // Clear any existing layout
+    ImGui::DockBuilderRemoveNode(dockspace_id);
+    ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->WorkSize);
+
+    // Split the dockspace into sections
+    auto dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.25f, nullptr, &dockspace_id);
+    auto dock_id_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.25f, nullptr, &dockspace_id);
+    auto dock_id_bottom = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
+
+    // Dock windows to sections
+    ImGui::DockBuilderDockWindow("Settings", dock_id_left);
+    ImGui::DockBuilderDockWindow("Debug Tools", dock_id_right);
+    ImGui::DockBuilderDockWindow("Stats", dock_id_bottom);
+    ImGui::DockBuilderDockWindow("Viewport", dockspace_id); // Center area
+
+    ImGui::DockBuilderFinish(dockspace_id);
+}
+
+void ui::create_settings_panel(VulkanEngine *engine) {
+    ImGui::Begin("Settings");
 
     // Scene Information section
     if (ImGui::CollapsingHeader("Scene Information", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -253,62 +363,77 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
         ImGui::SliderFloat("Bottom", &engine->_shadowMap.bottom, -100.f, -1.f);
     }
 
-    if (ImGui::CollapsingHeader("Debug Tools")) {
-        // Dropdown for selecting the visual for debugging
-        const char *visuals[] = {"--------", "Shadow Map", "SSAO Map", "GBuffer Position"};
-        static const char *current_item = visuals[0];
-        if (ImGui::BeginCombo("Image Buffers",
-                              current_item)) // The second parameter is the label previewed before opening the combo.
-        {
-            for (auto &visual: visuals) {
-                const bool is_selected = current_item == visual;
-                // You can store your selection however you want, outside or inside your objects
-                if (ImGui::Selectable(visual, is_selected))
-                    current_item = visual;
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
-                // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-            }
-            ImGui::EndCombo();
-        }
-
-        if (strcmp(current_item, "--------") == 0) {
-
-        } else if (strcmp(current_item, "Shadow Map") == 0) {
-            ImGui::Begin("Shadow Map");
-            ImGui::Image(reinterpret_cast<ImTextureID>(engine->_shadowMap.shadowMapDescriptorSet), ImVec2(256, 256),
-                         ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-            ImGui::End();
-        } else if (strcmp(current_item, "SSAO Map") == 0) {
-            ImGui::Begin("SSAO Map");
-            ImGui::Image(reinterpret_cast<ImTextureID>(engine->_ssao._ssaoDescriptorSet), ImVec2(256, 256),
-                         ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-            ImGui::End();
-        } else if (strcmp(current_item, "GBuffer Position") == 0) {
-            ImGui::Begin("GBuffer Position");
-            ImGui::Image(reinterpret_cast<ImTextureID>(engine->gbuffer._gbufferPosOutputDescriptor), ImVec2(256, 256),
-                         ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
-            ImGui::End();
-        }
-    }
-
     ImGui::End();
+}
 
-    constexpr ImGuiWindowFlags transparent_window_flags = ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar;
-    ImGui::Begin("Stats", nullptr, transparent_window_flags);
+void ui::create_stats_panel(VulkanEngine *engine) {
+    ImGui::Begin("Stats");
 
     int fps = static_cast<int>(std::round(1000.f / engine->stats.frametime));
 
-    ImGui::Text("FPS %i", fps);
-    /*ImGui::Text("draw time %f ms", stats.mesh_draw_time);
-    ImGui::Text("update time %f ms", stats.scene_update_time);
-    ImGui::Text("triangles %i", stats.triangle_count);
-    ImGui::Text("draws %i", stats.drawcall_count);*/
-    ImGui::Text("Ray Tracing Samples done: %i", engine->raytracerPipeline.m_pcRay.samples_done);
+    ImGui::Text("FPS: %i", fps);
+    ImGui::Text("Frame time: %.2f ms", engine->stats.frametime);
+    ImGui::Text("Ray Tracing Samples: %i", engine->raytracerPipeline.m_pcRay.samples_done);
+    
+    if (ImGui::CollapsingHeader("Detailed Stats")) {
+        ImGui::Text("Triangles: %i", engine->stats.triangle_count);
+        ImGui::Text("Draw calls: %i", engine->stats.drawcall_count);
+        ImGui::Text("Scene update time: %.2f ms", engine->stats.scene_update_time);
+        ImGui::Text("Mesh draw time: %.2f ms", engine->stats.mesh_draw_time);
+    }
 
     ImGui::End();
+}
 
-    ImGui::Render();
+void ui::create_debug_panel(VulkanEngine *engine) {
+    ImGui::Begin("Debug Tools");
+
+    // Dropdown for selecting the visual for debugging
+    const char *visuals[] = {"--------", "Shadow Map", "SSAO Map", "GBuffer Position"};
+    static const char *current_item = visuals[0];
+    if (ImGui::BeginCombo("Image Buffers", current_item)) {
+        for (auto &visual: visuals) {
+            const bool is_selected = current_item == visual;
+            if (ImGui::Selectable(visual, is_selected))
+                current_item = visual;
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    // Display selected debug image
+    if (strcmp(current_item, "Shadow Map") == 0) {
+        ImGui::Text("Shadow Map:");
+        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_shadowMap.shadowMapDescriptorSet), ImVec2(256, 256));
+    } else if (strcmp(current_item, "SSAO Map") == 0) {
+        ImGui::Text("SSAO Map:");
+        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_ssao._ssaoDescriptorSet), ImVec2(256, 256));
+    } else if (strcmp(current_item, "GBuffer Position") == 0) {
+        ImGui::Text("GBuffer Position:");
+        ImGui::Image(reinterpret_cast<ImTextureID>(engine->gbuffer._gbufferPosOutputDescriptor), ImVec2(256, 256));
+    }
+
+    ImGui::End();
+}
+
+void ui::create_viewport_panel(VulkanEngine *engine) {
+    ImGui::Begin("Viewport");
+    
+    // Get the available content region for the viewport
+    ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+    
+    if (engine->_viewportTextureDescriptorSet != VK_NULL_HANDLE && contentRegion.x > 0 && contentRegion.y > 0) {
+        // Display the rendered scene texture
+        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_viewportTextureDescriptorSet), contentRegion);
+    } else {
+        // Fallback display when texture isn't ready
+        ImGui::Text("Main Render Viewport");
+        ImGui::Text("Resolution: %dx%d", engine->_windowExtent.width, engine->_windowExtent.height);
+        ImGui::Text("Viewport size: %.0fx%.0f", contentRegion.x, contentRegion.y);
+    }
+
+    ImGui::End();
 }
 
 void ui::draw_imgui(const VulkanEngine *engine, VkCommandBuffer cmd, VkImageView targetImageView) {
