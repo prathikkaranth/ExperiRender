@@ -7,11 +7,11 @@
 #include "NsightAftermathShaderDatabase.h"
 #endif
 
+#include "RenderConfig.h"
 #include "VulkanResourceManager.h"
 #include "vk_buffers.h"
 #include "vk_engine.h"
 #include "vk_loader.h"
-#include "RenderConfig.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -480,6 +480,17 @@ void VulkanEngine::draw() {
     vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
+    // Clear the swapchain before drawing UI
+    VkClearValue clearValue = {};
+    clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f}; // Black background
+
+    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(
+        _swapchainImageViews[swapchainImageIndex], &clearValue, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingInfo clearRenderInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
+
+    vkCmdBeginRendering(cmd, &clearRenderInfo);
+    vkCmdEndRendering(cmd);
+
     // Draw UI
     ui::draw_imgui(this, cmd, _swapchainImageViews[swapchainImageIndex]);
 
@@ -541,10 +552,8 @@ void VulkanEngine::update_scene() {
 
     //// camera projection
     glm::mat4 projection = glm::perspective(
-        glm::radians(DEFAULT_FOV_DEGREES), 
-        static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 
-        FAR_PLANE,
-        NEAR_PLANE);
+        glm::radians(DEFAULT_FOV_DEGREES),
+        static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), FAR_PLANE, NEAR_PLANE);
 
     //// invert the Y direction on projection matrix so that we are more similar
     //// to OpenGL and gLTF axis

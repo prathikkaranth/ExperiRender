@@ -19,9 +19,9 @@
 
 #include <glm/glm.hpp>
 
+#include "RenderConfig.h"
 #include "VkBootstrap.h"
 #include "VulkanResourceManager.h"
-#include "RenderConfig.h"
 
 struct FrameData {
     VkCommandPool _commandPool;

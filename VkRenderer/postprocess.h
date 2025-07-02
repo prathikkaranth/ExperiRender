@@ -26,7 +26,7 @@ public:
     // Fullscreen resources
     AllocatedImage _fullscreenImage{};
     CompositorData _compositorData{};
-    
+
     // Getter for the sampler
     VkSampler getFullscreenImageSampler() const { return _fullscreenImageSampler; }
 

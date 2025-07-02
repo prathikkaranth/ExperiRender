@@ -19,10 +19,8 @@
  */
 struct RenderConfig {
     // Helper functions (C++ only) - directly use the preprocessor constants
-    static constexpr VkExtent2D getDefaultWindowExtent() {
-        return {DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT};
-    }
-    
+    static constexpr VkExtent2D getDefaultWindowExtent() { return {DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT}; }
+
     static constexpr float getDefaultAspectRatio() {
         return static_cast<float>(DEFAULT_WINDOW_WIDTH) / static_cast<float>(DEFAULT_WINDOW_HEIGHT);
     }

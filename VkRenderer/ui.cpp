@@ -121,11 +121,11 @@ void ui::init_imgui(VulkanEngine *engine) {
 
     // this initializes the core structures of imgui
     ImGui::CreateContext();
-    
+
     // Enable docking and multi-viewport features
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport / Platform Windows
 
     // this initializes imgui for SDL
     ImGui_ImplSDL2_InitForVulkan(engine->_window);
@@ -192,7 +192,7 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
 
     // Setup main dockspace
     setup_dockspace(engine);
-    
+
     // Create docked panels
     create_settings_panel(engine);
     create_stats_panel(engine);
@@ -202,7 +202,7 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
     ImGui::Render();
 
     // Update and Render additional Platform Windows
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();
         ImGui::RenderPlatformWindowsDefault();
@@ -213,14 +213,15 @@ void ui::setup_dockspace(VulkanEngine *engine) {
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
     // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-    
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |=
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     // When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
@@ -237,11 +238,11 @@ void ui::setup_dockspace(VulkanEngine *engine) {
     ImGui::PopStyleVar(2);
 
     // Submit the DockSpace
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
         ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-        
+
         // Setup default layout on first run
         static bool first_time = true;
         if (first_time) {
@@ -373,7 +374,7 @@ void ui::create_stats_panel(VulkanEngine *engine) {
     ImGui::Text("FPS: %i", fps);
     ImGui::Text("Frame time: %.2f ms", engine->stats.frametime);
     ImGui::Text("Ray Tracing Samples: %i", engine->raytracerPipeline.m_pcRay.samples_done);
-    
+
     if (ImGui::CollapsingHeader("Detailed Stats")) {
         ImGui::Text("Triangles: %i", engine->stats.triangle_count);
         ImGui::Text("Draw calls: %i", engine->stats.drawcall_count);
@@ -418,23 +419,23 @@ void ui::create_debug_panel(VulkanEngine *engine) {
 
 void ui::create_viewport_panel(VulkanEngine *engine) {
     ImGui::Begin("Viewport");
-    
+
     // Reserve space for info text at the bottom
     float infoHeight = ImGui::GetTextLineHeightWithSpacing();
-    
+
     // Get the available content region minus info space
     ImVec2 availableRegion = ImGui::GetContentRegionAvail();
     availableRegion.y -= infoHeight;
-    
+
     if (engine->_viewportTextureDescriptorSet != VK_NULL_HANDLE && availableRegion.x > 0 && availableRegion.y > 0) {
         // Calculate the actual rendered image size
         float imageWidth = static_cast<float>(engine->_drawExtent.width);
         float imageHeight = static_cast<float>(engine->_drawExtent.height);
-        
+
         // Calculate aspect ratios
         float imageAspect = imageWidth / imageHeight;
         float panelAspect = availableRegion.x / availableRegion.y;
-        
+
         // Calculate display size maintaining aspect ratio
         ImVec2 displaySize;
         if (imageAspect > panelAspect) {
@@ -446,20 +447,20 @@ void ui::create_viewport_panel(VulkanEngine *engine) {
             displaySize.y = availableRegion.y;
             displaySize.x = availableRegion.y * imageAspect;
         }
-        
+
         // Center the image horizontally, top-align vertically
         float centerOffsetX = (availableRegion.x - displaySize.x) * 0.5f;
-        
+
         if (centerOffsetX > 0) {
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerOffsetX);
         }
-        
+
         // Display the rendered scene texture with proper scaling
         ImGui::Image(reinterpret_cast<ImTextureID>(engine->_viewportTextureDescriptorSet), displaySize);
-        
+
         // Display info below the image
-        ImGui::Text("Render: %dx%d (%.1fx scale)", 
-                    engine->_drawExtent.width, engine->_drawExtent.height, engine->renderScale);
+        ImGui::Text("Render: %dx%d (%.1fx scale)", engine->_drawExtent.width, engine->_drawExtent.height,
+                    engine->renderScale);
     } else {
         // Fallback display when texture isn't ready
         ImGui::Text("Main Render Viewport");
