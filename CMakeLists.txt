@@ -136,7 +136,7 @@ set(IMGUI_VERSION 1.91.8)
 FetchContent_Declare (
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        v${IMGUI_VERSION}
+    GIT_TAG        docking
 )
 FetchContent_MakeAvailable(imgui)
 

@@ -7,6 +7,7 @@
 #include "NsightAftermathShaderDatabase.h"
 #endif
 
+#include "RenderConfig.h"
 #include "VulkanResourceManager.h"
 #include "vk_buffers.h"
 #include "vk_engine.h"
@@ -471,17 +472,24 @@ void VulkanEngine::draw() {
                                  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    // Common final steps for both paths
+    // Transition fullscreen image for ImGui viewport usage
+    vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // Prepare swapchain for UI (no scene copy - scene is displayed in ImGui viewport)
     vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    // Copy post-processed result to swapchain
-    vkutil::copy_image_to_image(cmd, postProcessor._fullscreenImage.image, _swapchainImages[swapchainImageIndex],
-                                _drawExtent, _swapchainExtent, VK_FILTER_LINEAR, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    // Prepare swapchain for UI
-    vkutil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    // Clear the swapchain before drawing UI
+    VkClearValue clearValue = {};
+    clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f}; // Black background
+
+    VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(
+        _swapchainImageViews[swapchainImageIndex], &clearValue, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    VkRenderingInfo clearRenderInfo = vkinit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
+
+    vkCmdBeginRendering(cmd, &clearRenderInfo);
+    vkCmdEndRendering(cmd);
 
     // Draw UI
     ui::draw_imgui(this, cmd, _swapchainImageViews[swapchainImageIndex]);
@@ -544,8 +552,8 @@ void VulkanEngine::update_scene() {
 
     //// camera projection
     glm::mat4 projection = glm::perspective(
-        glm::radians(75.f), static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 10000.f,
-        0.01f);
+        glm::radians(DEFAULT_FOV_DEGREES),
+        static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), FAR_PLANE, NEAR_PLANE);
 
     //// invert the Y direction on projection matrix so that we are more similar
     //// to OpenGL and gLTF axis

@@ -149,9 +149,9 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     {
         
         // Compute the BSDF using the PBR model
-        vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
+        vec3 bsdf = MicrofacetBRDF(light_dir, view_dir, normal, diffuse_color, metalness, roughness);
         
-        return bsdf * (sceneData.sunlightDirection.w);
+        return bsdf * (sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb);
     }
 
     return vec3(0.f); // in shadow
@@ -252,7 +252,7 @@ void main()
       // Regular BSDF-based sampling approach
       prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
       
-      vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+      vec3 bsdf = MicrofacetBRDF(prd.next_direction, -gl_WorldRayDirectionEXT, hit_point.normal, material_color, metalness, roughness);
       
       // Update the path strength for the next bounce
       const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
