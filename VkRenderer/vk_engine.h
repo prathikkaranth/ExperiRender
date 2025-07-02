@@ -21,6 +21,7 @@
 
 #include "VkBootstrap.h"
 #include "VulkanResourceManager.h"
+#include "RenderConfig.h"
 
 struct FrameData {
     VkCommandPool _commandPool;
@@ -33,8 +34,6 @@ struct FrameData {
     DeletionQueue _deletionQueue;
     DescriptorAllocatorGrowable _frameDescriptors;
 };
-
-constexpr unsigned int FRAME_OVERLAP = 1;
 
 struct GLTFMetallic_Roughness {
     MaterialPipeline opaquePipeline;
@@ -131,7 +130,7 @@ public:
     void traverseLoadedMeshNodesOnceForRT();
     Raytracer raytracerPipeline;
 
-    VkExtent2D _windowExtent{1600, 900};
+    VkExtent2D _windowExtent{RenderConfig::getDefaultWindowExtent()};
 
     float renderScale = 1.f;
 

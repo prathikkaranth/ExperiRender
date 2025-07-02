@@ -11,6 +11,7 @@
 #include "vk_buffers.h"
 #include "vk_engine.h"
 #include "vk_loader.h"
+#include "RenderConfig.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -544,8 +545,10 @@ void VulkanEngine::update_scene() {
 
     //// camera projection
     glm::mat4 projection = glm::perspective(
-        glm::radians(75.f), static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 10000.f,
-        0.01f);
+        glm::radians(DEFAULT_FOV_DEGREES), 
+        static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 
+        FAR_PLANE,
+        NEAR_PLANE);
 
     //// invert the Y direction on projection matrix so that we are more similar
     //// to OpenGL and gLTF axis
