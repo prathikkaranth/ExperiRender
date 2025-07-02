@@ -20,6 +20,7 @@
 #include <glm/glm.hpp>
 
 #include "VkBootstrap.h"
+#include "VulkanResourceManager.h"
 
 struct FrameData {
     VkCommandPool _commandPool;
@@ -188,14 +189,15 @@ public:
     VkCommandBuffer _immCommandBuffer;
     VkCommandPool _immCommandPool;
 
-    AllocatedImage _whiteImage;
-    AllocatedImage _blackImage;
-    AllocatedImage _greyImage;
-    AllocatedImage _errorCheckerboardImage;
+    // Resource management
+    VulkanResourceManager _resourceManager;
 
-    VkSampler _defaultSamplerLinear;
-    VkSampler _defaultSamplerNearest;
-    VkSampler _defaultSamplerShadowDepth;
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Nsight Aftermath marker support
+    PFN_vkCmdSetCheckpointNV vkCmdSetCheckpointNV;
+    std::array<std::map<uint64_t, std::string>, 4> m_markerMap; // 4 frames of marker history
+    uint32_t m_currentFrameIndex;
+#endif
 
     void immediate_submit(std::function<void(VkCommandBuffer cmd)> &&function) const;
 
@@ -203,7 +205,6 @@ public:
     std::unordered_map<std::string, SceneDesc::SceneInfo> sceneInfos;
 
     GPUMeshBuffers uploadMesh(std::span<uint32_t> indices, std::span<Vertex> vertices) const;
-
 
     // initializes everything in the engine
     void init();
@@ -242,6 +243,12 @@ private:
     void resize_swapchain();
 
     void init_default_data();
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Helper functions for GPU crash markers
+    void insertGPUMarker(VkCommandBuffer cmd, const std::string &markerName);
+    void updateFrameMarkers();
+#endif
 
     // Cube pipeline
     CubePipeline cubePipeline;

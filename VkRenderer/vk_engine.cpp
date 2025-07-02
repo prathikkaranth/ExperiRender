@@ -7,6 +7,7 @@
 #include "NsightAftermathShaderDatabase.h"
 #endif
 
+#include "VulkanResourceManager.h"
 #include "vk_buffers.h"
 #include "vk_engine.h"
 #include "vk_loader.h"
@@ -180,65 +181,25 @@ void VulkanEngine::init_default_data() {
     sceneData.enableSSAO = true;
     sceneData.enablePBR = true;
 
-    // 3 default textures, white, grey and black. 1 pixel each.
-    uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-    _whiteImage = vkutil::create_image(this, (void *) &white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT, false, "whiteImage");
+    // Initialize resource manager (handles default textures and samplers)
+    _resourceManager.init(this);
 
-    uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-    _greyImage = vkutil::create_image(this, (void *) &grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                      VK_IMAGE_USAGE_SAMPLED_BIT, false, "greyImage");
-
-    uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-    _blackImage = vkutil::create_image(this, (void *) &black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT, false, "blackImage");
-
-    // checkerboard texture
-    uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
-    std::array<uint32_t, 16 * 16> pixels{};
-    for (int x = 0; x < 16; x++) {
-        for (int y = 0; y < 16; y++) {
-            pixels[x + y * 16] = x % 2 ^ y % 2 ? magenta : black;
-        }
-    }
-    _errorCheckerboardImage = vkutil::create_image(this, pixels.data(), VkExtent3D{16, 16, 1}, VK_FORMAT_R8G8B8A8_UNORM,
-                                                   VK_IMAGE_USAGE_SAMPLED_BIT, false, "errorCheckerboardImage");
+    // Add resource manager cleanup to deletion queue
+    _mainDeletionQueue.push_function([=] { _resourceManager.cleanup(); });
 
     // Shadow light map
     _shadowMap.init_lightSpaceMatrix(this);
 
     _ssao.init_ssao_data(this);
 
-    VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-
-    sampl.magFilter = VK_FILTER_NEAREST;
-    sampl.minFilter = VK_FILTER_NEAREST;
-
-    vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerNearest);
-
-    sampl.magFilter = VK_FILTER_LINEAR;
-    sampl.minFilter = VK_FILTER_LINEAR;
-
-    vkCreateSampler(_device, &sampl, nullptr, &_defaultSamplerLinear);
-
-    _mainDeletionQueue.push_function([=] {
-        vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
-        vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
-
-        vkutil::destroy_image(this, _whiteImage);
-        vkutil::destroy_image(this, _greyImage);
-        vkutil::destroy_image(this, _blackImage);
-        vkutil::destroy_image(this, _errorCheckerboardImage);
-    });
-
     GLTFMetallic_Roughness::MaterialResources materialResources{};
     // default the material textures
-    materialResources.colorImage = _whiteImage;
-    materialResources.colorSampler = _defaultSamplerLinear;
-    materialResources.metalRoughImage = _whiteImage;
-    materialResources.metalRoughSampler = _defaultSamplerLinear;
-    materialResources.normalImage = _greyImage;
-    materialResources.normalSampler = _defaultSamplerLinear;
+    materialResources.colorImage = _resourceManager.getWhiteImage();
+    materialResources.colorSampler = _resourceManager.getLinearSampler();
+    materialResources.metalRoughImage = _resourceManager.getWhiteImage();
+    materialResources.metalRoughSampler = _resourceManager.getLinearSampler();
+    materialResources.normalImage = _resourceManager.getGreyImage();
+    materialResources.normalSampler = _resourceManager.getLinearSampler();
 
     // set the uniform buffer for the material data
     AllocatedBuffer materialConstants = vkutil::create_buffer(this, sizeof(GLTFMetallic_Roughness::MaterialConstants),
@@ -379,6 +340,11 @@ void VulkanEngine::cleanup() {
 
 void VulkanEngine::draw() {
     update_scene();
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Update frame markers for GPU crash tracking
+    updateFrameMarkers();
+#endif
 
     // Double buffering
     // wait until the GPU has finished rendering the last frame. Timeout of 1
@@ -682,8 +648,8 @@ void VulkanEngine::run() {
 void VulkanEngine::init_vulkan() {
 
 #ifdef NSIGHT_AFTERMATH_ENABLED
-    GpuCrashTracker::MarkerMap markerMap;
-    GpuCrashTracker gpuCrashTracker(markerMap);
+    // Initialize GPU crash tracker with engine's marker map
+    GpuCrashTracker gpuCrashTracker(m_markerMap);
     gpuCrashTracker.Initialize(false);
 #endif
 
@@ -848,6 +814,16 @@ void VulkanEngine::init_vulkan() {
 
     // get the VkDevice handle used in the rest of a Vulkan application
     _device = vkbDevice.device;
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Load vkCmdSetCheckpointNV function pointer for custom markers
+    vkCmdSetCheckpointNV = (PFN_vkCmdSetCheckpointNV) vkGetDeviceProcAddr(_device, "vkCmdSetCheckpointNV");
+    if (!vkCmdSetCheckpointNV) {
+        spdlog::warn("Failed to load vkCmdSetCheckpointNV function pointer - custom GPU markers will not work");
+    } else {
+        spdlog::info("Successfully loaded vkCmdSetCheckpointNV for custom GPU crash markers");
+    }
+#endif
     _chosenGPU = physicalDevice.physical_device;
 
     // vkbootstrap to get a graphics queue
@@ -861,6 +837,15 @@ void VulkanEngine::init_vulkan() {
     allocatorInfo.instance = _instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &_allocator);
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    // Initialize marker map and frame index for GPU crash tracking
+    for (auto &frameMap: m_markerMap) {
+        frameMap.clear();
+    }
+    m_currentFrameIndex = 0;
+    spdlog::info("Initialized Nsight Aftermath marker tracking system");
+#endif
 
     _mainDeletionQueue.push_function([&]() {
         if (raytracerPipeline.m_is_raytracing_supported) {
@@ -1019,6 +1004,10 @@ void VulkanEngine::destroy_swapchain() const {
 }
 
 void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Begin draw_geometry");
+#endif
+
     // reset counters
     stats.drawcall_count = 0;
     stats.triangle_count = 0;
@@ -1035,10 +1024,17 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     renderInfo.colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size());
     renderInfo.pColorAttachments = colorAttachments.data();
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Begin Render Pass Setup");
+#endif
+
     vkCmdBeginRendering(cmd, &renderInfo);
 
     // If no scenes are loaded, draw the default cube
     if (loadedScenes.empty() && cubePipeline.isInitialized()) {
+#ifdef NSIGHT_AFTERMATH_ENABLED
+        insertGPUMarker(cmd, "Drawing Default Cube");
+#endif
         cubePipeline.draw(this, cmd);
         vkCmdEndRendering(cmd);
         return;
@@ -1144,19 +1140,38 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
 
         stats.drawcall_count++;
         stats.triangle_count += static_cast<int>(r.indexCount) / 3;
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+        // Mark individual draw call - this is where TDR might occur
+        std::string drawMarker = "DrawCall #" + std::to_string(stats.drawcall_count);
+        insertGPUMarker(cmd, drawMarker);
+#endif
+
         vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
     };
 
     stats.drawcall_count = 0;
     stats.triangle_count = 0;
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Drawing Opaque Surfaces");
+#endif
+
     for (auto &r: opaque_draws) {
         draw(mainDrawContext.OpaqueSurfaces[r]);
     }
 
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "Drawing Transparent Surfaces");
+#endif
+
     for (auto &r: mainDrawContext.TransparentSurfaces) {
         draw(r);
     }
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+    insertGPUMarker(cmd, "End Geometry Drawing");
+#endif
 
     // we delete the draw commands now that we processed them
     mainDrawContext.OpaqueSurfaces.clear();
@@ -1515,3 +1530,33 @@ void MeshNode::Draw(const glm::mat4 &topMatrix, DrawContext &ctx) {
     // recurse down
     Node::Draw(topMatrix, ctx);
 }
+
+#ifdef NSIGHT_AFTERMATH_ENABLED
+// Insert a GPU marker for crash tracking
+void VulkanEngine::insertGPUMarker(VkCommandBuffer cmd, const std::string &markerName) {
+    if (vkCmdSetCheckpointNV) {
+        // Create a unique marker ID from string hash
+        std::hash<std::string> hasher;
+        uint64_t markerId = hasher(markerName);
+
+        // Store the marker in the current frame's map
+        uint32_t frameIndex = m_currentFrameIndex % 4;
+        m_markerMap[frameIndex][markerId] = markerName;
+
+        // Insert the checkpoint
+        vkCmdSetCheckpointNV(cmd, (void *) markerId);
+
+        // Optional: Log marker insertion for debugging
+        // spdlog::debug("GPU Marker inserted: {} (ID: {})", markerName, markerId);
+    }
+}
+
+// Update frame markers - call this at the start of each frame
+void VulkanEngine::updateFrameMarkers() {
+    m_currentFrameIndex++;
+
+    // Clear old marker data (keep only last 4 frames)
+    uint32_t frameIndex = m_currentFrameIndex % 4;
+    m_markerMap[frameIndex].clear();
+}
+#endif

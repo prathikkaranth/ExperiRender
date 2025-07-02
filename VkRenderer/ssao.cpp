@@ -218,13 +218,15 @@ void ssao::draw_ssao(VulkanEngine *engine, VkCommandBuffer cmd) const {
     DescriptorWriter ssao_writer;
     ssao_writer.write_buffer(0, ssaoSceneDataBuffer.buffer, sizeof(SSAOSceneData), 0,
                              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    ssao_writer.write_image(1, _depthMap.imageView, engine->_defaultSamplerNearest,
+    ssao_writer.write_image(1, _depthMap.imageView, engine->_resourceManager.getNearestSampler(),
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    ssao_writer.write_image(2, engine->gbuffer.getGbufferPosInfo().imageView, engine->_defaultSamplerNearest,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    ssao_writer.write_image(3, engine->gbuffer.getGbufferNormInfo().imageView, engine->_defaultSamplerNearest,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    ssao_writer.write_image(4, _ssaoNoiseImage.imageView, engine->_defaultSamplerNearest,
+    ssao_writer.write_image(2, engine->gbuffer.getGbufferPosInfo().imageView,
+                            engine->_resourceManager.getNearestSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    ssao_writer.write_image(3, engine->gbuffer.getGbufferNormInfo().imageView,
+                            engine->_resourceManager.getNearestSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    ssao_writer.write_image(4, _ssaoNoiseImage.imageView, engine->_resourceManager.getNearestSampler(),
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     ssao_writer.write_image(5, _ssaoImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL,
                             VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -243,7 +245,7 @@ void ssao::draw_ssao(VulkanEngine *engine, VkCommandBuffer cmd) const {
 
 void ssao::draw_ssao_blur(const VulkanEngine *engine, VkCommandBuffer cmd) const {
     DescriptorWriter ssao_blur_writer;
-    ssao_blur_writer.write_image(0, _ssaoImage.imageView, engine->_defaultSamplerNearest,
+    ssao_blur_writer.write_image(0, _ssaoImage.imageView, engine->_resourceManager.getNearestSampler(),
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     ssao_blur_writer.write_image(1, _ssaoImageBlurred.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL,
                                  VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
