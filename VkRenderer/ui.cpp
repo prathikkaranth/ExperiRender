@@ -2,7 +2,6 @@
 #include <ui.h>
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_vulkan.h"
-#include "imgui.h"
 #include "imgui_internal.h"
 #include "vk_engine.h"
 
@@ -420,17 +419,52 @@ void ui::create_debug_panel(VulkanEngine *engine) {
 void ui::create_viewport_panel(VulkanEngine *engine) {
     ImGui::Begin("Viewport");
     
-    // Get the available content region for the viewport
-    ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+    // Reserve space for info text at the bottom
+    float infoHeight = ImGui::GetTextLineHeightWithSpacing();
     
-    if (engine->_viewportTextureDescriptorSet != VK_NULL_HANDLE && contentRegion.x > 0 && contentRegion.y > 0) {
-        // Display the rendered scene texture
-        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_viewportTextureDescriptorSet), contentRegion);
+    // Get the available content region minus info space
+    ImVec2 availableRegion = ImGui::GetContentRegionAvail();
+    availableRegion.y -= infoHeight;
+    
+    if (engine->_viewportTextureDescriptorSet != VK_NULL_HANDLE && availableRegion.x > 0 && availableRegion.y > 0) {
+        // Calculate the actual rendered image size
+        float imageWidth = static_cast<float>(engine->_drawExtent.width);
+        float imageHeight = static_cast<float>(engine->_drawExtent.height);
+        
+        // Calculate aspect ratios
+        float imageAspect = imageWidth / imageHeight;
+        float panelAspect = availableRegion.x / availableRegion.y;
+        
+        // Calculate display size maintaining aspect ratio
+        ImVec2 displaySize;
+        if (imageAspect > panelAspect) {
+            // Image is wider than panel - fit to width
+            displaySize.x = availableRegion.x;
+            displaySize.y = availableRegion.x / imageAspect;
+        } else {
+            // Image is taller than panel - fit to height
+            displaySize.y = availableRegion.y;
+            displaySize.x = availableRegion.y * imageAspect;
+        }
+        
+        // Center the image horizontally, top-align vertically
+        float centerOffsetX = (availableRegion.x - displaySize.x) * 0.5f;
+        
+        if (centerOffsetX > 0) {
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerOffsetX);
+        }
+        
+        // Display the rendered scene texture with proper scaling
+        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_viewportTextureDescriptorSet), displaySize);
+        
+        // Display info below the image
+        ImGui::Text("Render: %dx%d (%.1fx scale)", 
+                    engine->_drawExtent.width, engine->_drawExtent.height, engine->renderScale);
     } else {
         // Fallback display when texture isn't ready
         ImGui::Text("Main Render Viewport");
         ImGui::Text("Resolution: %dx%d", engine->_windowExtent.width, engine->_windowExtent.height);
-        ImGui::Text("Viewport size: %.0fx%.0f", contentRegion.x, contentRegion.y);
+        ImGui::Text("Viewport size: %.0fx%.0f", availableRegion.x, availableRegion.y);
     }
 
     ImGui::End();
