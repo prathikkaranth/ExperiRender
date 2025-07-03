@@ -2,20 +2,20 @@
 
 // ----------------------------------------------------------------------------
 // Complete microfacet BRDF function with enhanced features
-vec3 MicrofacetBRDF(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, float roughness)
+vec3 MicrofacetBRDF(const float metallic, const float roughness, const vec3 normal, const vec3 view_dir, const vec3 light_dir, const vec3 diffuse_color)
 {
-    vec3 H = normalize(L + V);
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float VdotH = max(dot(V, H), 0.0);
+    vec3 H = normalize(light_dir + view_dir);
+    float NdotL = max(dot(normal, light_dir), 0.0);
+    float NdotV = max(dot(normal, view_dir), 0.0);
+    float NdotH = max(dot(normal, H), 0.0);
+    float VdotH = max(dot(view_dir, H), 0.0);
     
     // Compute F0 (base reflectivity)
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F0 = mix(vec3(0.04), diffuse_color, metallic);
     
     // Use enhanced BRDF terms
-    float D = DistributionGGX(N, H, roughness);
-    float G = GeometrySmithCorrelated(N, V, L, roughness); // Enhanced geometry function
+    float D = DistributionGGX(normal, H, roughness);
+    float G = GeometrySmithCorrelated(normal, view_dir, light_dir, roughness); // Enhanced geometry function
     vec3 F = fresnelSchlickRoughness(VdotH, F0, roughness); // Enhanced Fresnel with roughness
     
     // Compute specular term
@@ -30,9 +30,9 @@ vec3 MicrofacetBRDF(vec3 L, vec3 V, vec3 N, vec3 albedo, float metallic, float r
     // Use Oren-Nayar for rough diffuse surfaces, Lambert for smooth ones
     vec3 diffuse;
     if (roughness > 0.3) {
-        diffuse = OrenNayarDiffuse(L, V, N, albedo, roughness) * kD;
+        diffuse = OrenNayarDiffuse(light_dir, view_dir, normal, diffuse_color, roughness) * kD;
     } else {
-        diffuse = kD * albedo / PI; // Standard Lambert for smooth surfaces
+        diffuse = kD * diffuse_color / PI; // Standard Lambert for smooth surfaces
     }
     
     return (diffuse + specular) * NdotL;
