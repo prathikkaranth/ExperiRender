@@ -28,10 +28,16 @@ namespace experirender::vk {
             .transformData = {}, // null implies identity transform
         };
 
-        // Identify the above data as containing opaque triangles
+        // Identify the above data as containing triangles
         VkAccelerationStructureGeometryKHR as_geom{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR};
         as_geom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
-        as_geom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+        
+        // Set geometry flags based on material pass type
+        if (mesh.material && mesh.material->passType == MaterialPass::Transparent) {
+            as_geom.flags = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR; // Allow anyhit shader for transparency
+        } else {
+            as_geom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // Opaque geometry optimization
+        }
         as_geom.geometry.triangles = triangles;
 
         // The entire array will be used to build the BLAS

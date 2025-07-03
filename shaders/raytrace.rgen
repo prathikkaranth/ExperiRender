@@ -28,7 +28,7 @@ vec3 tracePath() {
     prd.strength = vec3(1.0f);
     prd.isHit = true;
 
-    const uint RAY_FLAGS = gl_RayFlagsOpaqueEXT;
+    const uint RAY_FLAGS = gl_RayFlagsNoneEXT;
     const uint CULL_MASK = 0xFF;
     const uint SBT_RECORD_OFFSET = 0;
     const uint SBT_RECORD_STRIDE = 0;

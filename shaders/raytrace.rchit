@@ -157,7 +157,7 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
 
     rayQueryEXT rq;
     const float tmin = 0.1f;
-    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsCullBackFacingTrianglesEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
+    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
     rayQueryProceedEXT(rq);
     
     if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
@@ -207,20 +207,8 @@ void main()
     const MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
 
     const vec4 diffuseSample = texture(textures[material.albedoTexIndex], hit_point.uv);
-    const float alpha = diffuseSample.a;
-
-    if (alpha < 0.01f) {
-      // Continue the ray in same direction, nudging out to avoid self-hit
-      vec3 nudge = dot(gl_WorldRayDirectionEXT, hit_point.normal) > 0.0
-          ? hit_point.normal * 1e-4f   // Front face
-          : -hit_point.normal * 1e-4f; // Back face
-
-      prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + nudge;
-      prd.next_direction = gl_WorldRayDirectionEXT;
-
-      // Keep strength the same — this is a transparent skip
-    return;
-    }
+    // Alpha testing is now handled by the anyhit shader
+    // If we reach this point, the intersection is valid
     // Default roughness and metalness values
     float roughness = 0.5;
     float metalness = 0.0;
@@ -243,6 +231,9 @@ void main()
                                                              hit_point.uv,
                                                              metalness,
                                                              roughness);
+    
+    // Fix overexposed lighting - scale down the direct lighting
+    direct_light *= 0.1; // Scale down by 10x to fix overexposure
     
     // Add direct lighting contribution to the path radiance
     prd.color += prd.strength * direct_light;

@@ -1,0 +1,101 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_ARB_gpu_shader_int64 : enable
+
+#include "raycommon.glsl"
+#include "random.glsl"
+#include "input_structures.glsl"
+
+layout(location = 0) rayPayloadInEXT hitPayload prd;
+hitAttributeEXT vec2 attribs;
+
+struct Vertex {
+  vec3 position;
+  float uv_x;
+  vec3 normal;
+  float uv_y;
+  vec4 color;
+  vec3 tangent;
+  vec3 bitangent;
+};
+
+struct ObjDesc {
+  uint64_t vertexAddress;         
+  uint64_t indexAddress;   
+  uint firstIndex;
+  uint matIndex;       
+};
+
+struct Index {
+  uint elems[3];
+};
+
+struct MaterialRTData {
+  vec4 albedo;
+  uint albedoTexIndex;
+  uint p0;
+  uint p1;
+  uint p2;
+  vec4 metal_rough_factors;
+};
+
+layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; 
+layout(buffer_reference, std430) buffer Indices {Index i[]; }; 
+layout(set = 2, binding = 0, std430) buffer ObjDesc_ { 
+    ObjDesc i[]; 
+} m_objDesc;
+
+layout(set = 3, binding = 0, std140) buffer MaterialsBuffer {
+    MaterialRTData m[];
+} u_materials;
+
+layout(set = 4, binding = 0) uniform sampler2D textures[];
+
+layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
+
+void main()
+{
+  // Get material data
+  MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
+  
+  // Object Data
+  ObjDesc objResource = m_objDesc.i[gl_InstanceCustomIndexEXT];
+  Indices indices = Indices(objResource.indexAddress + objResource.firstIndex * 4);
+  Vertices vertices = Vertices(objResource.vertexAddress);
+
+  // Indices of the triangle
+  uvec3 ind = uvec3(
+    indices.i[gl_PrimitiveID].elems[0],
+    indices.i[gl_PrimitiveID].elems[1],
+    indices.i[gl_PrimitiveID].elems[2]);
+
+  // Vertex of the triangle
+  Vertex v0 = vertices.v[ind.x];
+  Vertex v1 = vertices.v[ind.y];
+  Vertex v2 = vertices.v[ind.z];
+
+  const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
+
+  // Compute UV coordinates
+  vec2 uv = vec2(v0.uv_x * barycentrics.x + v1.uv_x * barycentrics.y + v2.uv_x * barycentrics.z,
+                 v0.uv_y * barycentrics.x + v1.uv_y * barycentrics.y + v2.uv_y * barycentrics.z);
+
+  // Sample the alpha channel from the texture
+  float alpha = texture(textures[material.albedoTexIndex], uv).a;
+  
+  // Multiply by material alpha
+  alpha *= material.albedo.a;
+  
+  // Probabilistic transparency
+  // If alpha is 0, always ignore
+  if(alpha == 0.0)
+    ignoreIntersectionEXT;
+  // If alpha is less than 1, use probabilistic transparency
+  else if(alpha < 1.0 && rand1d(prd.seed) > alpha)
+    ignoreIntersectionEXT;
+}
