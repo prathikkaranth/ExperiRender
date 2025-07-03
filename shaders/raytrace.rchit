@@ -104,14 +104,29 @@ HitPoint compute_hit_point() {
   MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
   vec3 normalTex = texture(normalMaps[material.albedoTexIndex], uv).rgb;
 
-  // Only apply normal mapping if this isn't the default grey texture
-  // Default grey texture has RGB ~(0.66, 0.66, 0.66)
-  if (length(normalTex - vec3(0.66)) > 0.1) {
+  // Check if this is a real normal map vs default texture
+  // Default textures are often white (1,1,1) or neutral grey (~0.5,0.5,1 in normal map space)
+  bool hasRealNormalMap = false;
+  
+  // Check for default white texture (1,1,1)
+  if (length(normalTex - vec3(1.0)) > 0.1) {
+    // Check for default neutral normal (0.5,0.5,1) -> (0,0,1) in tangent space
+    vec3 neutralNormal = vec3(0.5, 0.5, 1.0);
+    if (length(normalTex - neutralNormal) > 0.1) {
+      // Check for default grey texture (0.66, 0.66, 0.66)
+      if (length(normalTex - vec3(0.66)) > 0.1) {
+        hasRealNormalMap = true;
+      }
+    }
+  }
+
+  if (hasRealNormalMap) {
     // Transform normal from [0,1] to [-1,1]
     normalTex = normalize(normalTex * 2.0 - 1.0);
     // Transform from tangent space to world space
     normal = normalize(TBN * normalTex);
   }
+  // Otherwise, just use the interpolated vertex normal
 
   return HitPoint(normal, uv);
 }
