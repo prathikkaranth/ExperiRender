@@ -135,7 +135,7 @@ vec3 pbr() {
 
 	vec3 L = - normalize(sceneData.sunlightDirection.xyz); // lightDirection is a uniform pointing to the light
 
-	vec3 bsdf = MicrofacetBRDF(L, V, N, albedo, metallic, roughness);
+	vec3 bsdf = BSDF(metallic, roughness, N, V, L, albedo);
 	bsdf *= sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb;
 
 	// ambient lighting
