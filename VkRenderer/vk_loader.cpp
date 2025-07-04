@@ -147,7 +147,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     scene->creator = engine;
     LoadedGLTF &file = *scene;
 
-    fastgltf::Parser parser{};
+    // Enable required extensions
+    fastgltf::Parser parser{fastgltf::Extensions::KHR_materials_transmission |
+                            fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_ior};
 
     constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
                                  fastgltf::Options::LoadExternalBuffers;
@@ -259,11 +261,18 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
 
         constants.hasMetalRoughTex = mat.pbrData.metallicRoughnessTexture.has_value();
 
+        // Handle transmission properties
+        constants.transmissionFactor = mat.transmission ? mat.transmission->transmissionFactor : 0.0f;
+        constants.hasTransmissionTex = mat.transmission && mat.transmission->transmissionTexture.has_value();
+
+        // Handle IOR (Index of Refraction)
+        constants.ior = mat.ior;
+
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 
         MaterialPass passType = MaterialPass::MainColor;
-        if (mat.alphaMode == fastgltf::AlphaMode::Blend) {
+        if (mat.alphaMode == fastgltf::AlphaMode::Blend || constants.transmissionFactor > 0.0f) {
             passType = MaterialPass::Transparent;
         }
 
@@ -275,12 +284,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         materialResources.metalRoughSampler = engine->_resourceManager.getLinearSampler();
         materialResources.normalImage = engine->_resourceManager.getGreyImage();
         materialResources.normalSampler = engine->_resourceManager.getLinearSampler();
+        materialResources.transmissionImage = engine->_resourceManager.getWhiteImage();
+        materialResources.transmissionSampler = engine->_resourceManager.getLinearSampler();
 
         // For RT
         materialResources.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1],
                                              mat.pbrData.baseColorFactor[2], mat.pbrData.baseColorFactor[3]);
         materialResources.albedoTexIndex = data_index;
         materialResources.metalRoughFactors = constants.metal_rough_factors;
+        materialResources.transmissionFactor = constants.transmissionFactor;
+        materialResources.ior = constants.ior;
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
@@ -310,6 +323,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
             size_t sampler = gltf.textures[mat.normalTexture.value().textureIndex].samplerIndex.value();
             materialResources.normalImage = images[img];
             materialResources.normalSampler = file.samplers[sampler];
+        }
+        // transmission
+        if (mat.transmission && mat.transmission->transmissionTexture.has_value()) {
+            size_t img = gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].imageIndex.value();
+            size_t sampler =
+                gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].samplerIndex.value();
+            materialResources.transmissionImage = images[img];
+            materialResources.transmissionSampler = file.samplers[sampler];
         }
 
         // build material

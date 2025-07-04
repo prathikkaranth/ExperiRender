@@ -11,6 +11,7 @@
 #include "random.glsl"
 #include "input_structures.glsl"
 #include "PBRMetallicRoughness.glsl"
+#include "transmission.glsl"
 
 layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 
@@ -45,6 +46,10 @@ struct MaterialRTData {
   uint p1;
   uint p2;
   vec4 metal_rough_factors;
+  float transmissionFactor;
+  uint hasTransmissionTex;
+  float ior;
+  uint p3;
 };
 
 struct HitPoint {
@@ -104,14 +109,29 @@ HitPoint compute_hit_point() {
   MaterialRTData material = u_materials.m[gl_InstanceCustomIndexEXT];
   vec3 normalTex = texture(normalMaps[material.albedoTexIndex], uv).rgb;
 
-  // Only apply normal mapping if this isn't the default grey texture
-  // Default grey texture has RGB ~(0.66, 0.66, 0.66)
-  if (length(normalTex - vec3(0.66)) > 0.1) {
+  // Check if this is a real normal map vs default texture
+  // Default textures are often white (1,1,1) or neutral grey (~0.5,0.5,1 in normal map space)
+  bool hasRealNormalMap = false;
+  
+  // Check for default white texture (1,1,1)
+  if (length(normalTex - vec3(1.0)) > 0.1) {
+    // Check for default neutral normal (0.5,0.5,1) -> (0,0,1) in tangent space
+    vec3 neutralNormal = vec3(0.5, 0.5, 1.0);
+    if (length(normalTex - neutralNormal) > 0.1) {
+      // Check for default grey texture (0.66, 0.66, 0.66)
+      if (length(normalTex - vec3(0.66)) > 0.1) {
+        hasRealNormalMap = true;
+      }
+    }
+  }
+
+  if (hasRealNormalMap) {
     // Transform normal from [0,1] to [-1,1]
     normalTex = normalize(normalTex * 2.0 - 1.0);
     // Transform from tangent space to world space
     normal = normalize(TBN * normalTex);
   }
+  // Otherwise, just use the interpolated vertex normal
 
   return HitPoint(normal, uv);
 }
@@ -142,7 +162,7 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
 
     rayQueryEXT rq;
     const float tmin = 0.1f;
-    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsCullBackFacingTrianglesEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
+    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
     rayQueryProceedEXT(rq);
     
     if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
@@ -206,6 +226,7 @@ void main()
       // Keep strength the same — this is a transparent skip
     return;
     }
+    
     // Default roughness and metalness values
     float roughness = 0.5;
     float metalness = 0.0;
@@ -229,16 +250,40 @@ void main()
                                                              metalness,
                                                              roughness);
     
+    // Fix overexposed lighting - scale down the direct lighting
+    direct_light *= 0.1; // Scale down by 10x to fix overexposure
+    
     // Add direct lighting contribution to the path radiance
     prd.color += prd.strength * direct_light;
     
-    // Set up next ray
-    prd.next_origin = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 1e-4f;
+    // Set up next ray origin
+    vec3 hit_position = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     
     vec3 new_strength;
     
-    // For very high metalness, add specular reflection to ensure proper mirror behavior
-    if (metalness > 0.99f && roughness < 0.05f) {
+    // Handle transmission materials properly
+    if (material.transmissionFactor > 0.0f) {
+      TransmissionResult transmission = calculate_transmission(
+        gl_WorldRayDirectionEXT,
+        hit_point.normal,
+        hit_position,
+        material.ior,
+        material.transmissionFactor,
+        roughness,
+        material_color,
+        prd.strength,
+        prd.seed
+      );
+      
+      if (transmission.terminate_ray) {
+        prd.next_direction = vec3(0.0f);
+        return;
+      }
+      
+      prd.next_direction = transmission.direction;
+      prd.next_origin = hit_position + transmission.origin_offset;
+      new_strength = prd.strength * transmission.attenuation;
+    } else if (metalness > 0.99f && roughness < 0.05f) {
       // Mix between perfect reflection and BSDF sampling
       vec3 incident = gl_WorldRayDirectionEXT;
       vec3 perfect_reflection = reflect(incident, hit_point.normal);
@@ -246,11 +291,17 @@ void main()
       // Use perfect reflection direction
       prd.next_direction = perfect_reflection;
       
+      // For reflection, offset ray origin away from surface
+      prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+      
       // For perfect reflection, use simple attenuation
       new_strength = prd.strength * material_color;
     } else {
       // Regular BSDF-based sampling approach
       prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+      
+      // For regular BSDF, offset ray origin away from surface
+      prd.next_origin = hit_position + hit_point.normal * 1e-4f;
       
       vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
       

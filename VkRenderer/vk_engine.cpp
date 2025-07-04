@@ -1507,6 +1507,8 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine *engine, Vk
 
     matData.albedo = resources.albedo;
     matData.metalRoughFactors = resources.metalRoughFactors;
+    matData.transmissionFactor = resources.transmissionFactor;
+    matData.ior = resources.ior;
 
     return matData;
 }

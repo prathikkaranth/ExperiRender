@@ -82,6 +82,8 @@ struct MaterialInstance {
     glm::vec4 albedo;
     uint32_t albedoTexIndex;
     glm::vec4 metalRoughFactors;
+    float transmissionFactor;
+    float ior;
 };
 
 struct DrawContext;

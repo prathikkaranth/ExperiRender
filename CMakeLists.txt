@@ -182,6 +182,7 @@ file(GLOB SHADERS
     "${SHADER_DIR}/*.comp"
     "${SHADER_DIR}/*.rgen"
     "${SHADER_DIR}/*.rchit"
+    "${SHADER_DIR}/*.rahit"
     "${SHADER_DIR}/*.rmiss"
 )
 
