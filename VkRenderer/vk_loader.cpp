@@ -148,9 +148,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     LoadedGLTF &file = *scene;
 
     // Enable required extensions
-    fastgltf::Parser parser{fastgltf::Extensions::KHR_materials_transmission | 
-                           fastgltf::Extensions::KHR_lights_punctual |
-                           fastgltf::Extensions::KHR_materials_ior};
+    fastgltf::Parser parser{fastgltf::Extensions::KHR_materials_transmission |
+                            fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_ior};
 
     constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
                                  fastgltf::Options::LoadExternalBuffers;
@@ -265,7 +264,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         // Handle transmission properties
         constants.transmissionFactor = mat.transmission ? mat.transmission->transmissionFactor : 0.0f;
         constants.hasTransmissionTex = mat.transmission && mat.transmission->transmissionTexture.has_value();
-        
+
         // Handle IOR (Index of Refraction)
         constants.ior = mat.ior;
 
@@ -328,7 +327,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         // transmission
         if (mat.transmission && mat.transmission->transmissionTexture.has_value()) {
             size_t img = gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].samplerIndex.value();
+            size_t sampler =
+                gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].samplerIndex.value();
             materialResources.transmissionImage = images[img];
             materialResources.transmissionSampler = file.samplers[sampler];
         }

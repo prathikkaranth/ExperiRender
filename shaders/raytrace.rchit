@@ -11,6 +11,7 @@
 #include "random.glsl"
 #include "input_structures.glsl"
 #include "PBRMetallicRoughness.glsl"
+#include "transmission.glsl"
 
 layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 
@@ -262,113 +263,26 @@ void main()
     
     // Handle transmission materials properly
     if (material.transmissionFactor > 0.0f) {
-      // Use material's IOR from GLTF
-      const float ior = material.ior;
-      const float air_ior = 1.0f;
+      TransmissionResult transmission = calculate_transmission(
+        gl_WorldRayDirectionEXT,
+        hit_point.normal,
+        hit_position,
+        material.ior,
+        material.transmissionFactor,
+        roughness,
+        material_color,
+        prd.strength,
+        prd.seed
+      );
       
-      vec3 incident = normalize(gl_WorldRayDirectionEXT);
-      vec3 normal = hit_point.normal;
-      
-      // Determine if we're entering or exiting the material
-      bool entering = dot(incident, normal) < 0.0f;
-      if (!entering) {
-        normal = -normal; // Flip normal for exiting rays
+      if (transmission.terminate_ray) {
+        prd.next_direction = vec3(0.0f);
+        return;
       }
       
-      float eta = entering ? (air_ior / ior) : (ior / air_ior);
-      float cos_i = abs(dot(incident, normal));
-      
-      // Calculate Fresnel reflectance and handle internal reflections
-      float sin_t_squared = eta * eta * (1.0f - cos_i * cos_i);
-      float fresnel_reflectance;
-      bool total_internal_reflection = false;
-      
-      if (sin_t_squared >= 1.0f) {
-        // Total internal reflection - critical angle exceeded
-        fresnel_reflectance = 1.0f;
-        total_internal_reflection = true;
-      } else {
-        float cos_t = sqrt(1.0f - sin_t_squared);
-        
-        // Fresnel equations (Schlick's approximation for better performance)
-        float f0 = pow((air_ior - ior) / (air_ior + ior), 2.0f);
-        fresnel_reflectance = f0 + (1.0f - f0) * pow(1.0f - cos_i, 5.0f);
-      }
-      
-      float rand_choice = rand1d(prd.seed);
-      
-      if (total_internal_reflection) {
-        
-        vec3 reflected_dir = reflect(incident, normal);
-        
-        // Add slight roughness-based scattering for internal reflections
-        if (roughness > 0.05f) {
-          vec3 scatter = cosine_weighted_hemisphere_sample(normal, prd.seed) * roughness * 0.2f;
-          reflected_dir = normalize(reflected_dir + scatter);
-        }
-        
-        prd.next_direction = reflected_dir;
-        
-        // For internal reflection, stay on the same side (inside material)
-        if (entering) {
-          prd.next_origin = hit_position - normal * 1e-4f; // Stay inside
-        } else {
-          prd.next_origin = hit_position + normal * 1e-4f; // Stay inside from other side
-        }
-        
-        new_strength = prd.strength * material_color * 0.95f;
-        
-      } else {
-        // No total internal reflection - choose between transmission and reflection
-        float effective_transmission = material.transmissionFactor * (1.0f - fresnel_reflectance);
-        
-        effective_transmission *= (1.0f - roughness * 0.6f);
-        
-        if (rand_choice < effective_transmission) {
-          // Transmission with refraction (Snell's law)
-          float cos_t = sqrt(1.0f - sin_t_squared);
-          vec3 refracted_dir = eta * incident + (eta * cos_i - cos_t) * normal;
-          
-          // Add roughness-based scattering to transmission
-          if (roughness > 0.1f) {
-            vec3 scatter = cosine_weighted_hemisphere_sample(refracted_dir, prd.seed) * roughness * 0.3f;
-            refracted_dir = normalize(refracted_dir + scatter);
-          }
-          
-          prd.next_direction = refracted_dir;
-          
-          // Offset to the other side of the interface
-          if (entering) {
-            prd.next_origin = hit_position - normal * 1e-4f; // Enter material
-          } else {
-            prd.next_origin = hit_position + normal * 1e-4f; // Exit material
-          }
-          
-          // Transmission strength accounting for Fresnel loss
-          new_strength = prd.strength * material_color * (1.0f - fresnel_reflectance);
-          
-        } else {
-          // Fresnel reflection (external reflection)
-          vec3 reflected_dir = reflect(incident, normal);
-          
-          // Add roughness-based scattering
-          if (roughness > 0.1f) {
-            vec3 scatter = cosine_weighted_hemisphere_sample(normal, prd.seed) * roughness * 0.4f;
-            reflected_dir = normalize(reflected_dir + scatter);
-          }
-          
-          prd.next_direction = reflected_dir;
-          
-          // External reflection - stay on the side we came from
-          if (entering) {
-            prd.next_origin = hit_position + normal * 1e-4f; // Reflect back to air
-          } else {
-            prd.next_origin = hit_position - normal * 1e-4f; // Reflect back into material
-          }
-          
-          new_strength = prd.strength * material_color * fresnel_reflectance;
-        }
-      }
+      prd.next_direction = transmission.direction;
+      prd.next_origin = hit_position + transmission.origin_offset;
+      new_strength = prd.strength * transmission.attenuation;
     } else if (metalness > 0.99f && roughness < 0.05f) {
       // Mix between perfect reflection and BSDF sampling
       vec3 incident = gl_WorldRayDirectionEXT;

@@ -89,7 +89,7 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
             .transform = vk_transform,
             .instanceCustomIndex = i,
             .mask = 0xFF,
-            .instanceShaderBindingTableRecordOffset = 0,  // Use opaque hit group (no anyhit shader)
+            .instanceShaderBindingTableRecordOffset = 0, // Use opaque hit group (no anyhit shader)
             .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
             .accelerationStructureReference = m_rt_builder->getBlasDeviceAddress(i),
         };
@@ -121,7 +121,7 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
             .transform = vk_transform,
             .instanceCustomIndex = opaqueCount + i, // Offset by opaque surface count
             .mask = 0xFF,
-            .instanceShaderBindingTableRecordOffset = 1,  // Use transparent hit group (with anyhit shader)
+            .instanceShaderBindingTableRecordOffset = 1, // Use transparent hit group (with anyhit shader)
             .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
             .accelerationStructureReference = m_rt_builder->getBlasDeviceAddress(opaqueCount + i),
         };
@@ -171,7 +171,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     {
         DescriptorLayoutBuilder m_objDescSetLayoutBind;
         m_objDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER); // ObjDesc buffer
-        m_objDescSetLayout = m_objDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
+        m_objDescSetLayout = m_objDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
+                                                                               VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
     }
 
     std::vector<ObjDesc> objDescs;
@@ -245,10 +246,9 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
             m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
             m_texSetLayoutBind.add_bindings(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                             nbMetalRoughText); // Metal Rough Maps
-            m_texSetLayout = m_texSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-                                                                           VK_SHADER_STAGE_RAYGEN_BIT_KHR |
-                                                                           VK_SHADER_STAGE_MISS_BIT_KHR |
-                                                                           VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
+            m_texSetLayout = m_texSetLayoutBind.build(
+                engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR |
+                                     VK_SHADER_STAGE_MISS_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
         }
 
         m_texDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_texSetLayout);
@@ -332,7 +332,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     {
         DescriptorLayoutBuilder m_matDescSetLayoutBind;
         m_matDescSetLayoutBind.add_binding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER); // MatDesc buffer
-        m_matDescSetLayout = m_matDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
+        m_matDescSetLayout = m_matDescSetLayoutBind.build(engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
+                                                                               VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
     }
 
     m_matDescSet = engine->globalDescriptorAllocator.allocate(engine->_device, m_matDescSetLayout);
@@ -437,14 +438,14 @@ void Raytracer::createRtPipeline(VulkanEngine *engine) {
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.closestHitShader = eClosestHit;
-    group.anyHitShader = VK_SHADER_UNUSED_KHR;  // No anyhit shader for opaque
+    group.anyHitShader = VK_SHADER_UNUSED_KHR; // No anyhit shader for opaque
     m_rtShaderGroups.push_back(group);
 
     // Hit group for transparent geometry (with anyhit shader)
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.closestHitShader = eClosestHit;
-    group.anyHitShader = eAnyHit;  // Anyhit shader for transparency
+    group.anyHitShader = eAnyHit; // Anyhit shader for transparency
     m_rtShaderGroups.push_back(group);
 
     // Push constant: we want to be able to update constants used by the shaders
