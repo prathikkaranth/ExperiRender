@@ -47,8 +47,8 @@ struct MaterialRTData {
   vec4 metal_rough_factors;
   float transmissionFactor;
   uint hasTransmissionTex;
+  float ior;
   uint p3;
-  uint p4;
 };
 
 struct HitPoint {
@@ -262,8 +262,8 @@ void main()
     
     // Handle transmission materials properly
     if (material.transmissionFactor > 0.0f) {
-      // Glass IOR (could be made a material parameter)
-      const float ior = 1.5f; // Glass IOR
+      // Use material's IOR from GLTF
+      const float ior = material.ior;
       const float air_ior = 1.0f;
       
       vec3 incident = normalize(gl_WorldRayDirectionEXT);
@@ -278,69 +278,95 @@ void main()
       float eta = entering ? (air_ior / ior) : (ior / air_ior);
       float cos_i = abs(dot(incident, normal));
       
-      // Calculate Fresnel reflectance
+      // Calculate Fresnel reflectance and handle internal reflections
       float sin_t_squared = eta * eta * (1.0f - cos_i * cos_i);
       float fresnel_reflectance;
+      bool total_internal_reflection = false;
       
       if (sin_t_squared >= 1.0f) {
-        // Total internal reflection
+        // Total internal reflection - critical angle exceeded
         fresnel_reflectance = 1.0f;
+        total_internal_reflection = true;
       } else {
         float cos_t = sqrt(1.0f - sin_t_squared);
         
-        // Fresnel equations
-        float rs = (air_ior * cos_i - ior * cos_t) / (air_ior * cos_i + ior * cos_t);
-        float rp = (ior * cos_i - air_ior * cos_t) / (ior * cos_i + air_ior * cos_t);
-        fresnel_reflectance = 0.5f * (rs * rs + rp * rp);
+        // Fresnel equations (Schlick's approximation for better performance)
+        float f0 = pow((air_ior - ior) / (air_ior + ior), 2.0f);
+        fresnel_reflectance = f0 + (1.0f - f0) * pow(1.0f - cos_i, 5.0f);
       }
-      
-      // Roughness affects transmission scattering
-      float effective_transmission = material.transmissionFactor * (1.0f - fresnel_reflectance);
-      
-      // For rough surfaces, reduce transmission probability
-      effective_transmission *= (1.0f - roughness * 0.7f);
       
       float rand_choice = rand1d(prd.seed);
       
-      if (rand_choice < effective_transmission && sin_t_squared < 1.0f) {
-        // Transmission ray with refraction
-        vec3 refracted_dir = eta * incident + (eta * cos_i - sqrt(1.0f - sin_t_squared)) * normal;
+      if (total_internal_reflection) {
         
-        // For rough surfaces, add some scattering to transmission
-        if (roughness > 0.1f) {
-          vec3 scatter = cosine_weighted_hemisphere_sample(refracted_dir, prd.seed) * roughness * 0.3f;
-          refracted_dir = normalize(refracted_dir + scatter);
+        vec3 reflected_dir = reflect(incident, normal);
+        
+        // Add slight roughness-based scattering for internal reflections
+        if (roughness > 0.05f) {
+          vec3 scatter = cosine_weighted_hemisphere_sample(normal, prd.seed) * roughness * 0.2f;
+          reflected_dir = normalize(reflected_dir + scatter);
         }
         
-        prd.next_direction = refracted_dir;
-        prd.next_origin = hit_position - normal * 1e-4f;
+        prd.next_direction = reflected_dir;
         
-        // Transmission strength affected by material color and Fresnel
-        new_strength = prd.strength * material_color * (1.0f - fresnel_reflectance);
+        // For internal reflection, stay on the same side (inside material)
+        if (entering) {
+          prd.next_origin = hit_position - normal * 1e-4f; // Stay inside
+        } else {
+          prd.next_origin = hit_position + normal * 1e-4f; // Stay inside from other side
+        }
+        
+        new_strength = prd.strength * material_color * 0.95f;
+        
       } else {
-        // Surface reflection (Fresnel reflection or diffuse)
-        if (rand_choice < fresnel_reflectance || roughness < 0.1f) {
-          // Specular reflection
+        // No total internal reflection - choose between transmission and reflection
+        float effective_transmission = material.transmissionFactor * (1.0f - fresnel_reflectance);
+        
+        effective_transmission *= (1.0f - roughness * 0.6f);
+        
+        if (rand_choice < effective_transmission) {
+          // Transmission with refraction (Snell's law)
+          float cos_t = sqrt(1.0f - sin_t_squared);
+          vec3 refracted_dir = eta * incident + (eta * cos_i - cos_t) * normal;
+          
+          // Add roughness-based scattering to transmission
+          if (roughness > 0.1f) {
+            vec3 scatter = cosine_weighted_hemisphere_sample(refracted_dir, prd.seed) * roughness * 0.3f;
+            refracted_dir = normalize(refracted_dir + scatter);
+          }
+          
+          prd.next_direction = refracted_dir;
+          
+          // Offset to the other side of the interface
+          if (entering) {
+            prd.next_origin = hit_position - normal * 1e-4f; // Enter material
+          } else {
+            prd.next_origin = hit_position + normal * 1e-4f; // Exit material
+          }
+          
+          // Transmission strength accounting for Fresnel loss
+          new_strength = prd.strength * material_color * (1.0f - fresnel_reflectance);
+          
+        } else {
+          // Fresnel reflection (external reflection)
           vec3 reflected_dir = reflect(incident, normal);
           
           // Add roughness-based scattering
           if (roughness > 0.1f) {
-            vec3 scatter = cosine_weighted_hemisphere_sample(normal, prd.seed) * roughness;
+            vec3 scatter = cosine_weighted_hemisphere_sample(normal, prd.seed) * roughness * 0.4f;
             reflected_dir = normalize(reflected_dir + scatter);
           }
           
           prd.next_direction = reflected_dir;
-          prd.next_origin = hit_position + normal * 1e-4f;
-          new_strength = prd.strength * material_color * fresnel_reflectance;
-        } else {
-          // Diffuse/BSDF reflection
-          prd.next_direction = cosine_weighted_hemisphere_sample(normal, prd.seed);
-          prd.next_origin = hit_position + normal * 1e-4f;
           
-          vec3 bsdf = BSDF(metalness, roughness, normal, -incident, prd.next_direction, material_color);
-          const float cos_theta = max(dot(normal, prd.next_direction), 0.0f);
-          const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
-          new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+          // External reflection - stay on the side we came from
+          if (entering) {
+            prd.next_origin = hit_position + normal * 1e-4f; // Reflect back to air
+          } else {
+            prd.next_origin = hit_position - normal * 1e-4f; // Reflect back into material
+          }
+          
+          new_strength = prd.strength * material_color * fresnel_reflectance;
         }
       }
     } else if (metalness > 0.99f && roughness < 0.05f) {

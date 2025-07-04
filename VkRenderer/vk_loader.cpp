@@ -148,7 +148,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     LoadedGLTF &file = *scene;
 
     // Enable required extensions
-    fastgltf::Parser parser{fastgltf::Extensions::KHR_materials_transmission | fastgltf::Extensions::KHR_lights_punctual};
+    fastgltf::Parser parser{fastgltf::Extensions::KHR_materials_transmission | 
+                           fastgltf::Extensions::KHR_lights_punctual |
+                           fastgltf::Extensions::KHR_materials_ior};
 
     constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble |
                                  fastgltf::Options::LoadExternalBuffers;
@@ -263,6 +265,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         // Handle transmission properties
         constants.transmissionFactor = mat.transmission ? mat.transmission->transmissionFactor : 0.0f;
         constants.hasTransmissionTex = mat.transmission && mat.transmission->transmissionTexture.has_value();
+        
+        // Handle IOR (Index of Refraction)
+        constants.ior = mat.ior;
 
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
@@ -289,6 +294,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         materialResources.albedoTexIndex = data_index;
         materialResources.metalRoughFactors = constants.metal_rough_factors;
         materialResources.transmissionFactor = constants.transmissionFactor;
+        materialResources.ior = constants.ior;
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;

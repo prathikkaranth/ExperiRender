@@ -44,8 +44,8 @@ struct MaterialRTData {
   vec4 metal_rough_factors;
   float transmissionFactor;
   uint hasTransmissionTex;
+  float ior;
   uint p3;
-  uint p4;
 };
 
 layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; 

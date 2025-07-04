@@ -48,9 +48,10 @@ struct GLTFMetallic_Roughness {
         int hasMetalRoughTex;
         float transmissionFactor;
         int hasTransmissionTex;
+        float ior;
 
         // padding, we need it anyway for uniform buffers
-        uint8_t padding[211];
+        uint8_t padding[207];
     };
 
     struct MaterialResources {
@@ -70,6 +71,7 @@ struct GLTFMetallic_Roughness {
         uint32_t albedoTexIndex;
         glm::vec4 metalRoughFactors;
         float transmissionFactor;
+        float ior;
     };
 
     DescriptorWriter writer;
