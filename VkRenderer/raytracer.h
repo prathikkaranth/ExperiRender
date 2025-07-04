@@ -25,6 +25,9 @@ struct MaterialRTData {
     uint32_t albedoTexIndex;
     uint32_t padding[3];
     glm::vec4 metal_rough_factors;
+    float transmissionFactor;
+    uint32_t hasTransmissionTex;
+    uint32_t padding2[2];
 };
 
 class Raytracer {

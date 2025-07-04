@@ -311,6 +311,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         matDesc.albedo = OpaqueSurface.material->albedo;
         matDesc.albedoTexIndex = OpaqueSurface.material->albedoTexIndex;
         matDesc.metal_rough_factors = OpaqueSurface.material->metalRoughFactors;
+        matDesc.transmissionFactor = 0.0f; // Opaque materials have no transmission
+        matDesc.hasTransmissionTex = 0;
         materialRTShaderData.push_back(matDesc);
     }
 
@@ -320,6 +322,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         matDesc.albedo = TransparentSurface.material->albedo;
         matDesc.albedoTexIndex = TransparentSurface.material->albedoTexIndex;
         matDesc.metal_rough_factors = TransparentSurface.material->metalRoughFactors;
+        matDesc.transmissionFactor = TransparentSurface.material->transmissionFactor;
+        matDesc.hasTransmissionTex = 0;
         materialRTShaderData.push_back(matDesc);
     }
 

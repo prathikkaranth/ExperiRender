@@ -42,6 +42,10 @@ struct MaterialRTData {
   uint p1;
   uint p2;
   vec4 metal_rough_factors;
+  float transmissionFactor;
+  uint hasTransmissionTex;
+  uint p3;
+  uint p4;
 };
 
 layout(buffer_reference, std430) buffer Vertices {Vertex v[]; }; 
@@ -95,7 +99,7 @@ void main()
   // If alpha is 0, always ignore
   if(alpha == 0.0)
     ignoreIntersectionEXT;
-  // If alpha is less than 1, use probabilistic transparency
+  // If alpha is less than 1, use probabilistic transparency  
   else if(alpha < 1.0 && rand1d(prd.seed) > alpha)
     ignoreIntersectionEXT;
 }
