@@ -89,14 +89,10 @@ void main()
   vec2 uv = vec2(v0.uv_x * barycentrics.x + v1.uv_x * barycentrics.y + v2.uv_x * barycentrics.z,
                  v0.uv_y * barycentrics.x + v1.uv_y * barycentrics.y + v2.uv_y * barycentrics.z);
 
-  // Sample the alpha channel from the texture
   float alpha = texture(textures[material.albedoTexIndex], uv).a;
   
-  // Multiply by material alpha
   alpha *= material.albedo.a;
   
-  // Probabilistic transparency
-  // If alpha is 0, always ignore
   if(alpha == 0.0)
     ignoreIntersectionEXT;
   // If alpha is less than 1, use probabilistic transparency  

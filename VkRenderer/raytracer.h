@@ -94,7 +94,7 @@ public:
 
     // Cleanup tracking
     bool m_cleanupRegistered = false;
-    
+
     // Rendering options
     bool useMicrofacetSampling = true;
 };

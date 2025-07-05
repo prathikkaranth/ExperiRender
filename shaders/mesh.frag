@@ -270,7 +270,7 @@ void main() {
 	float alpha = texture(colorTex, inUV).a;
     
     // Discard fragments that are nearly transparent
-    if (alpha < 0.5f) {
+    if (alpha < 0.1f) {
         discard;
     }
 	if(bool(sceneData.enablePBR)) {
