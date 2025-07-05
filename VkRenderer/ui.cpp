@@ -340,6 +340,16 @@ void ui::create_settings_panel(VulkanEngine *engine) {
     if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
         ImGui::SliderInt("Max Samples", reinterpret_cast<int *>(&engine->raytracerPipeline.max_samples), 1, 5000);
         ImGui::SliderInt("Ray Depth", reinterpret_cast<int *>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
+        
+        // Microfacet BRDF sampling toggle
+        bool previousMicrofacet = engine->raytracerPipeline.useMicrofacetSampling;
+        if (ImGui::Checkbox("Use Microfacet BRDF Sampling", &engine->raytracerPipeline.useMicrofacetSampling)) {
+            // Setting changed, samples will be reset automatically in rtSampleUpdates
+        }
+        
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Enable GGX importance sampling for more accurate BRDF evaluation.\nDisabling uses cosine-weighted hemisphere sampling.");
+        }
     }
 
     if (ImGui::CollapsingHeader("SSAO Settings")) {

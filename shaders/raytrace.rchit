@@ -12,6 +12,7 @@
 #include "input_structures.glsl"
 #include "PBRMetallicRoughness.glsl"
 #include "transmission.glsl"
+#include "microfacet_sampling.glsl"
 
 layout(binding = 0, set = 1) uniform accelerationStructureEXT topLevelAS;
 
@@ -297,20 +298,46 @@ void main()
       // For perfect reflection, use simple attenuation
       new_strength = prd.strength * material_color;
     } else {
-      // Regular BSDF-based sampling approach
-      prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
-      
-      // For regular BSDF, offset ray origin away from surface
-      prd.next_origin = hit_position + hit_point.normal * 1e-4f;
-      
-      vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
-      
-      // Update the path strength for the next bounce
-      const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
-      const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
-      
-      // Update strength based on BRDF and PDF
-      new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+      if (pcRay.useMicrofacetSampling == 1) {
+        // Importance sampling based on microfacet BRDF
+        vec3 wo = normalize(-gl_WorldRayDirectionEXT); // Direction towards camera
+        
+        MicrofacetSample brdf_sample = sample_microfacet_mis(
+          wo,
+          hit_point.normal,
+          roughness,
+          metalness,
+          material_color,
+          prd.seed
+        );
+        
+        if (brdf_sample.pdf <= 0.0 || any(isnan(brdf_sample.direction)) || any(isinf(brdf_sample.brdf_value))) {
+          prd.next_direction = vec3(0.0f);
+          return;
+        }
+        
+        prd.next_direction = brdf_sample.direction;
+        prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+        
+        // Update strength using importance sampling
+        const float cos_theta = max(dot(hit_point.normal, brdf_sample.direction), 0.0f);
+        new_strength = prd.strength * brdf_sample.brdf_value * cos_theta / brdf_sample.pdf;
+      } else {
+        // Fallback to cosine-weighted hemisphere sampling
+        prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+        
+        // For regular BSDF, offset ray origin away from surface
+        prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+        
+        vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+        
+        // Update the path strength for the next bounce
+        const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+        const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+        
+        // Update strength based on BRDF and PDF
+        new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+      }
     }
     
     // Safety checks to prevent NaN/infinite values

@@ -14,4 +14,5 @@ struct PushConstantRay
 	uint seed;
 	uint samples_done;
 	uint depth;
+	uint useMicrofacetSampling;
 };
