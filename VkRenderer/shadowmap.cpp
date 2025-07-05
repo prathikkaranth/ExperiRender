@@ -13,7 +13,7 @@ namespace {
 
 void shadowMap::init_lightSpaceMatrix(VulkanEngine *engine) {
 
-    near_plane = 0.01f, far_plane = 90.0f;
+    near_plane = 0.01f, far_plane = 500.0f;
     left = -20.f, right = 20.f;
     bottom = -20.f, top = 20.f;
     lightProjection = glm::ortho(left, right, bottom, top, far_plane, near_plane);

@@ -52,6 +52,8 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
     mat3 TBN = mat3(tangent, bitangent, normalWS);
 
     float occlusion = 0.0f;
+    int validSamples = 0;
+    
     for(int i = 0; i < ssaoData.kernelSize; i++) {
         vec3 sampleOffset = TBN * ssaoData.samples[i];
         vec3 samplePos = fragPosWS.xyz + sampleOffset * ssaoData.radius;
@@ -61,22 +63,41 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord ) {
         vec2 uv = sampleCS.xy * 0.5f + 0.5f;
 
         if(uv.x < 0.0f || uv.x > 1.0f || uv.y < 0.0f || uv.y > 1.0f) {
+            // Treat off-screen samples as occluding to maintain consistent SSAO at edges
+            occlusion += 1.0;
             continue;
         }
 
-        vec4 sampleVS = ssaoData.view * texture(GbufferPosition, uv);
+        vec4 samplePosWS = texture(GbufferPosition, uv);
+        
+        // Skip invalid samples (background)
+        if (samplePosWS.w <= 0.0) {
+            continue;
+        }
+        
+        vec4 sampleVS = ssaoData.view * samplePosWS;
         sampleVS /= sampleVS.w;
         float sampleDepth = -sampleVS.z;    
 
-        // range check & accumulate
-        if(abs(fragDepth - sampleDepth) < ssaoData.radius)
-        {
-            occlusion += sampleDepth > fragDepth + ssaoData.bias ? 1.0f : 0.0f;
+        // Improved range check - only consider samples within reasonable distance
+        float depthDiff = abs(fragDepth - sampleDepth);
+        if(depthDiff > ssaoData.radius) {
+            continue;
         }
-
+        
+        validSamples++;
+        
+        // Check if sample is occluding the fragment
+        // If sampleDepth < fragDepth, the sample is closer to camera (occluding)
+        if (sampleDepth <= fragDepth - ssaoData.bias) {
+            occlusion += 1.0;
+        }
     }
-    float visibility = 1.0f - occlusion / ssaoData.kernelSize;
-    visibility = pow(visibility, ssaoData.intensity);
+    
+    // Calculate visibility - use total kernel size to maintain consistent occlusion
+    float visibility = 1.0f - (occlusion / float(ssaoData.kernelSize));
+    visibility = pow(max(visibility, 0.0), ssaoData.intensity);
+    
     fragColor = vec4(visibility, 0.0, 0.0, 1.0);
 
 }

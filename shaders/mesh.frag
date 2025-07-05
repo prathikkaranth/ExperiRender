@@ -64,6 +64,12 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 	// float shadow = currentDepth + bias < closestDepth  ? 1.0 : 0.0; 
     const float bias = max(maxBias * (1.0f - dot(normal, lightDir)), minBias);
 	float shadow = 0.0f;
+
+	if(projCoords.z > 1.0) {
+		shadow = 0.0;
+		return shadow;
+	}
+
 	vec2 texelSize = 1.0f / textureSize(depthShadowMap, 0);
 	
 	// Advanced PCF with Poisson disk sampling
@@ -85,9 +91,6 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 		shadow += (currentDepth + bias < pcfDepth) ? 1.0f : 0.0f;
 	}
 	shadow /= 16.0;
-
-	if(projCoords.z > 1.0)
-        shadow = 1.0;
 
 	return shadow;
 }
@@ -267,7 +270,7 @@ void main() {
 	float alpha = texture(colorTex, inUV).a;
     
     // Discard fragments that are nearly transparent
-    if (alpha < 0.01f) {
+    if (alpha < 0.5f) {
         discard;
     }
 	if(bool(sceneData.enablePBR)) {

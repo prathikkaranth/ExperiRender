@@ -356,7 +356,7 @@ void ui::create_settings_panel(VulkanEngine *engine) {
 
     if (ImGui::CollapsingHeader("ShadowMap Settings")) {
         ImGui::SliderFloat("Near Plane", &engine->_shadowMap.near_plane, 0.f, 1.f);
-        ImGui::SliderFloat("Far Plane", &engine->_shadowMap.far_plane, 2.f, 150.f);
+        ImGui::SliderFloat("Far Plane", &engine->_shadowMap.far_plane, 2.f, 650.f);
         ImGui::SliderFloat("Left", &engine->_shadowMap.left, -100.f, -1.f);
         ImGui::SliderFloat("Right", &engine->_shadowMap.right, 100.f, 1.f);
         ImGui::SliderFloat("Top", &engine->_shadowMap.top, 100.f, 1.f);
@@ -374,6 +374,15 @@ void ui::create_stats_panel(VulkanEngine *engine) {
     ImGui::Text("FPS: %i", fps);
     ImGui::Text("Frame time: %.2f ms", engine->stats.frametime);
     ImGui::Text("Ray Tracing Samples: %i", engine->raytracerPipeline.m_pcRay.samples_done);
+
+    // Camera position display
+    ImGui::Separator();
+    ImGui::Text("Camera Position:");
+    ImGui::Text("  X: %.3f", engine->mainCamera.position.x);
+    ImGui::Text("  Y: %.3f", engine->mainCamera.position.y);
+    ImGui::Text("  Z: %.3f", engine->mainCamera.position.z);
+    ImGui::Text("Pitch: %.3f°", engine->mainCamera.pitch);
+    ImGui::Text("Yaw: %.3f°", engine->mainCamera.yaw);
 
     if (ImGui::CollapsingHeader("Detailed Stats")) {
         ImGui::Text("Triangles: %i", engine->stats.triangle_count);
