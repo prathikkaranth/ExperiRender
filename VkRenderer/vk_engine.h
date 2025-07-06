@@ -250,6 +250,10 @@ private:
     void resize_swapchain();
 
     void init_default_data();
+    
+    // Screenshot functions
+    void save_screenshot_full();
+    void save_screenshot_render_only();
 
 #ifdef NSIGHT_AFTERMATH_ENABLED
     // Helper functions for GPU crash markers
