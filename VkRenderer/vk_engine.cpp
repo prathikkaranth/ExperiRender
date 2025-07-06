@@ -29,13 +29,13 @@
 #include <vk_types.h>
 #include <vk_utils.h>
 
+#include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <random>
-#include <chrono>
-#include <iomanip>
 #include <sstream>
-#include <fstream>
 
 constexpr bool bUseValidationLayers = true;
 
@@ -633,7 +633,7 @@ void VulkanEngine::run() {
             // Handle screenshot keys
             if (e.type == SDL_KEYDOWN) {
                 if (e.key.keysym.sym == SDLK_F12) {
-                    const Uint8* keystate = SDL_GetKeyboardState(nullptr);
+                    const Uint8 *keystate = SDL_GetKeyboardState(nullptr);
                     if (keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]) {
                         // Shift + F12: Render-only screenshot
                         save_screenshot_render_only();
@@ -1596,23 +1596,22 @@ void VulkanEngine::updateFrameMarkers() {
 void VulkanEngine::save_screenshot_full() {
     // Wait for current frame to complete
     vkDeviceWaitIdle(_device);
-    
+
     // Create staging buffer for the swapchain image
     VkExtent3D extent = {_swapchainExtent.width, _swapchainExtent.height, 1};
-    AllocatedBuffer stagingBuffer = vkutil::create_buffer(this, 
-        _swapchainExtent.width * _swapchainExtent.height * 4, 
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY, "Screenshot Staging Buffer");
+    AllocatedBuffer stagingBuffer =
+        vkutil::create_buffer(this, _swapchainExtent.width * _swapchainExtent.height * 4,
+                              VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY, "Screenshot Staging Buffer");
 
     immediate_submit([&](VkCommandBuffer cmd) {
         // Get current swapchain image
         uint32_t currentImageIndex = _frameNumber % _swapchainImages.size();
         VkImage swapchainImage = _swapchainImages[currentImageIndex];
-        
+
         // Transition swapchain image for reading
         vkutil::transition_image(cmd, swapchainImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        
+                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
         // Copy image to buffer
         VkBufferImageCopy copyRegion{};
         copyRegion.bufferOffset = 0;
@@ -1624,46 +1623,46 @@ void VulkanEngine::save_screenshot_full() {
         copyRegion.imageSubresource.layerCount = 1;
         copyRegion.imageExtent = extent;
         copyRegion.imageOffset = {0, 0, 0};
-        
-        vkCmdCopyImageToBuffer(cmd, swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                              stagingBuffer.buffer, 1, &copyRegion);
-        
+
+        vkCmdCopyImageToBuffer(cmd, swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer.buffer, 1,
+                               &copyRegion);
+
         // Transition back to present
         vkutil::transition_image(cmd, swapchainImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
+                                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT);
     });
-    
+
     // Map buffer and save to file
-    void* data;
+    void *data;
     vmaMapMemory(_allocator, stagingBuffer.allocation, &data);
-    
+
     // Generate filename with timestamp
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-    
+
     std::stringstream ss;
-    ss << "screenshot_full_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") 
-       << "_" << std::setfill('0') << std::setw(3) << ms.count() << ".png";
-    
+    ss << "screenshot_full_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") << "_" << std::setfill('0')
+       << std::setw(3) << ms.count() << ".png";
+
     // Save as PNG (BGRA -> RGBA conversion needed for swapchain format)
     std::vector<uint8_t> rgba_data(_swapchainExtent.width * _swapchainExtent.height * 4);
-    uint8_t* src = static_cast<uint8_t*>(data);
-    
+    uint8_t *src = static_cast<uint8_t *>(data);
+
     for (uint32_t i = 0; i < _swapchainExtent.width * _swapchainExtent.height; i++) {
         rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R = B
         rgba_data[i * 4 + 1] = src[i * 4 + 1]; // G = G
         rgba_data[i * 4 + 2] = src[i * 4 + 0]; // B = R
         rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A = A
     }
-    
-    if (stbi_write_png(ss.str().c_str(), _swapchainExtent.width, _swapchainExtent.height, 4, 
-                       rgba_data.data(), _swapchainExtent.width * 4)) {
+
+    if (stbi_write_png(ss.str().c_str(), _swapchainExtent.width, _swapchainExtent.height, 4, rgba_data.data(),
+                       _swapchainExtent.width * 4)) {
         spdlog::info("Full screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save full screenshot: {}", ss.str());
     }
-    
+
     vmaUnmapMemory(_allocator, stagingBuffer.allocation);
     vkutil::destroy_buffer(this, stagingBuffer);
 }
@@ -1671,18 +1670,19 @@ void VulkanEngine::save_screenshot_full() {
 void VulkanEngine::save_screenshot_render_only() {
     // Wait for current frame to complete
     vkDeviceWaitIdle(_device);
-    
+
     // Create staging buffer for the render image
-    AllocatedBuffer stagingBuffer = vkutil::create_buffer(this, 
-        postProcessor._fullscreenImage.imageExtent.width * postProcessor._fullscreenImage.imageExtent.height * 16, // 4 floats per pixel
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY, "Screenshot Render Staging Buffer");
+    AllocatedBuffer stagingBuffer = vkutil::create_buffer(
+        this,
+        postProcessor._fullscreenImage.imageExtent.width * postProcessor._fullscreenImage.imageExtent.height *
+            16, // 4 floats per pixel
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY, "Screenshot Render Staging Buffer");
 
     immediate_submit([&](VkCommandBuffer cmd) {
         // Transition render image for reading
         vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        
+                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
         // Copy image to buffer
         VkBufferImageCopy copyRegion{};
         copyRegion.bufferOffset = 0;
@@ -1694,53 +1694,54 @@ void VulkanEngine::save_screenshot_render_only() {
         copyRegion.imageSubresource.layerCount = 1;
         copyRegion.imageExtent = postProcessor._fullscreenImage.imageExtent;
         copyRegion.imageOffset = {0, 0, 0};
-        
+
         vkCmdCopyImageToBuffer(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                              stagingBuffer.buffer, 1, &copyRegion);
-        
+                               stagingBuffer.buffer, 1, &copyRegion);
+
         // Transition back
         vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     });
-    
+
     // Map buffer and save to file
-    void* data;
+    void *data;
     vmaMapMemory(_allocator, stagingBuffer.allocation, &data);
-    
+
     // Generate filename with timestamp
     auto now = std::chrono::system_clock::now();
     auto time_t = std::chrono::system_clock::to_time_t(now);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-    
+
     std::stringstream ss;
-    ss << "screenshot_render_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") 
-       << "_" << std::setfill('0') << std::setw(3) << ms.count() << ".png";
-    
+    ss << "screenshot_render_" << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") << "_" << std::setfill('0')
+       << std::setw(3) << ms.count() << ".png";
+
     // Convert HDR float data to LDR uint8 (raw conversion, no tone mapping)
-    float* src = static_cast<float*>(data);
-    std::vector<uint8_t> ldr_data(postProcessor._fullscreenImage.imageExtent.width * 
-                                 postProcessor._fullscreenImage.imageExtent.height * 3);
-    
-    for (uint32_t i = 0; i < postProcessor._fullscreenImage.imageExtent.width * 
-                              postProcessor._fullscreenImage.imageExtent.height; i++) {
+    float *src = static_cast<float *>(data);
+    std::vector<uint8_t> ldr_data(postProcessor._fullscreenImage.imageExtent.width *
+                                  postProcessor._fullscreenImage.imageExtent.height * 3);
+
+    for (uint32_t i = 0;
+         i < postProcessor._fullscreenImage.imageExtent.width * postProcessor._fullscreenImage.imageExtent.height;
+         i++) {
         // Raw conversion - just clamp to 0-1 range and convert to 0-255
         float r = src[i * 4 + 0];
-        float g = src[i * 4 + 1]; 
+        float g = src[i * 4 + 1];
         float b = src[i * 4 + 2];
-        
+
         ldr_data[i * 3 + 0] = static_cast<uint8_t>(std::clamp(r * 255.0f, 0.0f, 255.0f));
         ldr_data[i * 3 + 1] = static_cast<uint8_t>(std::clamp(g * 255.0f, 0.0f, 255.0f));
         ldr_data[i * 3 + 2] = static_cast<uint8_t>(std::clamp(b * 255.0f, 0.0f, 255.0f));
     }
-    
-    if (stbi_write_png(ss.str().c_str(), postProcessor._fullscreenImage.imageExtent.width, 
-                       postProcessor._fullscreenImage.imageExtent.height, 3, 
-                       ldr_data.data(), postProcessor._fullscreenImage.imageExtent.width * 3)) {
+
+    if (stbi_write_png(ss.str().c_str(), postProcessor._fullscreenImage.imageExtent.width,
+                       postProcessor._fullscreenImage.imageExtent.height, 3, ldr_data.data(),
+                       postProcessor._fullscreenImage.imageExtent.width * 3)) {
         spdlog::info("Render-only screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save render-only screenshot: {}", ss.str());
     }
-    
+
     vmaUnmapMemory(_allocator, stagingBuffer.allocation);
     vkutil::destroy_buffer(this, stagingBuffer);
 }

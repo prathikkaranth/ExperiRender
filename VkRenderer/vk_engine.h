@@ -250,7 +250,7 @@ private:
     void resize_swapchain();
 
     void init_default_data();
-    
+
     // Screenshot functions
     void save_screenshot_full();
     void save_screenshot_render_only();
