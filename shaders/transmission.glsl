@@ -13,21 +13,14 @@ float fresnel_exact(float cos_i, float cos_t, float n1, float n2) {
     return 0.5 * (rs * rs + rp * rp);
 }
 
-// Refracts a ray using Snell's law
 // Returns refracted direction, or vec3(0) if total internal reflection occurs
 vec3 refract_ray(vec3 incident, vec3 normal, float eta, out bool total_internal_reflection) {
-    float cos_i = abs(dot(incident, normal));
-    float sin_t_squared = eta * eta * (1.0 - cos_i * cos_i);
+    vec3 refracted = refract(incident, normal, eta);
     
-    if (sin_t_squared >= 1.0) {
-        // Total internal reflection
-        total_internal_reflection = true;
-        return vec3(0.0);
-    }
+    // GLSL refract() returns vec3(0) for total internal reflection
+    total_internal_reflection = (refracted == vec3(0.0));
     
-    total_internal_reflection = false;
-    float cos_t = sqrt(1.0 - sin_t_squared);
-    return eta * incident + (eta * cos_i - cos_t) * normal;
+    return refracted;
 }
 
 // Adds roughness-based scattering to a direction

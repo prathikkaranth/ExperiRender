@@ -23,6 +23,7 @@ void Raytracer::setRTDefaultData() {
     m_pcRay.samples_done = 0;
     max_samples = 200;
     m_pcRay.depth = 3;
+    prevUseMicrofacetSampling = useMicrofacetSampling;
 }
 
 void Raytracer::createBottomLevelAS(const VulkanEngine *engine) const {
@@ -605,10 +606,9 @@ void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, co
         return;
     }
 
-    // Initializing the push constants
-    std::random_device rd; // Non-deterministic seed source
-    std::mt19937 gen(rd()); // Mersenne Twister engine
-    m_pcRay.seed = gen();
+    // Initializing push constants
+    m_pcRay.seed = static_cast<uint32_t>(engine->_frameNumber);
+    m_pcRay.useMicrofacetSampling = useMicrofacetSampling ? 1 : 0;
 
     vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
 
@@ -669,4 +669,10 @@ void Raytracer::rtSampleUpdates(const VulkanEngine *engine) {
 
     // Update previous max depth to the new value
     prevMaxDepth = m_pcRay.depth;
+
+    // Check if microfacet sampling setting changed
+    if (useMicrofacetSampling != prevUseMicrofacetSampling) {
+        resetSamples();
+        prevUseMicrofacetSampling = useMicrofacetSampling;
+    }
 }

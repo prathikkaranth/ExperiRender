@@ -18,6 +18,7 @@ struct PushConstantRay {
     std::uint32_t seed;
     std::uint32_t samples_done;
     std::uint32_t depth;
+    std::uint32_t useMicrofacetSampling;
 };
 
 struct MaterialRTData {
@@ -89,7 +90,11 @@ public:
     std::uint32_t prevMaxDepth;
     int prevLightType;
     glm::vec4 prevSunDir;
+    bool prevUseMicrofacetSampling;
 
     // Cleanup tracking
     bool m_cleanupRegistered = false;
+
+    // Rendering options
+    bool useMicrofacetSampling = true;
 };
