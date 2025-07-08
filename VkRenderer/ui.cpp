@@ -392,8 +392,8 @@ void ui::create_stats_panel(VulkanEngine *engine) {
     ImGui::Text("  X: %.3f", engine->mainCamera.position.x);
     ImGui::Text("  Y: %.3f", engine->mainCamera.position.y);
     ImGui::Text("  Z: %.3f", engine->mainCamera.position.z);
-    ImGui::Text("Pitch: %.3f°", engine->mainCamera.pitch);
-    ImGui::Text("Yaw: %.3f°", engine->mainCamera.yaw);
+    ImGui::Text("Pitch: %.3f", engine->mainCamera.pitch);
+    ImGui::Text("Yaw: %.3f", engine->mainCamera.yaw);
 
     if (ImGui::CollapsingHeader("Detailed Stats")) {
         ImGui::Text("Triangles: %i", engine->stats.triangle_count);
