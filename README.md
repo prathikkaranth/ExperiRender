@@ -99,5 +99,7 @@ Custom assets can be drag and dropped to the window. Drag and drop feature curre
 - [DearImGui](https://github.com/ocornut/imgui)
 - [spdlog](https://github.com/gabime/spdlog)
 - [JSON](https://json.nlohmann.me/)
+- [GTest](https://github.com/google/googletest)
+- [FLIP](https://github.com/NVlabs/flip)
 
 

@@ -5,3 +5,12 @@ assets/*
 .vs/
 .vscode/
 .idea/
+
+# Python environments
+venv_screenshot_test/
+venv/
+env/
+.env/
+*.pyc
+__pycache__/
+.pytest_cache/
