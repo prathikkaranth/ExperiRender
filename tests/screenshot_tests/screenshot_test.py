@@ -21,7 +21,7 @@ class ScreenshotTest:
         self.renderer_exe = self.project_root / "build" / "Debug" / "Renderer.exe"
         
         # Test configuration
-        self.test_name = "default_viewport"
+        self.test_name = "TEST_DEFAULT_VIEWPORT_ON_LAUNCH"
         self.baseline_file = self.baselines_dir / f"{self.test_name}_baseline.png"
         self.current_file = self.testing_dir / f"{self.test_name}_current.png"
         self.diff_file = self.testing_dir / f"{self.test_name}_diff.png"
@@ -99,25 +99,25 @@ class ScreenshotTest:
     def create_baseline(self):
         """Create baseline image from current screenshot"""
         if not self.current_file.exists():
-            print("ERROR: No current screenshot to use as baseline")
+            print(f"ERROR: No current screenshot to use as baseline for {self.test_name}")
             return False
             
         shutil.copy2(self.current_file, self.baseline_file)
-        print(f"Baseline created: {self.baseline_file}")
+        print(f"Baseline created for {self.test_name}: {self.baseline_file}")
         return True
         
     def compare_images(self):
         """Compare current screenshot with baseline using FLIP"""
         if not self.baseline_file.exists():
-            print("ERROR: No baseline image found")
+            print(f"ERROR: No baseline image found for {self.test_name}")
             print("Run with --create-baseline to create one")
             return False
             
         if not self.current_file.exists():
-            print("ERROR: No current screenshot found")
+            print(f"ERROR: No current screenshot found for {self.test_name}")
             return False
             
-        print("Comparing images with NVIDIA FLIP...")
+        print(f"Comparing images with NVIDIA FLIP for {self.test_name}...")
         
         try:
             # Try using FLIP command line tool instead of Python API
@@ -223,6 +223,7 @@ class ScreenshotTest:
     def run_test(self, create_baseline=False):
         """Run the complete test"""
         print("=== ExperiRender Screenshot Test ===")
+        print(f"Running test: {self.test_name}")
         
         # Setup
         self.setup_directories()
@@ -237,10 +238,18 @@ class ScreenshotTest:
             
         # Create baseline if requested
         if create_baseline:
-            return self.create_baseline()
+            result = self.create_baseline()
+            if result:
+                print(f"Baseline created successfully for test: {self.test_name}")
+            return result
             
         # Compare with baseline
-        return self.compare_images()
+        result = self.compare_images()
+        if result:
+            print(f"Test PASSED: {self.test_name}")
+        else:
+            print(f"Test FAILED: {self.test_name}")
+        return result
 
 def main():
     """Main entry point"""

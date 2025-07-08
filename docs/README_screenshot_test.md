@@ -32,7 +32,7 @@ Make sure `Renderer.exe` exists in the `build/Debug/` directory.
 2. The renderer will launch automatically
 3. When ready, press **F12** to capture the screenshot
 4. Close the renderer window
-5. The baseline image will be saved in `baselines/default_viewport_baseline.png`
+5. The baseline image will be saved in `baselines/<testname>_baseline.png`
 
 ### Run Regression Test
 1. Navigate to the test directory and run:
@@ -52,22 +52,22 @@ Make sure `Renderer.exe` exists in the `build/Debug/` directory.
 
 ## Test Results
 
-### Pass ✅
+### Pass 
 - FLIP error is below threshold (default: 0.1)
 - Images are perceptually similar
 
-### Fail ❌
+### Fail 
 - FLIP error exceeds threshold
-- Check `build/testing/default_viewport_diff.png` for visual differences
+- Check `build/testing/<testname>_diff.png` for visual differences
 
 ## Files Structure
 
 ```
 /baselines/                           
-  └── default_viewport_baseline.png  
+  └── <testname>_baseline.png  
 /build/testing/                       
-  ├── default_viewport_current.png   
-  └── default_viewport_diff.png      
+  ├── <testname>_current.png   
+  └── <testname>_diff.png      
 /tests/screenshot_tests/              
   ├── screenshot_test.py              
   └── run_screenshot_test.bat         
