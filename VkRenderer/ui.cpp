@@ -338,7 +338,7 @@ void ui::create_settings_panel(VulkanEngine *engine) {
         ImGui::Checkbox("PBR", reinterpret_cast<bool *>(&engine->sceneData.enablePBR));
     }
     if (ImGui::CollapsingHeader("Ray Tracer Settings")) {
-        ImGui::SliderInt("Max Samples", reinterpret_cast<int *>(&engine->raytracerPipeline.max_samples), 1, 5000);
+        ImGui::SliderInt("Max Samples", reinterpret_cast<int *>(&engine->raytracerPipeline.max_samples), 1, 20000);
         ImGui::SliderInt("Ray Depth", reinterpret_cast<int *>(&engine->raytracerPipeline.m_pcRay.depth), 1, 32);
 
         // Microfacet BRDF sampling toggle
