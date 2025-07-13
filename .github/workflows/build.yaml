@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  # Cache key versions - increment when dependencies need to be refreshed
+  VULKAN_SDK_VERSION: "1.3.283.0"
+  SDL2_CACHE_VERSION: "v1"
+
 jobs:
   build-linux:
     runs-on: ubuntu-24.04
@@ -14,20 +19,69 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Cache Vulkan SDK
+      id: cache-vulkan
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/vulkan-cache/apt-keys
+          ~/vulkan-cache/apt-sources
+          ~/vulkan-cache/installed-packages.txt
+        key: vulkan-sdk-${{ runner.os }}-${{ env.VULKAN_SDK_VERSION }}
+
     - name: Install Vulkan SDK
       run: |
-        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
-        sudo apt update
-        sudo apt install -y vulkan-sdk
-    
+        if [ "${{ steps.cache-vulkan.outputs.cache-hit }}" == "true" ]; then
+          echo "Restoring Vulkan SDK from cache..."
+          sudo cp ~/vulkan-cache/apt-keys/lunarg.asc /etc/apt/trusted.gpg.d/
+          sudo cp ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list /etc/apt/sources.list.d/
+          sudo apt update
+          # Install packages from cached list
+          sudo apt install -y vulkan-sdk
+        else
+          echo "Installing Vulkan SDK and caching setup..."
+          mkdir -p ~/vulkan-cache/apt-keys ~/vulkan-cache/apt-sources
+          
+          # Download and install
+          wget -qO ~/vulkan-cache/apt-keys/lunarg.asc https://packages.lunarg.com/lunarg-signing-key-pub.asc
+          sudo cp ~/vulkan-cache/apt-keys/lunarg.asc /etc/apt/trusted.gpg.d/
+          
+          wget -qO ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+          sudo cp ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list /etc/apt/sources.list.d/
+          
+          sudo apt update
+          sudo apt install -y vulkan-sdk
+          
+          # Cache the package list for reference
+          dpkg -l | grep vulkan > ~/vulkan-cache/installed-packages.txt
+        fi
+
+    - name: Cache SDL2 packages
+      id: cache-sdl2
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives/libsdl2*.deb
+          /var/cache/apt/archives/libsdl-*.deb
+        key: sdl2-packages-${{ runner.os }}-${{ env.SDL2_CACHE_VERSION }}
+
     - name: Install SDL2 and dependencies
       run: |
         sudo apt install -y libsdl2-2.0-0 libsdl2-dev libsdl-image1.2-dev libsdl1.2-dev
 
+    - name: Cache CMake build dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          build/_deps
+          ~/.cmake
+        key: cmake-deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'cmake/**/*.cmake') }}
+        restore-keys: |
+          cmake-deps-${{ runner.os }}-
+
     - name: Create build directory and run CMake
       run: |
-        mkdir build
+        mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc)
@@ -41,6 +95,7 @@ jobs:
       with:
         name: build-artifact
         path: build/
+        retention-days: 1  # Keep artifacts for 1 day only
   
   test-linux:
     needs: build-linux
@@ -50,13 +105,32 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Cache Vulkan SDK packages
+      id: cache-vulkan-test
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives/*.deb
+        key: vulkan-packages-${{ runner.os }}-${{ env.VULKAN_SDK_VERSION }}
+
     - name: Install Vulkan SDK
       run: |
+        # Always set up repository (fast)
         wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
         sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
         sudo apt update
+        
+        # Install packages (will use cached .deb files if available)
         sudo apt install -y vulkan-sdk
-    
+
+    - name: Cache SDL2 runtime packages
+      id: cache-sdl2-runtime
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives/libsdl2-2.0-0*.deb
+        key: sdl2-runtime-${{ runner.os }}-${{ env.SDL2_CACHE_VERSION }}
+
     - name: Install SDL2 runtime dependencies
       run: |
         sudo apt install -y libsdl2-2.0-0
