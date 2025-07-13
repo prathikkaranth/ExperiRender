@@ -19,23 +19,42 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Cache Vulkan SDK packages
+    - name: Cache Vulkan SDK
       id: cache-vulkan
       uses: actions/cache@v4
       with:
         path: |
-          /var/cache/apt/archives/*.deb
-        key: vulkan-packages-${{ runner.os }}-${{ env.VULKAN_SDK_VERSION }}
+          ~/vulkan-cache/apt-keys
+          ~/vulkan-cache/apt-sources
+          ~/vulkan-cache/installed-packages.txt
+        key: vulkan-sdk-${{ runner.os }}-${{ env.VULKAN_SDK_VERSION }}
 
     - name: Install Vulkan SDK
       run: |
-        # Always set up repository (fast)
-        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
-        sudo apt update
-        
-        # Install packages (will use cached .deb files if available)
-        sudo apt install -y vulkan-sdk
+        if [ "${{ steps.cache-vulkan.outputs.cache-hit }}" == "true" ]; then
+          echo "Restoring Vulkan SDK from cache..."
+          sudo cp ~/vulkan-cache/apt-keys/lunarg.asc /etc/apt/trusted.gpg.d/
+          sudo cp ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list /etc/apt/sources.list.d/
+          sudo apt update
+          # Install packages from cached list
+          sudo apt install -y vulkan-sdk
+        else
+          echo "Installing Vulkan SDK and caching setup..."
+          mkdir -p ~/vulkan-cache/apt-keys ~/vulkan-cache/apt-sources
+          
+          # Download and install
+          wget -qO ~/vulkan-cache/apt-keys/lunarg.asc https://packages.lunarg.com/lunarg-signing-key-pub.asc
+          sudo cp ~/vulkan-cache/apt-keys/lunarg.asc /etc/apt/trusted.gpg.d/
+          
+          wget -qO ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list http://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list
+          sudo cp ~/vulkan-cache/apt-sources/lunarg-vulkan-noble.list /etc/apt/sources.list.d/
+          
+          sudo apt update
+          sudo apt install -y vulkan-sdk
+          
+          # Cache the package list for reference
+          dpkg -l | grep vulkan > ~/vulkan-cache/installed-packages.txt
+        fi
 
     - name: Cache SDL2 packages
       id: cache-sdl2
