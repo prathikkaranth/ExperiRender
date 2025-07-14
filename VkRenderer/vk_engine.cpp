@@ -712,6 +712,7 @@ void VulkanEngine::init_vulkan() {
 
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.shaderInt64 = true;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
     // Custom GPU selection - find all GPUs first
     uint32_t deviceCount = 0;

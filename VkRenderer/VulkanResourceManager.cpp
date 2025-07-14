@@ -56,6 +56,17 @@ void VulkanResourceManager::createDefaultTextures() {
 
 void VulkanResourceManager::createDefaultSamplers() {
     VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+    
+    // Common settings for all samplers
+    sampl.maxLod = VK_LOD_CLAMP_NONE;
+    sampl.minLod = 0;
+    sampl.mipLodBias = 0.0f;
+    sampl.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampl.anisotropyEnable = VK_TRUE;
+    sampl.maxAnisotropy = 16.0f;
+    sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
     sampl.magFilter = VK_FILTER_NEAREST;
     sampl.minFilter = VK_FILTER_NEAREST;
@@ -65,9 +76,11 @@ void VulkanResourceManager::createDefaultSamplers() {
     sampl.minFilter = VK_FILTER_LINEAR;
     vkCreateSampler(_engine->_device, &sampl, nullptr, &_defaultSamplerLinear);
 
-    // Shadow depth sampler
+    // Shadow depth sampler - disable anisotropic filtering for depth
     sampl.magFilter = VK_FILTER_LINEAR;
     sampl.minFilter = VK_FILTER_LINEAR;
+    sampl.anisotropyEnable = VK_FALSE;
+    sampl.maxAnisotropy = 1.0f;
     sampl.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     sampl.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     sampl.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;

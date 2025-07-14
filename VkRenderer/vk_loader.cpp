@@ -200,11 +200,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
         sampl.maxLod = VK_LOD_CLAMP_NONE;
         sampl.minLod = 0;
+        sampl.mipLodBias = 0.0f;
 
-        sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
-        sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Linear));
+        sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::LinearMipMapLinear));
 
-        sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::LinearMipMapLinear));
+        
+        // Enable anisotropic filtering for better texture quality
+        sampl.anisotropyEnable = VK_TRUE;
+        sampl.maxAnisotropy = 16.0f;
 
         VkSampler newSampler;
         vkCreateSampler(engine->_device, &sampl, nullptr, &newSampler);
