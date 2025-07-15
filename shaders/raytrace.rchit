@@ -166,7 +166,7 @@ vec3 compute_light_contribution(const vec3 normal, const vec3 surface_pos, const
     // Optional shadow test
     if (do_shadow_test) {
         rayQueryEXT rq;
-        const float tmin = 0.1f;
+        const float tmin = 0.01f;
         rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, surface_pos, tmin, light_dir, 3000.0f);
         rayQueryProceedEXT(rq);
         
@@ -333,29 +333,51 @@ void main()
       new_strength = prd.strength * material_color;
     } else {
       if (pcRay.useMicrofacetSampling == 1) {
-        // Importance sampling based on microfacet BRDF
-        vec3 wo = normalize(-gl_WorldRayDirectionEXT); // Direction towards camera
+        // Decide sampling strategy based on material properties
+        // Use microfacet sampling for specular materials, cosine hemisphere for diffuse
+        float specular_factor = mix(metalness, 1.0 - roughness, 0.5); // Blend metalness and smoothness
         
-        MicrofacetSample brdf_sample = sample_microfacet_mis(
-          wo,
-          hit_point.normal,
-          roughness,
-          metalness,
-          material_color,
-          prd.seed
-        );
-        
-        if (brdf_sample.pdf <= 0.0 || any(isnan(brdf_sample.direction)) || any(isinf(brdf_sample.brdf_value))) {
-          prd.next_direction = vec3(0.0f);
-          return;
+        if (specular_factor > 0.3) {
+          // Use microfacet sampling for specular materials
+          vec3 wo = normalize(-gl_WorldRayDirectionEXT); // Direction towards camera
+          
+          MicrofacetSample brdf_sample = sample_microfacet_brdf(
+            wo,
+            hit_point.normal,
+            roughness,
+            metalness,
+            material_color,
+            prd.seed
+          );
+          
+          if (brdf_sample.pdf <= 0.0 || any(isnan(brdf_sample.direction)) || any(isinf(brdf_sample.brdf_value))) {
+            // Fallback to cosine hemisphere if microfacet fails
+            prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+            prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+            
+            vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+            const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+            const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+            new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+          } else {
+            prd.next_direction = brdf_sample.direction;
+            prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+            
+            const float cos_theta = max(dot(hit_point.normal, brdf_sample.direction), 0.0f);
+            vec3 contribution = brdf_sample.brdf_value * cos_theta / brdf_sample.pdf;
+            contribution = min(contribution, vec3(10.0)); // Clamp to prevent fireflies
+            new_strength = prd.strength * contribution;
+          }
+        } else {
+          // Use cosine hemisphere sampling for diffuse materials
+          prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+          prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+          
+          vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+          const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+          const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+          new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
         }
-        
-        prd.next_direction = brdf_sample.direction;
-        prd.next_origin = hit_position + hit_point.normal * 1e-4f;
-        
-        // Update strength using importance sampling
-        const float cos_theta = max(dot(hit_point.normal, brdf_sample.direction), 0.0f);
-        new_strength = prd.strength * brdf_sample.brdf_value * cos_theta / brdf_sample.pdf;
       } else {
         // Fallback to cosine-weighted hemisphere sampling
         prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
