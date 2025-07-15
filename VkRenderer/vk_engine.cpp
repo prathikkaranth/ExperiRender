@@ -712,6 +712,7 @@ void VulkanEngine::init_vulkan() {
 
     VkPhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.shaderInt64 = true;
+    deviceFeatures.samplerAnisotropy = VK_TRUE;
 
     // Custom GPU selection - find all GPUs first
     uint32_t deviceCount = 0;
@@ -1526,10 +1527,15 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine *engine, Vk
     matData.metalRoughImage = resources.metalRoughImage;
     matData.metalRoughSampler = resources.metalRoughSampler;
 
+    matData.emissiveImage = resources.emissiveImage;
+    matData.emissiveSampler = resources.emissiveSampler;
+
     matData.albedo = resources.albedo;
     matData.metalRoughFactors = resources.metalRoughFactors;
     matData.transmissionFactor = resources.transmissionFactor;
     matData.ior = resources.ior;
+    matData.emissiveFactor = resources.emissiveFactor;
+    matData.emissiveTexIndex = resources.emissiveTexIndex;
 
     return matData;
 }

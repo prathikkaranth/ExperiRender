@@ -77,6 +77,9 @@ struct MaterialInstance {
     AllocatedImage metalRoughImage;
     VkSampler metalRoughSampler;
 
+    AllocatedImage emissiveImage;
+    VkSampler emissiveSampler;
+
     uint32_t matIndex;
 
     glm::vec4 albedo;
@@ -84,6 +87,8 @@ struct MaterialInstance {
     glm::vec4 metalRoughFactors;
     float transmissionFactor;
     float ior;
+    glm::vec4 emissiveFactor;
+    uint32_t emissiveTexIndex;
 };
 
 struct DrawContext;

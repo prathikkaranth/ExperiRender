@@ -29,7 +29,8 @@ struct MaterialRTData {
     float transmissionFactor;
     uint32_t hasTransmissionTex;
     float ior;
-    uint32_t padding2[1];
+    uint32_t hasEmissiveTex;
+    glm::vec4 emissiveFactor;
 };
 
 class Raytracer {
@@ -71,6 +72,7 @@ public:
     std::vector<AllocatedImage> loadedTextures;
     std::vector<AllocatedImage> loadedNormTextures;
     std::vector<AllocatedImage> loadedMetalRoughTextures;
+    std::vector<AllocatedImage> loadedEmissiveTextures;
 
     AllocatedBuffer m_rtSBTBuffer{};
     VkStridedDeviceAddressRegionKHR m_rgenRegion{};

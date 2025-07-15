@@ -223,6 +223,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         loadedTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->colImage);
         loadedNormTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->normImage);
         loadedMetalRoughTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->metalRoughImage);
+        loadedEmissiveTextures.push_back(engine->mainDrawContext.OpaqueSurfaces[i].material->emissiveImage);
         engine->mainDrawContext.OpaqueSurfaces[i].material->albedoTexIndex = textureIndex++;
     }
 
@@ -231,6 +232,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         loadedTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->colImage);
         loadedNormTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->normImage);
         loadedMetalRoughTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->metalRoughImage);
+        loadedEmissiveTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->emissiveImage);
         engine->mainDrawContext.TransparentSurfaces[i].material->albedoTexIndex = textureIndex++;
     }
 
@@ -239,6 +241,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         auto nbTxt = static_cast<uint32_t>(std::max(loadedTextures.size(), size_t(1)));
         auto nbNormText = static_cast<uint32_t>(std::max(loadedNormTextures.size(), size_t(1)));
         auto nbMetalRoughText = static_cast<uint32_t>(std::max(loadedMetalRoughTextures.size(), size_t(1)));
+        auto nbEmissiveText = static_cast<uint32_t>(std::max(loadedEmissiveTextures.size(), size_t(1)));
 
         {
             DescriptorLayoutBuilder m_texSetLayoutBind;
@@ -247,6 +250,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
             m_texSetLayoutBind.add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER); // HDR Image
             m_texSetLayoutBind.add_bindings(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                             nbMetalRoughText); // Metal Rough Maps
+            m_texSetLayoutBind.add_bindings(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                            nbEmissiveText); // Emissive Maps
             m_texSetLayout = m_texSetLayoutBind.build(
                 engine->_device, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_RAYGEN_BIT_KHR |
                                      VK_SHADER_STAGE_MISS_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR);
@@ -290,6 +295,17 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
             metalRoughTexDescs.push_back(imageInfo);
         }
 
+        std::vector<VkDescriptorImageInfo> emissiveTexDescs;
+        emissiveTexDescs.reserve(nbEmissiveText);
+        for (uint32_t i = 0; i < nbEmissiveText; i++) {
+            VkDescriptorImageInfo imageInfo{.sampler = engine->_resourceManager.getLinearSampler(),
+                                            .imageView = i < loadedEmissiveTextures.size()
+                                                             ? loadedEmissiveTextures[i].imageView
+                                                             : engine->_resourceManager.getBlackImage().imageView,
+                                            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            emissiveTexDescs.push_back(imageInfo);
+        }
+
         DescriptorWriter tex_writer;
         tex_writer.write_images(0, *texDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbTxt);
         tex_writer.write_images(1, *normTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nbNormText);
@@ -297,6 +313,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         tex_writer.write_images(3, *metalRoughTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                 nbMetalRoughText); // Metal Roughness
+        tex_writer.write_images(4, *emissiveTexDescs.data(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                nbEmissiveText); // Emissive Maps
         tex_writer.update_set(engine->_device, m_texDescSet);
 
         engine->_mainDeletionQueue.push_function(
@@ -315,6 +333,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         matDesc.transmissionFactor = 0.0f; // Opaque materials have no transmission
         matDesc.hasTransmissionTex = 0;
         matDesc.ior = OpaqueSurface.material->ior;
+        matDesc.emissiveFactor = OpaqueSurface.material->emissiveFactor;
+        matDesc.hasEmissiveTex = OpaqueSurface.material->emissiveTexIndex != 0 ? 1 : 0;
         materialRTShaderData.push_back(matDesc);
     }
 
@@ -327,6 +347,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         matDesc.transmissionFactor = TransparentSurface.material->transmissionFactor;
         matDesc.hasTransmissionTex = 0;
         matDesc.ior = TransparentSurface.material->ior;
+        matDesc.emissiveFactor = TransparentSurface.material->emissiveFactor;
+        matDesc.hasEmissiveTex = TransparentSurface.material->emissiveTexIndex != 0 ? 1 : 0;
         materialRTShaderData.push_back(matDesc);
     }
 

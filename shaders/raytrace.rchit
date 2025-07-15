@@ -50,7 +50,8 @@ struct MaterialRTData {
   float transmissionFactor;
   uint hasTransmissionTex;
   float ior;
-  uint p3;
+  uint hasEmissiveTex;
+  vec4 emissiveFactor;
 };
 
 struct HitPoint {
@@ -71,7 +72,9 @@ u_materials;
 
 layout(set = 4, binding = 0) uniform sampler2D textures[];
 layout(set = 4, binding = 1) uniform sampler2D normalMaps[];
+layout(set = 4, binding = 2) uniform sampler2D texSkybox;
 layout(set = 4, binding = 3) uniform sampler2D metalRoughMaps[];
+layout(set = 4, binding = 4) uniform sampler2D emissiveMaps[];
 
 layout(push_constant) uniform _PushConstantRay { PushConstantRay pcRay; };
 
@@ -156,26 +159,34 @@ bool is_strength_weak(vec3 strength)
     return max_strength < THRESHOLD || max_strength > 100.0f;
 }
 
+vec3 compute_light_contribution(const vec3 normal, const vec3 surface_pos, const vec3 light_dir, const vec3 light_color, const vec3 diffuse_color, const float metalness, const float roughness, const bool do_shadow_test)
+{
+    const vec3 view_dir = normalize(gl_WorldRayOriginEXT - surface_pos); // Direction to camera/viewer
+    
+    // Optional shadow test
+    if (do_shadow_test) {
+        rayQueryEXT rq;
+        const float tmin = 0.01f;
+        rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, surface_pos, tmin, light_dir, 3000.0f);
+        rayQueryProceedEXT(rq);
+        
+        if (rayQueryGetIntersectionTypeEXT(rq, true) != gl_RayQueryCommittedIntersectionNoneEXT) {
+            return vec3(0.f); // in shadow
+        }
+    }
+    
+    // Compute the BSDF using the PBR model
+    vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
+    
+    return bsdf * light_color;
+}
+
 vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv, const float metalness, const float roughness)
 {
     const vec3 light_dir = -normalize(sceneData.sunlightDirection.xyz); // Direction *from* surface point *to* light
-    const vec3 view_dir = normalize(gl_WorldRayOriginEXT - next_origin); // Direction to camera/viewer
-
-    rayQueryEXT rq;
-    const float tmin = 0.1f;
-    rayQueryInitializeEXT(rq, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, next_origin, tmin, light_dir, 3000.0f);
-    rayQueryProceedEXT(rq);
+    const vec3 light_color = sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb;
     
-    if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionNoneEXT)
-    {
-        
-        // Compute the BSDF using the PBR model
-        vec3 bsdf = BSDF(metalness, roughness, normal, view_dir, light_dir, diffuse_color);
-        
-        return bsdf * (sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb);
-    }
-
-    return vec3(0.f); // in shadow
+    return compute_light_contribution(normal, next_origin, light_dir, light_color, diffuse_color, metalness, roughness, true);
 }
 
 
@@ -243,6 +254,29 @@ void main()
     // Combine material colors
     vec3 material_color = diffuse_color * vertex_color;
     
+    // Sample emissive properties
+    vec3 emissive_sample = texture(emissiveMaps[material.albedoTexIndex], hit_point.uv).rgb;
+    vec3 emissive_color = vec3(0.0);
+    
+    // Check if emissive texture is NOT a default white/black texture
+    bool isDefaultWhite = length(emissive_sample - vec3(1.0)) < 0.01; // Pure white
+    bool isDefaultBlack = length(emissive_sample) < 0.01; // Pure black
+    
+    if (!isDefaultWhite && !isDefaultBlack) {
+        // Use emissive texture multiplied by factor (real emissive content)
+        emissive_color = emissive_sample * material.emissiveFactor.rgb;
+    } else if (length(material.emissiveFactor.rgb) > 0.0) {
+        // Only use emissive factor if texture is default and factor is non-zero
+        emissive_color = material.emissiveFactor.rgb;
+    }
+    
+    // For now, just display emissive content additively for visualization
+    // This will be replaced with proper emissive lighting later
+    if (length(emissive_color) > 0.0) {
+        // Simple additive display of emissive content - no complex lighting
+        material_color += emissive_color * 0.3; // Add to material color for display
+    }
+    
     // Compute direct lighting contribution 
     vec3 direct_light = compute_directional_light_contribution(hit_point.normal, 
                                                              gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f, 
@@ -299,29 +333,51 @@ void main()
       new_strength = prd.strength * material_color;
     } else {
       if (pcRay.useMicrofacetSampling == 1) {
-        // Importance sampling based on microfacet BRDF
-        vec3 wo = normalize(-gl_WorldRayDirectionEXT); // Direction towards camera
+        // Decide sampling strategy based on material properties
+        // Use microfacet sampling for specular materials, cosine hemisphere for diffuse
+        float specular_factor = mix(metalness, 1.0 - roughness, 0.5); // Blend metalness and smoothness
         
-        MicrofacetSample brdf_sample = sample_microfacet_mis(
-          wo,
-          hit_point.normal,
-          roughness,
-          metalness,
-          material_color,
-          prd.seed
-        );
-        
-        if (brdf_sample.pdf <= 0.0 || any(isnan(brdf_sample.direction)) || any(isinf(brdf_sample.brdf_value))) {
-          prd.next_direction = vec3(0.0f);
-          return;
+        if (specular_factor > 0.3) {
+          // Use microfacet sampling for specular materials
+          vec3 wo = normalize(-gl_WorldRayDirectionEXT); // Direction towards camera
+          
+          MicrofacetSample brdf_sample = sample_microfacet_brdf(
+            wo,
+            hit_point.normal,
+            roughness,
+            metalness,
+            material_color,
+            prd.seed
+          );
+          
+          if (brdf_sample.pdf <= 0.0 || any(isnan(brdf_sample.direction)) || any(isinf(brdf_sample.brdf_value))) {
+            // Fallback to cosine hemisphere if microfacet fails
+            prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+            prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+            
+            vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+            const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+            const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+            new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
+          } else {
+            prd.next_direction = brdf_sample.direction;
+            prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+            
+            const float cos_theta = max(dot(hit_point.normal, brdf_sample.direction), 0.0f);
+            vec3 contribution = brdf_sample.brdf_value * cos_theta / brdf_sample.pdf;
+            contribution = min(contribution, vec3(10.0)); // Clamp to prevent fireflies
+            new_strength = prd.strength * contribution;
+          }
+        } else {
+          // Use cosine hemisphere sampling for diffuse materials
+          prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);
+          prd.next_origin = hit_position + hit_point.normal * 1e-4f;
+          
+          vec3 bsdf = BSDF(metalness, roughness, hit_point.normal, -gl_WorldRayDirectionEXT, prd.next_direction, material_color);
+          const float cos_theta = max(dot(hit_point.normal, prd.next_direction), 0.0f);
+          const float HEMISPHERE_PDF = 1.0f / (2.0f * PI);
+          new_strength = prd.strength * bsdf * cos_theta / HEMISPHERE_PDF;
         }
-        
-        prd.next_direction = brdf_sample.direction;
-        prd.next_origin = hit_position + hit_point.normal * 1e-4f;
-        
-        // Update strength using importance sampling
-        const float cos_theta = max(dot(hit_point.normal, brdf_sample.direction), 0.0f);
-        new_strength = prd.strength * brdf_sample.brdf_value * cos_theta / brdf_sample.pdf;
       } else {
         // Fallback to cosine-weighted hemisphere sampling
         prd.next_direction = cosine_weighted_hemisphere_sample(hit_point.normal, prd.seed);

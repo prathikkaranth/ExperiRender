@@ -200,11 +200,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
         sampl.maxLod = VK_LOD_CLAMP_NONE;
         sampl.minLod = 0;
+        sampl.mipLodBias = 0.0f;
 
-        sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
-        sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Linear));
+        sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::LinearMipMapLinear));
 
-        sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::LinearMipMapLinear));
+
+        // Enable anisotropic filtering for better texture quality
+        sampl.anisotropyEnable = VK_TRUE;
+        sampl.maxAnisotropy = 16.0f;
 
         VkSampler newSampler;
         vkCreateSampler(engine->_device, &sampl, nullptr, &newSampler);
@@ -268,8 +273,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         // Handle IOR (Index of Refraction)
         constants.ior = mat.ior;
 
-        // write material parameters to buffer
-        sceneMaterialConstants[data_index] = constants;
+        // Handle emissive properties
+        constants.emissiveFactor = glm::vec4(mat.emissiveFactor[0], mat.emissiveFactor[1], mat.emissiveFactor[2], 1.0f);
+        constants.hasEmissiveTex = false; // Will be set to true only if texture is successfully loaded
+
+        // Material constants will be written after texture loading
 
         MaterialPass passType = MaterialPass::MainColor;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend || constants.transmissionFactor > 0.0f) {
@@ -286,6 +294,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         materialResources.normalSampler = engine->_resourceManager.getLinearSampler();
         materialResources.transmissionImage = engine->_resourceManager.getWhiteImage();
         materialResources.transmissionSampler = engine->_resourceManager.getLinearSampler();
+        materialResources.emissiveImage = engine->_resourceManager.getBlackImage();
+        materialResources.emissiveSampler = engine->_resourceManager.getLinearSampler();
 
         // For RT
         materialResources.albedo = glm::vec4(mat.pbrData.baseColorFactor[0], mat.pbrData.baseColorFactor[1],
@@ -294,6 +304,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         materialResources.metalRoughFactors = constants.metal_rough_factors;
         materialResources.transmissionFactor = constants.transmissionFactor;
         materialResources.ior = constants.ior;
+        materialResources.emissiveFactor = constants.emissiveFactor;
+        materialResources.emissiveTexIndex = data_index;
 
         // set the uniform buffer for the material data
         materialResources.dataBuffer = file.materialDataBuffer.buffer;
@@ -301,37 +313,86 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         // grab textures from gltf file
         // albedo
         if (mat.pbrData.baseColorTexture.has_value()) {
-            size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
+            const auto &baseColorTexture = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
+            if (baseColorTexture.imageIndex.has_value()) {
+                size_t img = baseColorTexture.imageIndex.value();
+                materialResources.colorImage = images[img];
+                materialResources.colorTexIndex = static_cast<uint32_t>(img);
 
-            materialResources.colorImage = images[img];
-            materialResources.colorTexIndex = static_cast<uint32_t>(img);
-            materialResources.colorSampler = file.samplers[sampler];
+                if (baseColorTexture.samplerIndex.has_value()) {
+                    size_t sampler = baseColorTexture.samplerIndex.value();
+                    materialResources.colorSampler = file.samplers[sampler];
+                } else {
+                    materialResources.colorSampler = engine->_resourceManager.getLinearSampler();
+                }
+            }
         }
         // metallic roughness
         if (mat.pbrData.metallicRoughnessTexture.has_value()) {
-            size_t img = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].imageIndex.value();
-            size_t sampler =
-                gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex].samplerIndex.value();
+            const auto &metallicRoughnessTexture =
+                gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex];
+            if (metallicRoughnessTexture.imageIndex.has_value()) {
+                size_t img = metallicRoughnessTexture.imageIndex.value();
+                materialResources.metalRoughImage = images[img];
 
-            materialResources.metalRoughImage = images[img];
-            materialResources.metalRoughSampler = file.samplers[sampler];
+                if (metallicRoughnessTexture.samplerIndex.has_value()) {
+                    size_t sampler = metallicRoughnessTexture.samplerIndex.value();
+                    materialResources.metalRoughSampler = file.samplers[sampler];
+                } else {
+                    materialResources.metalRoughSampler = engine->_resourceManager.getLinearSampler();
+                }
+            }
         }
         // normal
         if (mat.normalTexture.has_value()) {
-            size_t img = gltf.textures[mat.normalTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.normalTexture.value().textureIndex].samplerIndex.value();
-            materialResources.normalImage = images[img];
-            materialResources.normalSampler = file.samplers[sampler];
+            const auto &normalTexture = gltf.textures[mat.normalTexture.value().textureIndex];
+            if (normalTexture.imageIndex.has_value()) {
+                size_t img = normalTexture.imageIndex.value();
+                materialResources.normalImage = images[img];
+
+                if (normalTexture.samplerIndex.has_value()) {
+                    size_t sampler = normalTexture.samplerIndex.value();
+                    materialResources.normalSampler = file.samplers[sampler];
+                } else {
+                    materialResources.normalSampler = engine->_resourceManager.getLinearSampler();
+                }
+            }
         }
         // transmission
         if (mat.transmission && mat.transmission->transmissionTexture.has_value()) {
-            size_t img = gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].imageIndex.value();
-            size_t sampler =
-                gltf.textures[mat.transmission->transmissionTexture.value().textureIndex].samplerIndex.value();
-            materialResources.transmissionImage = images[img];
-            materialResources.transmissionSampler = file.samplers[sampler];
+            const auto &transmissionTexture = gltf.textures[mat.transmission->transmissionTexture.value().textureIndex];
+            if (transmissionTexture.imageIndex.has_value()) {
+                size_t img = transmissionTexture.imageIndex.value();
+                materialResources.transmissionImage = images[img];
+
+                if (transmissionTexture.samplerIndex.has_value()) {
+                    size_t sampler = transmissionTexture.samplerIndex.value();
+                    materialResources.transmissionSampler = file.samplers[sampler];
+                } else {
+                    materialResources.transmissionSampler = engine->_resourceManager.getLinearSampler();
+                }
+            }
         }
+        // emissive
+        if (mat.emissiveTexture.has_value()) {
+            const auto &emissiveTexture = gltf.textures[mat.emissiveTexture.value().textureIndex];
+            if (emissiveTexture.imageIndex.has_value()) {
+                size_t img = emissiveTexture.imageIndex.value();
+                materialResources.emissiveImage = images[img];
+                constants.hasEmissiveTex = true; // Set flag only when texture is successfully loaded
+
+                if (emissiveTexture.samplerIndex.has_value()) {
+                    size_t sampler = emissiveTexture.samplerIndex.value();
+                    materialResources.emissiveSampler = file.samplers[sampler];
+                } else {
+                    // Use default linear sampler if no sampler specified
+                    materialResources.emissiveSampler = engine->_resourceManager.getLinearSampler();
+                }
+            }
+        }
+
+        // Update the constants after texture loading
+        sceneMaterialConstants[data_index] = constants;
 
         // build material
         newMat->data = engine->metalRoughMaterial.write_material(engine, engine->_device, passType, materialResources,

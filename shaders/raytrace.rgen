@@ -33,7 +33,7 @@ vec3 tracePath() {
     const uint SBT_RECORD_OFFSET = 0;
     const uint SBT_RECORD_STRIDE = 0;
     const uint MISS_INDEX = 0;
-    const float TMIN = 0.1;
+    const float TMIN = 0.01;
     const float TMAX = 10000.0;
     const int PAYLOAD = 0;
 
