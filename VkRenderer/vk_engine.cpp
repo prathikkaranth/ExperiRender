@@ -1527,10 +1527,15 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine *engine, Vk
     matData.metalRoughImage = resources.metalRoughImage;
     matData.metalRoughSampler = resources.metalRoughSampler;
 
+    matData.emissiveImage = resources.emissiveImage;
+    matData.emissiveSampler = resources.emissiveSampler;
+
     matData.albedo = resources.albedo;
     matData.metalRoughFactors = resources.metalRoughFactors;
     matData.transmissionFactor = resources.transmissionFactor;
     matData.ior = resources.ior;
+    matData.emissiveFactor = resources.emissiveFactor;
+    matData.emissiveTexIndex = resources.emissiveTexIndex;
 
     return matData;
 }

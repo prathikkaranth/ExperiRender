@@ -56,7 +56,7 @@ void VulkanResourceManager::createDefaultTextures() {
 
 void VulkanResourceManager::createDefaultSamplers() {
     VkSamplerCreateInfo sampl = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-    
+
     // Common settings for all samplers
     sampl.maxLod = VK_LOD_CLAMP_NONE;
     sampl.minLod = 0;

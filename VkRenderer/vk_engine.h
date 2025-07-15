@@ -49,9 +49,11 @@ struct GLTFMetallic_Roughness {
         float transmissionFactor;
         int hasTransmissionTex;
         float ior;
+        int hasEmissiveTex;
+        glm::vec4 emissiveFactor;
 
-        // padding, we need it anyway for uniform buffers
-        uint8_t padding[207];
+        // padding, we need it anyway for uniform buffers - align to 64 bytes
+        uint8_t padding[60];
     };
 
     struct MaterialResources {
@@ -64,6 +66,8 @@ struct GLTFMetallic_Roughness {
         VkSampler normalSampler;
         AllocatedImage transmissionImage;
         VkSampler transmissionSampler;
+        AllocatedImage emissiveImage;
+        VkSampler emissiveSampler;
         VkBuffer dataBuffer;
         uint32_t dataBufferOffset;
 
@@ -72,6 +76,8 @@ struct GLTFMetallic_Roughness {
         glm::vec4 metalRoughFactors;
         float transmissionFactor;
         float ior;
+        glm::vec4 emissiveFactor;
+        uint32_t emissiveTexIndex;
     };
 
     DescriptorWriter writer;
