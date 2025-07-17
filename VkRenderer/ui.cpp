@@ -314,17 +314,6 @@ void ui::create_settings_panel(VulkanEngine *engine) {
 
     if (ImGui::CollapsingHeader("Compositor Settings")) {
         ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
-
-        ImGui::Checkbox("Denoiser", reinterpret_cast<bool *>(&engine->postProcessor._compositorData.useDenoiser));
-
-        if (ImGui::TreeNode("Denoiser Settings")) {
-            ImGui::SliderFloat("Sigma", &engine->postProcessor._compositorData.sigma, 0.1f, 10.0f);
-            ImGui::SliderFloat("kSigma", &engine->postProcessor._compositorData.kSigma, 0.1f, 10.0f);
-            ImGui::SliderFloat("Threshold", &engine->postProcessor._compositorData.threshold, 0.1f, 10.0f);
-
-            ImGui::TreePop();
-            ImGui::Spacing();
-        }
     }
 
     if (ImGui::CollapsingHeader("Lighting Settings")) {
