@@ -314,7 +314,6 @@ void ui::create_settings_panel(VulkanEngine *engine) {
 
     if (ImGui::CollapsingHeader("Compositor Settings")) {
         ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
-
     }
 
     if (ImGui::CollapsingHeader("Lighting Settings")) {
