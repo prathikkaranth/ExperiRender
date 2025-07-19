@@ -9,6 +9,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     // init compositor data
     _compositorData.useRayTracer = 0;
     _compositorData.exposure = 4.0f;
+    _compositorData.showGrid = 1;
 
     _fullscreenImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
@@ -87,8 +88,58 @@ void PostProcessor::init(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, fullscreenDrawFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, fullscreenDrawVertShader, nullptr);
 
+    // GRID PIPELINE
+    {
+        DescriptorLayoutBuilder gridBuilder;
+        gridBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER); // scene data
+        _gridDescriptorSetLayout = gridBuilder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
+
+    engine->_mainDeletionQueue.push_function(
+        [=] { vkDestroyDescriptorSetLayout(engine->_device, _gridDescriptorSetLayout, nullptr); });
+
+    VkPipelineLayoutCreateInfo grid_layout_info{};
+    grid_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    grid_layout_info.pNext = nullptr;
+    grid_layout_info.setLayoutCount = 1;
+    grid_layout_info.pSetLayouts = &_gridDescriptorSetLayout;
+
+    VK_CHECK(vkCreatePipelineLayout(engine->_device, &grid_layout_info, nullptr, &_gridPipelineLayout));
+
+    engine->_mainDeletionQueue.push_function(
+        [=] { vkDestroyPipelineLayout(engine->_device, _gridPipelineLayout, nullptr); });
+
+    // Grid shaders
+    VkShaderModule gridVertShader;
+    if (!vkutil::load_shader_module("Grid.vert.spv", engine->_device, &gridVertShader)) {
+        spdlog::error("Error when building the Grid Vertex shader");
+    }
+    VkShaderModule gridFragShader;
+    if (!vkutil::load_shader_module("Grid.frag.spv", engine->_device, &gridFragShader)) {
+        spdlog::error("Error when building the Grid Fragment shader");
+    }
+
+    // Build grid pipeline
+    PipelineBuilder gridPipelineBuilder;
+    gridPipelineBuilder.set_shaders(gridVertShader, gridFragShader);
+    gridPipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    gridPipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+    gridPipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    gridPipelineBuilder.set_multisampling_none();
+    gridPipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+    // render to the fullscreen image with no blending
+    gridPipelineBuilder.add_color_attachment(_fullscreenImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+    gridPipelineBuilder._pipelineLayout = _gridPipelineLayout;
+
+    _gridPipeline = gridPipelineBuilder.build_pipeline(engine->_device);
+
+    vkDestroyShaderModule(engine->_device, gridFragShader, nullptr);
+    vkDestroyShaderModule(engine->_device, gridVertShader, nullptr);
+
     engine->_mainDeletionQueue.push_function([=] {
         vkDestroyPipeline(engine->_device, _postProcessPipeline, nullptr);
+        vkDestroyPipeline(engine->_device, _gridPipeline, nullptr);
         vkDestroySampler(engine->_device, _fullscreenImageSampler, nullptr);
         vkutil::destroy_image(engine, _fullscreenImage);
     });
@@ -164,6 +215,71 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdSetScissor(cmd, 0, 1, &scissor);
 
     vkCmdDraw(cmd, 3, 1, 0, 0); // 1 triangle, 3 vertices
+
+    vkCmdEndRendering(cmd);
+}
+
+void PostProcessor::draw_grid_only(VulkanEngine *engine, VkCommandBuffer cmd) {
+    // Only draw grid, not the fullscreen composition
+    if (!_compositorData.showGrid) {
+        return;
+    }
+    
+    std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
+        vkinit::attachment_info(_fullscreenImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+    };
+
+    VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_windowExtent,
+                                                        colorAttachments.data(),
+                                                        nullptr 
+    );
+
+    vkCmdBeginRendering(cmd, &renderInfo);
+
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Grid Scene Data Buffer");
+
+    engine->get_current_frame()._deletionQueue.push_function(
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
+
+    GPUSceneData *sceneUniformData;
+    VK_CHECK(vmaMapMemory(engine->_allocator, gpuSceneDataBuffer.allocation,
+                          reinterpret_cast<void **>(&sceneUniformData)));
+    *sceneUniformData = engine->sceneData;
+    vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
+
+    VkDescriptorSet gridDescriptorSet = engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _gridDescriptorSetLayout);
+    
+    {
+        DescriptorWriter gridWriter;
+        gridWriter.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0,
+                              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        gridWriter.update_set(engine->_device, gridDescriptorSet);
+    }
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gridPipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gridPipelineLayout, 0, 1,
+                          &gridDescriptorSet, 0, nullptr);
+
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = static_cast<float>(engine->_windowExtent.width);
+    viewport.height = static_cast<float>(engine->_windowExtent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent = engine->_windowExtent;
+
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdDraw(cmd, 3, 1, 0, 0); 
 
     vkCmdEndRendering(cmd);
 }
