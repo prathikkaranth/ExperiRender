@@ -53,9 +53,9 @@ void VulkanEngine::init() {
     mainCamera.velocity = glm::vec3(0.f);
 
     // Default camera position for general scene viewing
-    mainCamera.position = glm::vec3(-0.879, -0.043, 1.470);
-    mainCamera.pitch = -0.200f;
-    mainCamera.yaw = 0.572f;
+    mainCamera.position = glm::vec3(-0.926, 0.520, 1.833);
+    mainCamera.pitch = -0.248f;
+    mainCamera.yaw = 0.475f;
 
     init_vulkan();
 

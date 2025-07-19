@@ -74,9 +74,9 @@ void main() {
     vec3 position = positions[gl_VertexIndex];
     vec3 normal = normals[gl_VertexIndex];
     
-    // Scale cube to reasonable size and center it properly
+    // Scale cube to reasonable size and center it at origin
     position *= 0.3; // Much smaller
-    position.y -= 0.5; // Move it down a bit so camera looks down at it
+    // Remove Y offset to center cube at world origin (0,0,0)
     
     gl_Position = sceneData.viewproj * vec4(position, 1.0);
     
