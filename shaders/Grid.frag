@@ -75,11 +75,11 @@ void main() {
     }
     
     if (onXAxis) {
-        outColor = vec4(1.0, 0.0, 0.0, 1.0); 
+        outColor = vec4(0.3, 0.0, 0.0, 1.0);
     } else if (onZAxis) {
-        outColor = vec4(0.0, 0.0, 1.0, 1.0); 
+        outColor = vec4(0.0, 0.0, 0.3, 1.0);
     } else if (onGridX || onGridZ) {
-        outColor = vec4(0.45, 0.45, 0.45, 1.0); 
+        outColor = vec4(0.1, 0.1, 0.1, 1.0);
     } else {
         discard; 
     }

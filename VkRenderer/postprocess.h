@@ -17,6 +17,7 @@ public:
     void init(VulkanEngine *engine);
     void draw(VulkanEngine *engine, VkCommandBuffer cmd);
     void draw_grid_only(VulkanEngine *engine, VkCommandBuffer cmd);
+    void draw_grid_geometry(VulkanEngine *engine, VkCommandBuffer cmd);
 
     // Fullscreen resources
     AllocatedImage _fullscreenImage{};
@@ -36,4 +37,7 @@ private:
     VkPipelineLayout _gridPipelineLayout = nullptr;
     VkPipeline _gridPipeline = nullptr;
     VkDescriptorSetLayout _gridDescriptorSetLayout = nullptr;
+
+    VkPipelineLayout _gridGeometryPipelineLayout = nullptr;
+    VkPipeline _gridGeometryPipeline = nullptr;
 };

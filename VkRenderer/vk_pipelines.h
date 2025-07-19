@@ -29,6 +29,7 @@ public:
         ALPHA_BLEND,
         ADDITIVE_BLEND,
         NO_BLEND,
+        MULTIPLY_BLEND,
     };
 
     void set_shaders(VkShaderModule vertexShader, VkShaderModule fragmentShader);

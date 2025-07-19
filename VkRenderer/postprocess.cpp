@@ -126,10 +126,11 @@ void PostProcessor::init(VulkanEngine *engine) {
     gridPipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
     gridPipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
     gridPipelineBuilder.set_multisampling_none();
-    gridPipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    gridPipelineBuilder.enable_depthtest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    gridPipelineBuilder.set_depth_format(VK_FORMAT_D32_SFLOAT);
 
-    // render to the fullscreen image with no blending
-    gridPipelineBuilder.add_color_attachment(_fullscreenImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+    // render to the draw image format for geometry pass
+    gridPipelineBuilder.add_color_attachment(engine->_drawImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
     gridPipelineBuilder._pipelineLayout = _gridPipelineLayout;
 
     _gridPipeline = gridPipelineBuilder.build_pipeline(engine->_device);
@@ -280,4 +281,57 @@ void PostProcessor::draw_grid_only(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdDraw(cmd, 3, 1, 0, 0);
 
     vkCmdEndRendering(cmd);
+}
+
+void PostProcessor::draw_grid_geometry(VulkanEngine *engine, VkCommandBuffer cmd) {
+
+    if (!_compositorData.showGrid) {
+        return;
+    }
+
+    AllocatedBuffer gpuSceneDataBuffer =
+        vkutil::create_buffer(engine, sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "Grid Geometry Scene Data Buffer");
+
+    engine->get_current_frame()._deletionQueue.push_function(
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
+
+    GPUSceneData *sceneUniformData;
+    VK_CHECK(
+        vmaMapMemory(engine->_allocator, gpuSceneDataBuffer.allocation, reinterpret_cast<void **>(&sceneUniformData)));
+    *sceneUniformData = engine->sceneData;
+    vmaUnmapMemory(engine->_allocator, gpuSceneDataBuffer.allocation);
+
+    VkDescriptorSet gridDescriptorSet =
+        engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _gridDescriptorSetLayout);
+
+    {
+        DescriptorWriter gridWriter;
+        gridWriter.write_buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0,
+                                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        gridWriter.update_set(engine->_device, gridDescriptorSet);
+    }
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gridPipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _gridPipelineLayout, 0, 1, &gridDescriptorSet, 0,
+                            nullptr);
+
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = static_cast<float>(engine->_drawExtent.width);
+    viewport.height = static_cast<float>(engine->_drawExtent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent = engine->_drawExtent;
+
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdDraw(cmd, 3, 1, 0, 0);
 }

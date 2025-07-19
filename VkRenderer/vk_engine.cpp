@@ -394,7 +394,6 @@ void VulkanEngine::draw() {
 
     VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-    // Check if raytracer is enabled
     useRaytracer = (postProcessor._compositorData.useRayTracer == 1);
 
     // Always prepare the raytracer output image for either pathway
@@ -402,7 +401,7 @@ void VulkanEngine::draw() {
                              VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     if (useRaytracer) {
-        // Raytracing path
+        // Raytracing path (grid not supported in raytracer mode yet)
         raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
         vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -479,14 +478,6 @@ void VulkanEngine::draw() {
                                  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
-    // Draw grid overlay once after both paths complete
-    if (postProcessor._compositorData.showGrid) {
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-        postProcessor.draw_grid_only(this, cmd);
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
 
     // Transition fullscreen image for ImGui viewport usage
     vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -1051,8 +1042,6 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     stats.drawcall_count = 0;
     stats.triangle_count = 0;
 
-    // VkClearValue clearVal = { .color = {0.0f, 0.0f, 0.0f, 1.0f} };
-
     // begin a render pass  connected to our draw image
     VkRenderingAttachmentInfo depthAttachment =
         vkinit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1068,6 +1057,11 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
 #endif
 
     vkCmdBeginRendering(cmd, &renderInfo);
+
+    // Draw grid first (will be depth tested against geometry)
+    if (postProcessor._compositorData.showGrid) {
+        postProcessor.draw_grid_geometry(this, cmd);
+    }
 
     // If no scenes are loaded, draw the default cube
     if (loadedScenes.empty() && cubePipeline.isInitialized()) {
