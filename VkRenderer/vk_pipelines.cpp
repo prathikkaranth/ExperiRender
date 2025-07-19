@@ -227,6 +227,17 @@ void PipelineBuilder::add_color_attachment(VkFormat format, BlendMode blendMode)
             // no blending
             newAttachment.blendEnable = VK_FALSE;
             break;
+        case BlendMode::MULTIPLY_BLEND:
+            newAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                           VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+            newAttachment.blendEnable = VK_TRUE;
+            newAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_DST_COLOR;
+            newAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            newAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+            newAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            newAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+            newAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+            break;
     }
 
     _colorBlendAttachments.push_back(newAttachment);
