@@ -314,6 +314,7 @@ void ui::create_settings_panel(VulkanEngine *engine) {
 
     if (ImGui::CollapsingHeader("Compositor Settings")) {
         ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
+        ImGui::Checkbox("Show Grid Helper", reinterpret_cast<bool *>(&engine->postProcessor._compositorData.showGrid));
     }
 
     if (ImGui::CollapsingHeader("Lighting Settings")) {
