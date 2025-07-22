@@ -322,7 +322,7 @@ void ui::create_settings_panel(VulkanEngine *engine) {
         ImGui::ColorEdit3("Sunlight Color", &engine->sceneData.sunlightColor.x);
         ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -10, 10);
         ImGui::SliderFloat("Sunlight Intensity", &engine->sceneData.sunlightDirection.w, 0, 10);
-        
+
         ImGui::Separator();
         ImGui::Text("Point Light");
         ImGui::ColorEdit3("Point Light Color", &engine->sceneData.pointLightColor.x);
