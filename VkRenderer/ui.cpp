@@ -323,6 +323,14 @@ void ui::create_settings_panel(VulkanEngine *engine) {
         ImGui::SliderFloat3("Sunlight Direction", &engine->sceneData.sunlightDirection.x, -10, 10);
         ImGui::SliderFloat("Sunlight Intensity", &engine->sceneData.sunlightDirection.w, 0, 10);
 
+        ImGui::Separator();
+        ImGui::Text("Point Light");
+        ImGui::ColorEdit3("Point Light Color", &engine->sceneData.pointLightColor.x);
+        ImGui::SliderFloat3("Point Light Position", &engine->sceneData.pointLightPosition.x, -10, 10);
+        ImGui::SliderFloat("Point Light Intensity", &engine->sceneData.pointLightColor.w, 0, 10);
+        ImGui::SliderFloat("Point Light Range", &engine->sceneData.pointLightPosition.w, 0.1f, 20.0f);
+
+        ImGui::Separator();
         ImGui::Checkbox("Shadow Maps", reinterpret_cast<bool *>(&engine->sceneData.enableShadows));
         ImGui::Checkbox("SSAO", reinterpret_cast<bool *>(&engine->sceneData.enableSSAO));
         ImGui::Checkbox("PBR", reinterpret_cast<bool *>(&engine->sceneData.enablePBR));

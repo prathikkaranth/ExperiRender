@@ -11,6 +11,8 @@ layout(set = 0, binding = 0) uniform SceneData {
     vec4 ambientColor;
     vec4 sunlightDirection;
     vec4 sunlightColor;
+    vec4 pointLightPosition;
+    vec4 pointLightColor;
     vec3 cameraPosition;
     int enableShadows;
     int enableSSAO;

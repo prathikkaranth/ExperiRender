@@ -32,6 +32,8 @@ struct GPUSceneData {
     alignas(16) glm::vec4 ambientColor;
     alignas(16) glm::vec4 sunlightDirection; // w for sun power
     alignas(16) glm::vec4 sunlightColor;
+    alignas(16) glm::vec4 pointLightPosition; // w for range/radius
+    alignas(16) glm::vec4 pointLightColor; // w for intensity
     alignas(16) glm::vec3 cameraPosition;
     int enableShadows;
     int enableSSAO;

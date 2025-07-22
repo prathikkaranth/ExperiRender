@@ -2,6 +2,7 @@
 
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec3 fragColor;
+layout(location = 2) out vec3 fragWorldPos;
 
 layout(set = 0, binding = 0) uniform SceneData {
     mat4 view;
@@ -82,4 +83,5 @@ void main() {
     
     fragNormal = normal;
     fragColor = vec3(0.8, 0.8, 0.8); // Clean white
+    fragWorldPos = position; // Pass world position to fragment shader
 }

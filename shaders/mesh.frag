@@ -140,6 +140,20 @@ vec3 pbr() {
 
 	vec3 bsdf = BSDF(metallic, roughness, N, V, L, albedo);
 	bsdf *= sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb;
+	
+	// Point light calculation
+	vec3 pointLightDir = sceneData.pointLightPosition.xyz - inWorldPos;
+	float pointLightDistance = length(pointLightDir);
+	vec3 pointL = normalize(pointLightDir);
+	
+	// Point light attenuation
+	float range = sceneData.pointLightPosition.w;
+	float attenuation = 1.0 / (1.0 + pointLightDistance * pointLightDistance / (range * range));
+	
+	// Add point light BSDF contribution
+	vec3 pointBsdf = BSDF(metallic, roughness, N, V, pointL, albedo);
+	pointBsdf *= sceneData.pointLightColor.w * sceneData.pointLightColor.rgb * attenuation;
+	bsdf += pointBsdf;
 
 	// ambient lighting
 	vec2 screenUV = gl_FragCoord.xy / textureSize(ssaoMap, 0);

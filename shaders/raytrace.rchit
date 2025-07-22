@@ -189,6 +189,21 @@ vec3 compute_directional_light_contribution(const vec3 normal, const vec3 next_o
     return compute_light_contribution(normal, next_origin, light_dir, light_color, diffuse_color, metalness, roughness, true);
 }
 
+vec3 compute_point_light_contribution(const vec3 normal, const vec3 next_origin, const vec3 diffuse_color, const vec2 uv, const float metalness, const float roughness)
+{
+    const vec3 light_pos = sceneData.pointLightPosition.xyz;
+    const vec3 light_dir = normalize(light_pos - next_origin); // Direction *from* surface point *to* light
+    const float light_distance = length(light_pos - next_origin);
+    
+    // Point light attenuation
+    const float range = sceneData.pointLightPosition.w;
+    const float attenuation = 1.0 / (1.0 + light_distance * light_distance / (range * range));
+    
+    const vec3 light_color = sceneData.pointLightColor.w * sceneData.pointLightColor.rgb * attenuation;
+    
+    return compute_light_contribution(normal, next_origin, light_dir, light_color, diffuse_color, metalness, roughness, true);
+}
+
 
 vec3 compute_vert_color() {
   // Object Data
@@ -284,6 +299,14 @@ void main()
                                                              hit_point.uv,
                                                              metalness,
                                                              roughness);
+    
+    // Add point light contribution
+    direct_light += compute_point_light_contribution(hit_point.normal, 
+                                                   gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT + hit_point.normal * 0.001f, 
+                                                   material_color, 
+                                                   hit_point.uv,
+                                                   metalness,
+                                                   roughness);
     
     // Fix overexposed lighting - scale down the direct lighting
     direct_light *= 0.1; // Scale down by 10x to fix overexposure
