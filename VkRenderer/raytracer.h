@@ -92,6 +92,8 @@ public:
     std::uint32_t prevMaxDepth;
     int prevLightType;
     glm::vec4 prevSunDir;
+    glm::vec4 prevPointLightPosition;
+    glm::vec4 prevPointLightColor;
     bool prevUseMicrofacetSampling;
 
     // Cleanup tracking

@@ -676,6 +676,23 @@ void Raytracer::rtSampleUpdates(const VulkanEngine *engine) {
         resetSamples();
     }
 
+    // Point light changes
+    bool pointLightChanged = false;
+
+    if (engine->sceneData.pointLightPosition != prevPointLightPosition) {
+        pointLightChanged = true;
+        prevPointLightPosition = engine->sceneData.pointLightPosition;
+    }
+
+    if (engine->sceneData.pointLightColor != prevPointLightColor) {
+        pointLightChanged = true;
+        prevPointLightColor = engine->sceneData.pointLightColor;
+    }
+
+    if (pointLightChanged) {
+        resetSamples();
+    }
+
     // If max_samples has decreased, reset samples
     if (max_samples < prevMaxSamples) {
         resetSamples();

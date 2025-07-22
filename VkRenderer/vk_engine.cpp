@@ -185,6 +185,13 @@ void VulkanEngine::init_default_data() {
     sceneData.sunlightDirection.w = 1.573f; // sun intensity
     raytracerPipeline.prevSunDir = glm::vec4(
         sunDir, sceneData.sunlightDirection.w); // TODO: Change sunlight code so that prevSunDir can be set in rt file
+    
+    // point light default parameters
+    sceneData.pointLightPosition = glm::vec4(2.0f, 1.0f, 2.0f, 5.0f); // xyz: position, w: range
+    sceneData.pointLightColor = glm::vec4(1.0f, 0.8f, 0.6f, 2.0f); // rgb: color, w: intensity
+    raytracerPipeline.prevPointLightPosition = sceneData.pointLightPosition;
+    raytracerPipeline.prevPointLightColor = sceneData.pointLightColor;
+    
     sceneData.enableShadows = true;
     sceneData.enableSSAO = true;
     sceneData.enablePBR = true;
