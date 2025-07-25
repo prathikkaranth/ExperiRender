@@ -191,7 +191,7 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
     ImGui::NewFrame();
 
     // Setup main dockspace
-    setup_dockspace(engine);
+    setup_dockspace();
 
     // Create docked panels
     create_settings_panel(engine);
@@ -209,7 +209,7 @@ void ui::setup_imgui_panel(VulkanEngine *engine) {
     }
 }
 
-void ui::setup_dockspace(VulkanEngine *engine) {
+void ui::setup_dockspace() {
     // We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
     // because it would be confusing to have two docking targets within each others.
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
