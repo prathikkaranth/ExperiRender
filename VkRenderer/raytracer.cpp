@@ -62,8 +62,8 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
-    const uint32_t totalSurfaces = static_cast<uint32_t>(
-        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size());
+    const uint32_t totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
+                                                         engine->mainDrawContext.TransparentSurfaces.size());
     tlas.reserve(totalSurfaces);
 
     // Add opaque surfaces first
@@ -177,8 +177,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     std::vector<ObjDesc> objDescs;
-    const uint32_t totalSurfaces = static_cast<uint32_t>(
-        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size());
+    const uint32_t totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
+                                                         engine->mainDrawContext.TransparentSurfaces.size());
     objDescs.reserve(totalSurfaces);
 
     // Add opaque surfaces first
