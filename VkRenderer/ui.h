@@ -24,7 +24,7 @@ public:
 
 private:
     // Docking system functions
-    static void setup_dockspace(VulkanEngine *engine);
+    static void setup_dockspace();
     static void setup_default_layout(ImGuiID dockspace_id);
 
     // Panel creation functions

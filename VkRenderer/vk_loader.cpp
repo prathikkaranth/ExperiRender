@@ -27,7 +27,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine *engine, fastgltf::Asset &
 
     std::visit(
         fastgltf::visitor{
-            [](auto &arg) {},
+            [](auto &) {},
             [&](fastgltf::sources::URI &filePath) {
                 assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
                 assert(filePath.uri.isLocalPath()); // We're only capable of loading
@@ -74,7 +74,7 @@ std::optional<AllocatedImage> load_image(VulkanEngine *engine, fastgltf::Asset &
                 std::visit(fastgltf::visitor{// We only care about VectorWithMime here, because we
                                              // specify LoadExternalBuffers, meaning all buffers
                                              // are already loaded into a vector.
-                                             [](auto &arg) {},
+                                             [](auto &) {},
                                              [&](fastgltf::sources::Array &array) {
                                                  unsigned char *data =
                                                      stbi_load_from_memory(array.bytes.data() + bufferView.byteOffset,

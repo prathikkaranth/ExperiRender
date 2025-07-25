@@ -62,8 +62,8 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
-    const uint32_t totalSurfaces =
-        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    const uint32_t totalSurfaces = static_cast<uint32_t>(
+        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size());
     tlas.reserve(totalSurfaces);
 
     // Add opaque surfaces first
@@ -98,8 +98,8 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     }
 
     // Add transparent surfaces after opaque ones
-    const uint32_t opaqueCount = engine->mainDrawContext.OpaqueSurfaces.size();
-    for (std::uint32_t i = 0; i < engine->mainDrawContext.TransparentSurfaces.size(); i++) {
+    const uint32_t opaqueCount = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size());
+    for (std::uint32_t i = 0; i < static_cast<uint32_t>(engine->mainDrawContext.TransparentSurfaces.size()); i++) {
         VkTransformMatrixKHR vk_transform = {};
         const glm::mat4 &t = engine->mainDrawContext.TransparentSurfaces[i].transform;
 
@@ -177,8 +177,8 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     std::vector<ObjDesc> objDescs;
-    const uint32_t totalSurfaces =
-        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size();
+    const uint32_t totalSurfaces = static_cast<uint32_t>(
+        engine->mainDrawContext.OpaqueSurfaces.size() + engine->mainDrawContext.TransparentSurfaces.size());
     objDescs.reserve(totalSurfaces);
 
     // Add opaque surfaces first
@@ -228,7 +228,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     // Add transparent surface textures
-    for (std::uint32_t i = 0; i < engine->mainDrawContext.TransparentSurfaces.size(); i++) {
+    for (std::uint32_t i = 0; i < static_cast<uint32_t>(engine->mainDrawContext.TransparentSurfaces.size()); i++) {
         loadedTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->colImage);
         loadedNormTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->normImage);
         loadedMetalRoughTextures.push_back(engine->mainDrawContext.TransparentSurfaces[i].material->metalRoughImage);
