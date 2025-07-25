@@ -428,8 +428,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
                 fastgltf::Accessor &indexaccessor = gltf.accessors[p.indicesAccessor.value()];
                 indices.reserve(indices.size() + indexaccessor.count);
 
-                fastgltf::iterateAccessor<std::uint32_t>(
-                    gltf, indexaccessor, [&](std::uint32_t idx) { indices.push_back(idx + static_cast<uint32_t>(initial_vtx)); });
+                fastgltf::iterateAccessor<std::uint32_t>(gltf, indexaccessor, [&](std::uint32_t idx) {
+                    indices.push_back(idx + static_cast<uint32_t>(initial_vtx));
+                });
             }
 
             // load vertex positions
