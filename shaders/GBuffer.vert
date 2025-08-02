@@ -39,7 +39,6 @@ void main()
 	vec4 worldPos = PushConstants.render_matrix * position;
 
 	gl_Position =  sceneData.viewproj * worldPos;
-	// gl_Position =  PushConstants.render_matrix *position;
 	
 	mat4 invTransposeRenderMatrix = transpose(inverse(PushConstants.render_matrix));
 
