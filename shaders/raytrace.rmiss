@@ -22,7 +22,6 @@ void main()
 	uv *= invAtan;
 	uv += 0.5;
 
-	// Sample the HDRI texture
 	vec4 texColor = texture(texSkybox, uv);
 
 	vec3 hdrColor = texColor.rgb;

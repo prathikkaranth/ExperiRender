@@ -23,7 +23,7 @@ layout(location = 0) out vec3 outTexCoord;
 // Skybox vertices defined inside shader
 vec3 getSkyboxVertex(int index) {
     vec3 skyboxVertices[36] = vec3[](
-        // Positions          
+                 
         vec3(-1.0,  1.0, -1.0), vec3(-1.0, -1.0, -1.0), vec3( 1.0, -1.0, -1.0),
         vec3( 1.0, -1.0, -1.0), vec3( 1.0,  1.0, -1.0), vec3(-1.0,  1.0, -1.0),
 
@@ -46,10 +46,9 @@ vec3 getSkyboxVertex(int index) {
 }
 
 void main() {
-    // Get the vertex position from the shader itself
+    
     vec3 inPosition = getSkyboxVertex(gl_VertexIndex);
 
-    // Remove translation from the view matrix
     mat4 viewNoTranslation = mat4(mat3(sceneData.view));
 
     // Transform position by projection and view matrix without translation
