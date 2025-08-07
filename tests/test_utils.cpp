@@ -1,8 +1,8 @@
+#include <DeletionQueue.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <vk_utils.h>
-#include <DeletionQueue.h>
 #include <vector>
+#include <vk_utils.h>
 
 TEST(UtilTests, AlignUp) {
     // Basic alignment tests
@@ -53,10 +53,10 @@ TEST_F(DeletionQueueTest, BasicFunctionality) {
     queue.push_function([&]() { execution_order.push_back(1); });
     queue.push_function([&]() { execution_order.push_back(2); });
     queue.push_function([&]() { execution_order.push_back(3); });
-    
+
     // Should execute in reverse order: 3, 2, 1
     queue.flush();
-    
+
     std::vector<int> expected = {3, 2, 1};
     EXPECT_EQ(execution_order, expected);
 }
@@ -64,7 +64,7 @@ TEST_F(DeletionQueueTest, BasicFunctionality) {
 TEST_F(DeletionQueueTest, EmptyFlush) {
     // Flushing empty queue should not crash
     EXPECT_NO_THROW(queue.flush());
-    
+
     EXPECT_EQ(queue.deletors.size(), 0u);
 }
 
@@ -73,12 +73,12 @@ TEST_F(DeletionQueueTest, MultipleFlushes) {
     queue.push_function([&]() { execution_order.push_back(1); });
     queue.push_function([&]() { execution_order.push_back(2); });
     queue.flush();
-    
+
     // Second batch
     queue.push_function([&]() { execution_order.push_back(3); });
     queue.push_function([&]() { execution_order.push_back(4); });
     queue.flush();
-    
+
     std::vector<int> expected = {2, 1, 4, 3};
     EXPECT_EQ(execution_order, expected);
 }
@@ -87,11 +87,11 @@ TEST_F(DeletionQueueTest, ClearsAfterFlush) {
     queue.push_function([]() {});
     queue.push_function([]() {});
     queue.push_function([]() {});
-    
+
     EXPECT_EQ(queue.deletors.size(), 3u);
-    
+
     queue.flush();
-    
+
     // Queue should be empty after flush
     EXPECT_EQ(queue.deletors.size(), 0u);
 }
@@ -99,13 +99,13 @@ TEST_F(DeletionQueueTest, ClearsAfterFlush) {
 TEST_F(DeletionQueueTest, ExceptionSafety) {
     // Add functions
     queue.push_function([this]() { execution_order.push_back(1); });
-    queue.push_function([this]() { 
+    queue.push_function([this]() {
         execution_order.push_back(2);
         throw std::runtime_error("test exception");
-    }); 
-    
+    });
+
     EXPECT_THROW(queue.flush(), std::runtime_error);
-    
+
     // Only the throwing function should have executed
     EXPECT_EQ(execution_order.size(), 1u);
     EXPECT_EQ(execution_order[0], 2);
@@ -113,10 +113,10 @@ TEST_F(DeletionQueueTest, ExceptionSafety) {
 
 TEST_F(DeletionQueueTest, SingleFunction) {
     bool executed = false;
-    
+
     queue.push_function([&]() { executed = true; });
     queue.flush();
-    
+
     EXPECT_TRUE(executed);
     EXPECT_EQ(queue.deletors.size(), 0u);
 }
@@ -125,9 +125,9 @@ TEST_F(DeletionQueueTest, MoveSemantics) {
     // Test that move semantics work correctly
     auto lambda = [this]() { execution_order.push_back(42); };
     queue.push_function(std::move(lambda));
-    
+
     queue.flush();
-    
+
     EXPECT_EQ(execution_order.size(), 1u);
     EXPECT_EQ(execution_order[0], 42);
 }
