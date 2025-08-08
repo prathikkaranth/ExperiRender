@@ -8,7 +8,6 @@ struct hitPayload
 	bool isHit;
 };
 
-// Push constant structure for the ray tracer
 struct PushConstantRay
 {
 	uint seed;

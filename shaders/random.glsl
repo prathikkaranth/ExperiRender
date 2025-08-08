@@ -38,7 +38,6 @@ vec3 random_in_hemisphere(vec3 normal, inout uint seed)
 
 vec3 cosine_weighted_hemisphere_sample(vec3 normal, inout uint seed)
 {
-    // Generate random variables for spherical coordinates
     float r1 = rand01(seed);
     float r2 = rand01(seed);
     

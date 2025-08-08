@@ -18,9 +18,7 @@ layout(set = 0, binding = 2) uniform  CompositerData{
 
 void main() 
 {
-    // Sample both images
     vec3 rasterized = texture(rasterizedImage, inUV).rgb;
-    //vec3 rayTraced = texture(rayTracedImage, inUV).rgb;
 
     // Apply tone mapping to rasterized image as before
     rasterized *= compositorData.exposure;
@@ -35,11 +33,9 @@ void main()
     rayTraced.rgb = pow(rayTraced.rgb, vec3(1.0/2.2));
     
     if (compositorData.useRayTracer == 1) {
-        // Use ray traced image
         outColor = vec4(rayTraced);
     }
     else {
-        // Use rasterized image
         outColor = vec4(rasterized, 1.0);
     }
 }
