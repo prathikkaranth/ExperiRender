@@ -47,7 +47,7 @@ TEST_F(CameraTest, RotationMatrixPitchOnly) {
 TEST_F(CameraTest, RotationMatrixYawOnly) {
     // Test yaw rotation (around -Y-axis in camera space)
     camera.pitch = 0.0f;
-    camera.yaw = glm::half_pi<float>(); // 90 degrees
+    camera.yaw = glm::half_pi<float>();
 
     glm::mat4 rotation = camera.getRotationMatrix();
     glm::mat4 expected = glm::rotate(glm::mat4(1.0f), glm::half_pi<float>(), glm::vec3(0.0f, -1.0f, 0.0f));
@@ -117,7 +117,6 @@ TEST_F(CameraTest, ViewMatrixInverseProperty) {
 
     glm::mat4 view = camera.getViewMatrix();
 
-    // Create the camera model matrix manually
     glm::mat4 translation = glm::translate(glm::mat4(1.0f), camera.position);
     glm::mat4 rotation = camera.getRotationMatrix();
     glm::mat4 cameraModel = translation * rotation;
@@ -133,7 +132,7 @@ TEST_F(CameraTest, ViewMatrixInverseProperty) {
 }
 
 TEST_F(CameraTest, ViewMatrixDeterminant) {
-    // View matrix should preserve volume (determinant = ±1)
+    // View matrix should preserve volume
     camera.position = glm::vec3(2.0f, -1.0f, 4.0f);
     camera.pitch = 0.8f;
     camera.yaw = -0.5f;
