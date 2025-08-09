@@ -34,10 +34,8 @@ vec3 RRTAndODTFit(vec3 v)
 vec3 ACESFitted(vec3 color)
 {
     color = ACESInputMat * color;
-    // Apply RRT and ODT
     color = RRTAndODTFit(color);
     color = ACESOutputMat * color;
-    // Clamp to [0, 1]
     color = clamp(color, 0.0, 1.0);
     return color;
 }

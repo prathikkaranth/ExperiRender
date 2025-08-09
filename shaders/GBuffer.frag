@@ -11,7 +11,6 @@ layout (location = 1) out vec4 outFragWorldNormal;
 
 struct Empty{ float e; };
 
-//push constants block
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
@@ -20,7 +19,6 @@ layout( push_constant ) uniform constants
 
 void main() 
 {
-	// Normalized normal
 	vec3 normal = normalize(inNormal);
 
 	// G buffer World position

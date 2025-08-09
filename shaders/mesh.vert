@@ -29,7 +29,6 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer{
 	Vertex vertices[];
 };
 
-//push constants block
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
@@ -45,7 +44,6 @@ void main()
 	vec4 worldPos = PushConstants.render_matrix * position;
 
 	gl_Position =  sceneData.viewproj * worldPos;
-	// gl_Position =  PushConstants.render_matrix *position;
 
 	outFragPosLightSpace = sceneData.lightSpaceMatrix * worldPos;
 

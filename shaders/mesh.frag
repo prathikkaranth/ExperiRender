@@ -28,7 +28,6 @@ struct Empty{ float e; };
 
 const float shadowFactor = 1.0f;
 
-//push constants block
 layout( push_constant ) uniform constants
 {
 	mat4 render_matrix;
@@ -54,14 +53,11 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir){
 
 	// get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
-	// float shadow = (currentDepth < closestDepth) ? 1.0f : 0.0f;
 	
 	// check whether current frag pos is in shadow
 	const float minBias = 0.0001f;
     const float maxBias = 0.001f;
 
-	// float bias = max(maxBias * (1.0 - dot(normal, lightDir)), minBias);  
-	// float shadow = currentDepth + bias < closestDepth  ? 1.0 : 0.0; 
     const float bias = max(maxBias * (1.0f - dot(normal, lightDir)), minBias);
 	float shadow = 0.0f;
 
@@ -123,11 +119,9 @@ vec3 pbr() {
 		vec3 normFromTex = normalFromTex.xyz;
 		normFromTex = normFromTex * 2.0f - 1.0f;
 
-		// Normalized tangent and bitangent
 		vec3 tangent = normalize(inTangent);
 		vec3 bitangent = normalize(inBitangent);
 
-		// Construct TBN matrix
 		mat3 TBN = mat3(tangent, bitangent, N);
 
 		// Apply normal mapping
@@ -136,7 +130,7 @@ vec3 pbr() {
 
 	vec3 V = normalize(sceneData.cameraPosition.xyz - inWorldPos);
 
-	vec3 L = - normalize(sceneData.sunlightDirection.xyz); // lightDirection is a uniform pointing to the light
+	vec3 L = - normalize(sceneData.sunlightDirection.xyz); 
 
 	vec3 bsdf = BSDF(metallic, roughness, N, V, L, albedo);
 	bsdf *= sceneData.sunlightDirection.w * sceneData.sunlightColor.rgb;
@@ -220,14 +214,11 @@ vec3 blinnPhong() {
 		vec3 normFromTex = normalFromTex.xyz;
 		normFromTex = normFromTex * 2.0f - 1.0f;
 
-		// Normalized tangent and bitangent
 		vec3 tangent = normalize(inTangent);
 		vec3 bitangent = normalize(inBitangent);
 
-		// Construct TBN matrix
 		mat3 TBN = mat3(tangent, bitangent, normalMap);
 
-		// Apply normal mapping
 		normalMap = normalize(TBN * normFromTex);
 	}
 
@@ -236,7 +227,6 @@ vec3 blinnPhong() {
 	float diff = max(dot(sunlightDir, normalMap), 0.0f);
 	vec3 diffuse = diff * color * sceneData.sunlightColor.xyz * sceneData.sunlightDirection.w;
 
-	// View direction
 	vec3 viewDir = normalize(sceneData.cameraPosition.xyz - inWorldPos);
 
 	// blinn-phong specular
@@ -283,7 +273,7 @@ void main() {
 	vec3 color = vec3(0.0f, 0.0f, 0.0f);
 	float alpha = texture(colorTex, inUV).a;
     
-    // Discard fragments that are nearly transparent
+    // Alpha cutoff 
     if (alpha < 0.01f) {
         discard;
     }

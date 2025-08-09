@@ -3,10 +3,8 @@
 vec3 BSDF(const float metallic, const float roughness, const vec3 normal, const vec3 view_dir, const vec3 light_dir, const vec3 diffuse_color) {
     
     const float NdotL = max(dot(normal, light_dir), 0.0f);
-    // Use actual scene light color instead of hardcoded white
     const vec3 light_color = sceneData.sunlightColor.rgb;
     
-    // PBR calculations
     vec3 half_vec = normalize(light_dir + view_dir);
     
     // Calculate base reflectivity for metals vs non-metals
@@ -23,7 +21,7 @@ vec3 BSDF(const float metallic, const float roughness, const vec3 normal, const 
     
     // Combine specular components
     vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * max(dot(normal, view_dir), 0.0) * NdotL + 0.0001; // Prevent division by zero
+    float denominator = 4.0 * max(dot(normal, view_dir), 0.0) * NdotL + 0.0001; 
     vec3 specular = numerator / denominator;
     
     // Combine diffuse and specular for final result
