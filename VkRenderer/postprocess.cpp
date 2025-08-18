@@ -10,12 +10,25 @@ void PostProcessor::init(VulkanEngine *engine) {
     _compositorData.useRayTracer = 0;
     _compositorData.exposure = 4.0f;
     _compositorData.showGrid = 0;
+    _compositorData.useFXAA = 0; // TODO: Keeping this on by default doesnt load because of rt accell structure validation error. Should debug this later. 
+
+    // init FXAA data
+    _fxaaData.R_inverseFilterTextureSize = glm::vec3(1.0f / engine->_windowExtent.width, 1.0f / engine->_windowExtent.height, 0.0f);
+    _fxaaData.R_fxaaSpanMax = 8.0f;
+    _fxaaData.R_fxaaReduceMin = 1.0f / 128.0f;
+    _fxaaData.R_fxaaReduceMul = 1.0f / 8.0f;
 
     _fullscreenImage = vkutil::create_image(
         engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
             VK_IMAGE_USAGE_SAMPLED_BIT,
         false, "Post Process Image");
+
+    _fxaaImage = vkutil::create_image(
+        engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+            VK_IMAGE_USAGE_SAMPLED_BIT,
+        false, "FXAA Image");
 
     // Create a sampler for the image
     VkSamplerCreateInfo samplerInfo{};
@@ -88,6 +101,63 @@ void PostProcessor::init(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, fullscreenDrawFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, fullscreenDrawVertShader, nullptr);
 
+    // FXAA PIPELINE
+    {
+        DescriptorLayoutBuilder fxaaBuilder;
+        fxaaBuilder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        fxaaBuilder.add_binding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        _fxaaDescriptorSetLayout = fxaaBuilder.build(engine->_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+    }
+
+    // allocate a descriptor set for our FXAA input
+    _fxaaDescriptorSet =
+        engine->globalDescriptorAllocator.allocate(engine->_device, _fxaaDescriptorSetLayout);
+
+    engine->_mainDeletionQueue.push_function(
+        [=] { vkDestroyDescriptorSetLayout(engine->_device, _fxaaDescriptorSetLayout, nullptr); });
+
+    VkPipelineLayoutCreateInfo fxaa_layout_info{};
+    fxaa_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    fxaa_layout_info.pNext = nullptr;
+    fxaa_layout_info.setLayoutCount = 1;
+    fxaa_layout_info.pSetLayouts = &_fxaaDescriptorSetLayout;
+
+    VK_CHECK(vkCreatePipelineLayout(engine->_device, &fxaa_layout_info, nullptr, &_fxaaPipelineLayout));
+
+    engine->_mainDeletionQueue.push_function(
+        [=] { vkDestroyPipelineLayout(engine->_device, _fxaaPipelineLayout, nullptr); });
+
+    // FXAA shaders
+    VkShaderModule fxaaVertShader;
+    if (!vkutil::load_shader_module("Fullscreen.vert.spv", engine->_device, &fxaaVertShader)) {
+        spdlog::error("Error when building the FXAA Vertex shader");
+    }
+    VkShaderModule fxaaFragShader;
+    if (!vkutil::load_shader_module("FXAA.frag.spv", engine->_device, &fxaaFragShader)) {
+        spdlog::error("Error when building the FXAA Fragment shader");
+    }
+
+    // Build FXAA pipeline
+    PipelineBuilder fxaaPipelineBuilder;
+    fxaaPipelineBuilder.set_shaders(fxaaVertShader, fxaaFragShader);
+    fxaaPipelineBuilder.set_input_topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    fxaaPipelineBuilder.set_polygon_mode(VK_POLYGON_MODE_FILL);
+    fxaaPipelineBuilder.set_cull_mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+    fxaaPipelineBuilder.set_multisampling_none();
+    fxaaPipelineBuilder.enable_depthtest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+    // render format
+    fxaaPipelineBuilder.add_color_attachment(_fxaaImage.imageFormat, PipelineBuilder::BlendMode::NO_BLEND);
+
+    // use the FXAA layout we created
+    fxaaPipelineBuilder._pipelineLayout = _fxaaPipelineLayout;
+
+    // create the pipeline
+    _fxaaPipeline = fxaaPipelineBuilder.build_pipeline(engine->_device);
+
+    vkDestroyShaderModule(engine->_device, fxaaFragShader, nullptr);
+    vkDestroyShaderModule(engine->_device, fxaaVertShader, nullptr);
+
     // GRID PIPELINE
     {
         DescriptorLayoutBuilder gridBuilder;
@@ -140,9 +210,11 @@ void PostProcessor::init(VulkanEngine *engine) {
 
     engine->_mainDeletionQueue.push_function([=] {
         vkDestroyPipeline(engine->_device, _postProcessPipeline, nullptr);
+        vkDestroyPipeline(engine->_device, _fxaaPipeline, nullptr);
         vkDestroyPipeline(engine->_device, _gridPipeline, nullptr);
         vkDestroySampler(engine->_device, _fullscreenImageSampler, nullptr);
         vkutil::destroy_image(engine, _fullscreenImage);
+        vkutil::destroy_image(engine, _fxaaImage);
     });
 }
 
@@ -196,6 +268,77 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _postProcessPipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _postProcessPipelineLayout, 0, 1,
                             &_postProcessDescriptorSet, 0, nullptr);
+
+    // Set viewport and scissor
+    VkViewport viewport = {};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = static_cast<float>(engine->_windowExtent.width);
+    viewport.height = static_cast<float>(engine->_windowExtent.height);
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
+
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset.x = 0;
+    scissor.offset.y = 0;
+    scissor.extent = engine->_windowExtent;
+
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    vkCmdDraw(cmd, 3, 1, 0, 0); // 1 triangle, 3 vertices
+
+    vkCmdEndRendering(cmd);
+}
+
+void PostProcessor::draw_fxaa(VulkanEngine *engine, VkCommandBuffer cmd) {
+    VkClearValue clearVal = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+
+    std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
+        vkinit::attachment_info(_fxaaImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+    };
+
+    // Pass the color attachments directly to rendering_info
+    VkRenderingInfo renderInfo = vkinit::rendering_info(engine->_windowExtent,
+                                                        colorAttachments.data(), // Pass your color attachments directly
+                                                        nullptr // No depth attachment
+    );
+
+    vkCmdBeginRendering(cmd, &renderInfo);
+
+    _fxaaDescriptorSet =
+        engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _fxaaDescriptorSetLayout);
+
+    // Allocate a new uniform buffer for the FXAA data
+    AllocatedBuffer fxaaDataBuffer =
+        vkutil::create_buffer(engine, sizeof(FXAAData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU, "FXAA Data Buffer");
+
+    // Add it to the deletion queue
+    engine->get_current_frame()._deletionQueue.push_function(
+        [=] { vkutil::destroy_buffer(engine, fxaaDataBuffer); });
+
+    // Write the FXAA data
+    FXAAData *fxaaUniformBuffer;
+    VK_CHECK(vmaMapMemory(engine->_allocator, fxaaDataBuffer.allocation,
+                          reinterpret_cast<void **>(&fxaaUniformBuffer)));
+    *fxaaUniformBuffer = _fxaaData;
+    vmaUnmapMemory(engine->_allocator, fxaaDataBuffer.allocation);
+
+    {
+        DescriptorWriter writer;
+        writer.write_image(0, _fullscreenImage.imageView, _fullscreenImageSampler,
+                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.write_buffer(1, fxaaDataBuffer.buffer, sizeof(FXAAData), 0,
+                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.update_set(engine->_device, _fxaaDescriptorSet);
+    }
+
+    // Bind pipeline and descriptors
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _fxaaPipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _fxaaPipelineLayout, 0, 1,
+                            &_fxaaDescriptorSet, 0, nullptr);
 
     // Set viewport and scissor
     VkViewport viewport = {};

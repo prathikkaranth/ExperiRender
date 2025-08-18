@@ -196,6 +196,7 @@ public:
     // Full screen quad resources
     PostProcessor postProcessor;
     VkDescriptorSet _viewportTextureDescriptorSet = VK_NULL_HANDLE;
+    VkDescriptorSet _fxaaViewportTextureDescriptorSet = VK_NULL_HANDLE;
 
     // immediate submit structures
     VkFence _immFence;
