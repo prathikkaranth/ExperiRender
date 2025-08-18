@@ -1,9 +1,9 @@
 #pragma once
 
+#include <glm/glm.hpp>
 #include <vk_types.h>
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
-#include <glm/glm.hpp>
 
 struct CompositorData {
     int useRayTracer;
@@ -37,12 +37,10 @@ public:
 
     // Getter for the sampler
     VkSampler getFullscreenImageSampler() const { return _fullscreenImageSampler; }
-    
+
     // Get the final processed image (FXAA output if enabled, otherwise fullscreen image)
-    const AllocatedImage& getFinalImage() const { 
-        return _compositorData.useFXAA ? _fxaaImage : _fullscreenImage; 
-    }
-    
+    const AllocatedImage &getFinalImage() const { return _compositorData.useFXAA ? _fxaaImage : _fullscreenImage; }
+
     // Get the final image view for UI display
     VkImageView getFinalImageView() const {
         return _compositorData.useFXAA ? _fxaaImage.imageView : _fullscreenImage.imageView;

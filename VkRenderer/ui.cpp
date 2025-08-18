@@ -175,7 +175,7 @@ void ui::init_imgui(VulkanEngine *engine) {
     engine->_viewportTextureDescriptorSet = ImGui_ImplVulkan_AddTexture(
         engine->postProcessor.getFullscreenImageSampler(), engine->postProcessor._fullscreenImage.imageView,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        
+
     // For Drawing FXAA output in viewport
     engine->_fxaaViewportTextureDescriptorSet = ImGui_ImplVulkan_AddTexture(
         engine->postProcessor.getFullscreenImageSampler(), engine->postProcessor._fxaaImage.imageView,
@@ -480,9 +480,9 @@ void ui::create_viewport_panel(VulkanEngine *engine) {
         }
 
         // Display the rendered scene texture with proper scaling
-        VkDescriptorSet textureToDisplay = engine->postProcessor._compositorData.useFXAA ? 
-                                          engine->_fxaaViewportTextureDescriptorSet : 
-                                          engine->_viewportTextureDescriptorSet;
+        VkDescriptorSet textureToDisplay = engine->postProcessor._compositorData.useFXAA
+                                               ? engine->_fxaaViewportTextureDescriptorSet
+                                               : engine->_viewportTextureDescriptorSet;
         ImGui::Image(reinterpret_cast<ImTextureID>(textureToDisplay), displaySize);
 
         // Display info below the image

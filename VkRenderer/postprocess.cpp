@@ -10,10 +10,12 @@ void PostProcessor::init(VulkanEngine *engine) {
     _compositorData.useRayTracer = 0;
     _compositorData.exposure = 4.0f;
     _compositorData.showGrid = 0;
-    _compositorData.useFXAA = 0; // TODO: Keeping this on by default doesnt load because of rt accell structure validation error. Should debug this later. 
+    _compositorData.useFXAA = 0; // TODO: Keeping this on by default doesnt load because of rt accell structure
+                                 // validation error. Should debug this later.
 
     // init FXAA data
-    _fxaaData.R_inverseFilterTextureSize = glm::vec3(1.0f / engine->_windowExtent.width, 1.0f / engine->_windowExtent.height, 0.0f);
+    _fxaaData.R_inverseFilterTextureSize =
+        glm::vec3(1.0f / engine->_windowExtent.width, 1.0f / engine->_windowExtent.height, 0.0f);
     _fxaaData.R_fxaaSpanMax = 8.0f;
     _fxaaData.R_fxaaReduceMin = 1.0f / 128.0f;
     _fxaaData.R_fxaaReduceMul = 1.0f / 8.0f;
@@ -24,11 +26,11 @@ void PostProcessor::init(VulkanEngine *engine) {
             VK_IMAGE_USAGE_SAMPLED_BIT,
         false, "Post Process Image");
 
-    _fxaaImage = vkutil::create_image(
-        engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1}, VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-            VK_IMAGE_USAGE_SAMPLED_BIT,
-        false, "FXAA Image");
+    _fxaaImage = vkutil::create_image(engine, VkExtent3D{engine->_windowExtent.width, engine->_windowExtent.height, 1},
+                                      VK_FORMAT_R8G8B8A8_UNORM,
+                                      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                                          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                      false, "FXAA Image");
 
     // Create a sampler for the image
     VkSamplerCreateInfo samplerInfo{};
@@ -110,8 +112,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     }
 
     // allocate a descriptor set for our FXAA input
-    _fxaaDescriptorSet =
-        engine->globalDescriptorAllocator.allocate(engine->_device, _fxaaDescriptorSetLayout);
+    _fxaaDescriptorSet = engine->globalDescriptorAllocator.allocate(engine->_device, _fxaaDescriptorSetLayout);
 
     engine->_mainDeletionQueue.push_function(
         [=] { vkDestroyDescriptorSetLayout(engine->_device, _fxaaDescriptorSetLayout, nullptr); });
@@ -311,18 +312,16 @@ void PostProcessor::draw_fxaa(VulkanEngine *engine, VkCommandBuffer cmd) {
         engine->get_current_frame()._frameDescriptors.allocate(engine->_device, _fxaaDescriptorSetLayout);
 
     // Allocate a new uniform buffer for the FXAA data
-    AllocatedBuffer fxaaDataBuffer =
-        vkutil::create_buffer(engine, sizeof(FXAAData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                              VMA_MEMORY_USAGE_CPU_TO_GPU, "FXAA Data Buffer");
+    AllocatedBuffer fxaaDataBuffer = vkutil::create_buffer(engine, sizeof(FXAAData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                           VMA_MEMORY_USAGE_CPU_TO_GPU, "FXAA Data Buffer");
 
     // Add it to the deletion queue
-    engine->get_current_frame()._deletionQueue.push_function(
-        [=] { vkutil::destroy_buffer(engine, fxaaDataBuffer); });
+    engine->get_current_frame()._deletionQueue.push_function([=] { vkutil::destroy_buffer(engine, fxaaDataBuffer); });
 
     // Write the FXAA data
     FXAAData *fxaaUniformBuffer;
-    VK_CHECK(vmaMapMemory(engine->_allocator, fxaaDataBuffer.allocation,
-                          reinterpret_cast<void **>(&fxaaUniformBuffer)));
+    VK_CHECK(
+        vmaMapMemory(engine->_allocator, fxaaDataBuffer.allocation, reinterpret_cast<void **>(&fxaaUniformBuffer)));
     *fxaaUniformBuffer = _fxaaData;
     vmaUnmapMemory(engine->_allocator, fxaaDataBuffer.allocation);
 
@@ -330,15 +329,14 @@ void PostProcessor::draw_fxaa(VulkanEngine *engine, VkCommandBuffer cmd) {
         DescriptorWriter writer;
         writer.write_image(0, _fullscreenImage.imageView, _fullscreenImageSampler,
                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writer.write_buffer(1, fxaaDataBuffer.buffer, sizeof(FXAAData), 0,
-                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.write_buffer(1, fxaaDataBuffer.buffer, sizeof(FXAAData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         writer.update_set(engine->_device, _fxaaDescriptorSet);
     }
 
     // Bind pipeline and descriptors
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _fxaaPipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _fxaaPipelineLayout, 0, 1,
-                            &_fxaaDescriptorSet, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _fxaaPipelineLayout, 0, 1, &_fxaaDescriptorSet, 0,
+                            nullptr);
 
     // Set viewport and scissor
     VkViewport viewport = {};
