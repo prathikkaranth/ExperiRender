@@ -176,6 +176,11 @@ void ui::init_imgui(VulkanEngine *engine) {
         engine->postProcessor.getFullscreenImageSampler(), engine->postProcessor._fullscreenImage.imageView,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+    // For Drawing FXAA output in viewport
+    engine->_fxaaViewportTextureDescriptorSet = ImGui_ImplVulkan_AddTexture(
+        engine->postProcessor.getFullscreenImageSampler(), engine->postProcessor._fxaaImage.imageView,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
     // add the destroy the imgui created structures
     engine->_mainDeletionQueue.push_function([=] {
         ImGui_ImplVulkan_Shutdown();
@@ -315,6 +320,7 @@ void ui::create_settings_panel(VulkanEngine *engine) {
     if (ImGui::CollapsingHeader("Compositor Settings")) {
         ImGui::SliderFloat("Exposure", &engine->postProcessor._compositorData.exposure, 0.1f, 10.0f);
         ImGui::Checkbox("Show Grid Helper", reinterpret_cast<bool *>(&engine->postProcessor._compositorData.showGrid));
+        ImGui::Checkbox("FXAA", reinterpret_cast<bool *>(&engine->postProcessor._compositorData.useFXAA));
     }
 
     if (ImGui::CollapsingHeader("Lighting Settings")) {
@@ -474,7 +480,10 @@ void ui::create_viewport_panel(VulkanEngine *engine) {
         }
 
         // Display the rendered scene texture with proper scaling
-        ImGui::Image(reinterpret_cast<ImTextureID>(engine->_viewportTextureDescriptorSet), displaySize);
+        VkDescriptorSet textureToDisplay = engine->postProcessor._compositorData.useFXAA
+                                               ? engine->_fxaaViewportTextureDescriptorSet
+                                               : engine->_viewportTextureDescriptorSet;
+        ImGui::Image(reinterpret_cast<ImTextureID>(textureToDisplay), displaySize);
 
         // Display info below the image
         ImGui::Text("Render: %dx%d (%.1fx scale)", engine->_drawExtent.width, engine->_drawExtent.height,

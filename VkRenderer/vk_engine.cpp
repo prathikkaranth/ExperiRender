@@ -419,8 +419,23 @@ void VulkanEngine::draw() {
 
         postProcessor.draw(this, cmd);
 
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        // Apply FXAA if enabled
+        if (postProcessor._compositorData.useFXAA) {
+            vkutil::transition_image(cmd, postProcessor._fullscreenImage.image,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                     VK_IMAGE_ASPECT_COLOR_BIT);
+            vkutil::transition_image(cmd, postProcessor._fxaaImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+            postProcessor.draw_fxaa(this, cmd);
+
+            vkutil::transition_image(cmd, postProcessor._fxaaImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        } else {
+            vkutil::transition_image(cmd, postProcessor._fullscreenImage.image,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                     VK_IMAGE_ASPECT_COLOR_BIT);
+        }
     } else {
         // Rasterization path - all the normal draw calls
         vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL,
@@ -481,13 +496,29 @@ void VulkanEngine::draw() {
 
         postProcessor.draw(this, cmd);
 
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        // Apply FXAA if enabled
+        if (postProcessor._compositorData.useFXAA) {
+            vkutil::transition_image(cmd, postProcessor._fullscreenImage.image,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                     VK_IMAGE_ASPECT_COLOR_BIT);
+            vkutil::transition_image(cmd, postProcessor._fxaaImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+
+            postProcessor.draw_fxaa(this, cmd);
+
+            vkutil::transition_image(cmd, postProcessor._fxaaImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+        } else {
+            vkutil::transition_image(cmd, postProcessor._fullscreenImage.image,
+                                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                     VK_IMAGE_ASPECT_COLOR_BIT);
+        }
     }
 
 
-    // Transition fullscreen image for ImGui viewport usage
-    vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    // Transition final processed image for ImGui viewport usage
+    const AllocatedImage &finalImage = postProcessor.getFinalImage();
+    vkutil::transition_image(cmd, finalImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     // Prepare swapchain for UI (no scene copy - scene is displayed in ImGui viewport)
@@ -1687,16 +1718,18 @@ void VulkanEngine::save_screenshot_render_only() {
     // Wait for current frame to complete
     vkDeviceWaitIdle(_device);
 
+    // Get the final processed image for screenshot
+    const AllocatedImage &finalImage = postProcessor.getFinalImage();
+
     // Create staging buffer for the render image
     AllocatedBuffer stagingBuffer = vkutil::create_buffer(
         this,
-        postProcessor._fullscreenImage.imageExtent.width * postProcessor._fullscreenImage.imageExtent.height *
-            16, // 4 floats per pixel
+        finalImage.imageExtent.width * finalImage.imageExtent.height * 16, // 4 floats per pixel
         VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY, "Screenshot Render Staging Buffer");
 
     immediate_submit([&](VkCommandBuffer cmd) {
         // Transition render image for reading
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        vkutil::transition_image(cmd, finalImage.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                  VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
         // Copy image to buffer
@@ -1708,14 +1741,14 @@ void VulkanEngine::save_screenshot_render_only() {
         copyRegion.imageSubresource.mipLevel = 0;
         copyRegion.imageSubresource.baseArrayLayer = 0;
         copyRegion.imageSubresource.layerCount = 1;
-        copyRegion.imageExtent = postProcessor._fullscreenImage.imageExtent;
+        copyRegion.imageExtent = finalImage.imageExtent;
         copyRegion.imageOffset = {0, 0, 0};
 
-        vkCmdCopyImageToBuffer(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                               stagingBuffer.buffer, 1, &copyRegion);
+        vkCmdCopyImageToBuffer(cmd, finalImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer.buffer, 1,
+                               &copyRegion);
 
         // Transition back
-        vkutil::transition_image(cmd, postProcessor._fullscreenImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        vkutil::transition_image(cmd, finalImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
     });
 
@@ -1734,12 +1767,9 @@ void VulkanEngine::save_screenshot_render_only() {
 
     // Convert HDR float data to LDR uint8 (raw conversion, no tone mapping)
     float *src = static_cast<float *>(data);
-    std::vector<uint8_t> ldr_data(postProcessor._fullscreenImage.imageExtent.width *
-                                  postProcessor._fullscreenImage.imageExtent.height * 3);
+    std::vector<uint8_t> ldr_data(finalImage.imageExtent.width * finalImage.imageExtent.height * 3);
 
-    for (uint32_t i = 0;
-         i < postProcessor._fullscreenImage.imageExtent.width * postProcessor._fullscreenImage.imageExtent.height;
-         i++) {
+    for (uint32_t i = 0; i < finalImage.imageExtent.width * finalImage.imageExtent.height; i++) {
         // Raw conversion - just clamp to 0-1 range and convert to 0-255
         float r = src[i * 4 + 0];
         float g = src[i * 4 + 1];
@@ -1750,9 +1780,8 @@ void VulkanEngine::save_screenshot_render_only() {
         ldr_data[i * 3 + 2] = static_cast<uint8_t>(std::clamp(b * 255.0f, 0.0f, 255.0f));
     }
 
-    if (stbi_write_png(ss.str().c_str(), postProcessor._fullscreenImage.imageExtent.width,
-                       postProcessor._fullscreenImage.imageExtent.height, 3, ldr_data.data(),
-                       postProcessor._fullscreenImage.imageExtent.width * 3)) {
+    if (stbi_write_png(ss.str().c_str(), finalImage.imageExtent.width, finalImage.imageExtent.height, 3,
+                       ldr_data.data(), finalImage.imageExtent.width * 3)) {
         spdlog::info("Render-only screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save render-only screenshot: {}", ss.str());
