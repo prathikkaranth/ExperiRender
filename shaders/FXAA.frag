@@ -1,3 +1,8 @@
+/*
+ Implementation of FXAA (Fast Approximate Anti-Aliasing) based on the algorithm described by Timothy Lottes.
+ https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
+*/
+
 #version 450
 
 layout (location = 0) in vec2 inUV;
