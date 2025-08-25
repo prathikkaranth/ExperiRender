@@ -150,8 +150,8 @@ public:
     FrameData _frames[FRAME_OVERLAP];
 
     FrameData &get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
-    VkSemaphore &get_current_render_semaphore(uint32_t swapchainImageIndex) { 
-        return get_current_frame()._renderSemaphores[swapchainImageIndex]; 
+    VkSemaphore &get_current_render_semaphore(uint32_t swapchainImageIndex) {
+        return get_current_frame()._renderSemaphores[swapchainImageIndex];
     }
 
     VkQueue _graphicsQueue{};

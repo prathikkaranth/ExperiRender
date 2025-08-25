@@ -14,8 +14,8 @@ void PostProcessor::init(VulkanEngine *engine) {
                                  // validation error. Should debug this later.
 
     // init FXAA data
-    _fxaaData.R_inverseFilterTextureSize =
-        glm::vec3(1.0f / static_cast<float>(engine->_windowExtent.width), 1.0f / static_cast<float>(engine->_windowExtent.height), 0.0f);
+    _fxaaData.R_inverseFilterTextureSize = glm::vec3(1.0f / static_cast<float>(engine->_windowExtent.width),
+                                                     1.0f / static_cast<float>(engine->_windowExtent.height), 0.0f);
     _fxaaData.R_fxaaSpanMax = 8.0f;
     _fxaaData.R_fxaaReduceMin = 1.0f / 128.0f;
     _fxaaData.R_fxaaReduceMul = 1.0f / 8.0f;

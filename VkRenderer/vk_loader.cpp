@@ -5,8 +5,8 @@
 
 // header for std::visit
 
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <vk_buffers.h>
 #include <vk_images.h>
 #include "stb_image.h"
@@ -534,22 +534,20 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         nodes.push_back(newNode);
         file.nodes[node.name.c_str()];
 
-        std::visit(fastgltf::visitor{[&](fastgltf::math::fmat4x4 matrix) {
-                                         newNode->localTransform = glm::make_mat4(matrix.data());
-                                     },
-                                     [&](fastgltf::TRS transform) {
-                                         glm::vec3 tl(transform.translation[0], transform.translation[1],
-                                                      transform.translation[2]);
-                                         glm::quat rot(transform.rotation[3], transform.rotation[0],
-                                                       transform.rotation[1], transform.rotation[2]);
-                                         glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+        std::visit(fastgltf::visitor{
+                       [&](fastgltf::math::fmat4x4 matrix) { newNode->localTransform = glm::make_mat4(matrix.data()); },
+                       [&](fastgltf::TRS transform) {
+                           glm::vec3 tl(transform.translation[0], transform.translation[1], transform.translation[2]);
+                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
+                                         transform.rotation[2]);
+                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                                         glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-                                         glm::mat4 rm = glm::toMat4(rot);
-                                         glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+                           glm::mat4 rm = glm::toMat4(rot);
+                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
 
-                                         newNode->localTransform = tm * rm * sm;
-                                     }},
+                           newNode->localTransform = tm * rm * sm;
+                       }},
                    node.transform);
     }
 

@@ -554,8 +554,8 @@ void VulkanEngine::draw() {
 
     VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
                                                                    get_current_frame()._swapchainSemaphore);
-    VkSemaphoreSubmitInfo signalInfo =
-        vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_render_semaphore(swapchainImageIndex));
+    VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+                                                                     get_current_render_semaphore(swapchainImageIndex));
 
     const VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
@@ -1002,12 +1002,12 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height) {
 
     // Create render semaphores for each swapchain image in each frame
     VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
-    for (auto &frame : _frames) {
+    for (auto &frame: _frames) {
         // Clear any existing semaphores
-        for (VkSemaphore sem : frame._renderSemaphores) {
+        for (VkSemaphore sem: frame._renderSemaphores) {
             vkDestroySemaphore(_device, sem, nullptr);
         }
-        
+
         // Create new semaphores for each swapchain image
         frame._renderSemaphores.clear();
         frame._renderSemaphores.resize(_swapchainImages.size());
@@ -1017,8 +1017,8 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height) {
     }
 
     _mainDeletionQueue.push_function([=, this] {
-        for (auto &frame : _frames) {
-            for (VkSemaphore sem : frame._renderSemaphores) {
+        for (auto &frame: _frames) {
+            for (VkSemaphore sem: frame._renderSemaphores) {
                 vkDestroySemaphore(_device, sem, nullptr);
             }
         }
@@ -1726,7 +1726,8 @@ void VulkanEngine::save_screenshot_full() {
         rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A = A
     }
 
-    if (stbi_write_png(ss.str().c_str(), static_cast<int>(_swapchainExtent.width), static_cast<int>(_swapchainExtent.height), 4, rgba_data.data(),
+    if (stbi_write_png(ss.str().c_str(), static_cast<int>(_swapchainExtent.width),
+                       static_cast<int>(_swapchainExtent.height), 4, rgba_data.data(),
                        static_cast<int>(_swapchainExtent.width * 4))) {
         spdlog::info("Full screenshot saved: {}", ss.str());
     } else {
@@ -1803,8 +1804,9 @@ void VulkanEngine::save_screenshot_render_only() const {
         ldr_data[i * 3 + 2] = static_cast<uint8_t>(std::clamp(b * 255.0f, 0.0f, 255.0f));
     }
 
-    if (stbi_write_png(ss.str().c_str(), static_cast<int>(finalImage.imageExtent.width), static_cast<int>(finalImage.imageExtent.height), 3,
-                       ldr_data.data(), static_cast<int>(finalImage.imageExtent.width * 3))) {
+    if (stbi_write_png(ss.str().c_str(), static_cast<int>(finalImage.imageExtent.width),
+                       static_cast<int>(finalImage.imageExtent.height), 3, ldr_data.data(),
+                       static_cast<int>(finalImage.imageExtent.width * 3))) {
         spdlog::info("Render-only screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save render-only screenshot: {}", ss.str());
