@@ -6,6 +6,7 @@
 // header for std::visit
 
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <vk_buffers.h>
 #include <vk_images.h>
 #include "stb_image.h"
@@ -534,7 +535,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         file.nodes[node.name.c_str()];
 
         std::visit(fastgltf::visitor{[&](fastgltf::math::fmat4x4 matrix) {
-                                         memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+                                         newNode->localTransform = glm::make_mat4(matrix.data());
                                      },
                                      [&](fastgltf::TRS transform) {
                                          glm::vec3 tl(transform.translation[0], transform.translation[1],

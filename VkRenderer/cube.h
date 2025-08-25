@@ -6,7 +6,7 @@ class VulkanEngine;
 class CubePipeline {
 public:
     void init(VulkanEngine *engine);
-    void draw(VulkanEngine *engine, VkCommandBuffer cmd);
+    void draw(VulkanEngine *engine, VkCommandBuffer cmd) const;
     void destroy();
 
     bool isInitialized() const { return hasPipeline; }

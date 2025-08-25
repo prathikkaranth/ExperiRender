@@ -102,7 +102,7 @@ void shadowMap::init_depthShadowMap(VulkanEngine *engine) {
 
     vkCreateSampler(engine->_device, &sampl2, nullptr, &_shadowDepthMapSampler);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipelineLayout(engine->_device, _depthShadowMapPipelineLayout, nullptr);
         vkDestroyPipeline(engine->_device, _depthShadowMapPipeline, nullptr);
         vkDestroySampler(engine->_device, _shadowDepthMapSampler, nullptr);
@@ -130,7 +130,7 @@ void shadowMap::draw_depthShadowMap(VulkanEngine *engine, VkCommandBuffer cmd) c
     std::vector<uint32_t> opaque_draws;
     opaque_draws.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
 
-    for (int i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
+    for (int i = 0; i < static_cast<int>(engine->mainDrawContext.OpaqueSurfaces.size()); i++) {
         /*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
         opaque_draws.push_back(i);
         /*}*/

@@ -37,7 +37,7 @@ public:
     void createRtPipeline(VulkanEngine *engine);
     void createRtShaderBindingTable(VulkanEngine *engine);
     void resetSamples();
-    void raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor);
+    void raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf);
     void rtSampleUpdates(const VulkanEngine *engine);
     void setRTDefaultData();
 

@@ -409,7 +409,7 @@ void VulkanEngine::draw() {
 
     if (useRaytracer) {
         // Raytracing path (grid not supported in raytracer mode yet)
-        raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
+        raytracerPipeline.raytrace(this, cmd);
         vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 

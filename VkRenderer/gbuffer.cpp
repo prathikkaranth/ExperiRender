@@ -80,7 +80,7 @@ void Gbuffer::init_gbuffer(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, gbufferFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, gbufferVertexShader, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipelineLayout(engine->_device, _gbufferPipelineLayout, nullptr);
         vkDestroyDescriptorSetLayout(engine->_device, _gbufferInputDescriptorLayout, nullptr);
         vkDestroyPipeline(engine->_device, _gbufferPipeline, nullptr);
@@ -104,7 +104,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     gbuffer_writer.update_set(engine->_device, _gbufferInputDescriptors);
 
-    VkClearValue clearVal = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+    VkClearValue clearVal = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
     // begin a render pass  connected to our draw image
     VkRenderingAttachmentInfo depthAttachment =
         vkinit::depth_attachment_info(engine->_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -126,7 +126,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     std::vector<uint32_t> opaque_draws;
     opaque_draws.reserve(engine->mainDrawContext.OpaqueSurfaces.size());
-    for (int i = 0; i < engine->mainDrawContext.OpaqueSurfaces.size(); i++) {
+    for (int i = 0; i < static_cast<int>(engine->mainDrawContext.OpaqueSurfaces.size()); i++) {
         /*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
         opaque_draws.push_back(i);
 
@@ -151,7 +151,7 @@ void Gbuffer::draw_gbuffer(VulkanEngine *engine, VkCommandBuffer cmd) {
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(
-        [=, this]() { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
 
     // write the buffer
     vkutil::upload_to_buffer(engine, &engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);

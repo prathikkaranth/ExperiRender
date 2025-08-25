@@ -56,13 +56,13 @@ void Raytracer::createRtOutputImageOnly(VulkanEngine *engine) {
         "RT Output Image");
 
     // Add to deletion queue
-    engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
+    engine->_mainDeletionQueue.push_function([=, this] { vkutil::destroy_image(engine, _rtOutputImage); });
 }
 
 void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     // TLAS - Storing each BLAS
     std::vector<VkAccelerationStructureInstanceKHR> tlas;
-    const uint32_t totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
+    const auto totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
                                                          engine->mainDrawContext.TransparentSurfaces.size());
     tlas.reserve(totalSurfaces);
 
@@ -98,7 +98,7 @@ void Raytracer::createTopLevelAS(const VulkanEngine *engine) const {
     }
 
     // Add transparent surfaces after opaque ones
-    const uint32_t opaqueCount = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size());
+    const auto opaqueCount = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size());
     for (std::uint32_t i = 0; i < static_cast<uint32_t>(engine->mainDrawContext.TransparentSurfaces.size()); i++) {
         VkTransformMatrixKHR vk_transform = {};
         const glm::mat4 &t = engine->mainDrawContext.TransparentSurfaces[i].transform;
@@ -142,7 +142,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
             "RT Output Image");
 
         // Add to deletion queue
-        engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _rtOutputImage); });
+        engine->_mainDeletionQueue.push_function([=, this] { vkutil::destroy_image(engine, _rtOutputImage); });
     }
 
     {
@@ -177,7 +177,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
     }
 
     std::vector<ObjDesc> objDescs;
-    const uint32_t totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
+    const auto totalSurfaces = static_cast<uint32_t>(engine->mainDrawContext.OpaqueSurfaces.size() +
                                                          engine->mainDrawContext.TransparentSurfaces.size());
     objDescs.reserve(totalSurfaces);
 
@@ -318,7 +318,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
         tex_writer.update_set(engine->_device, m_texDescSet);
 
         engine->_mainDeletionQueue.push_function(
-            [=] { vkDestroyDescriptorSetLayout(engine->_device, m_texSetLayout, nullptr); });
+            [=, this] { vkDestroyDescriptorSetLayout(engine->_device, m_texSetLayout, nullptr); });
     }
 
     // Mat descriptions
@@ -377,7 +377,7 @@ void Raytracer::createRtDescriptorSet(VulkanEngine *engine) {
 
     mat_writer.update_set(engine->_device, m_matDescSet);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyDescriptorSetLayout(engine->_device, m_rtDescSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(engine->_device, m_objDescSetLayout, nullptr);
         vkDestroyDescriptorSetLayout(engine->_device, m_matDescSetLayout, nullptr);
@@ -513,7 +513,7 @@ void Raytracer::createRtPipeline(VulkanEngine *engine) {
     for (auto &s: stages)
         vkDestroyShaderModule(engine->_device, s.module, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipelineLayout(engine->_device, m_rtPipelineLayout, nullptr);
         vkDestroyPipeline(engine->_device, m_rtPipeline, nullptr);
     });
@@ -587,7 +587,7 @@ void Raytracer::createRtShaderBindingTable(VulkanEngine *engine) {
     // Clean up
     vmaUnmapMemory(engine->_allocator, m_rtSBTBuffer.allocation);
 
-    engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_buffer(engine, m_rtSBTBuffer); });
+    engine->_mainDeletionQueue.push_function([=, this] { vkutil::destroy_buffer(engine, m_rtSBTBuffer); });
 }
 
 void Raytracer::resetSamples() {
@@ -598,7 +598,7 @@ void Raytracer::resetSamples() {
 //--------------------------------------------------------------------------------------------------
 // Ray Tracing the scene
 //
-void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor) {
+void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf) {
     // Safety check: Don't raytrace if no geometry is loaded (acceleration structures not initialized)
     if (engine->mainDrawContext.OpaqueSurfaces.empty() && engine->mainDrawContext.TransparentSurfaces.empty()) {
         return;
@@ -611,7 +611,7 @@ void Raytracer::raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, co
 
     // add it to the deletion queue of this frame so it gets deleted once its been used
     engine->get_current_frame()._deletionQueue.push_function(
-        [=, this]() { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
+        [=] { vkutil::destroy_buffer(engine, gpuSceneDataBuffer); });
 
     // write the buffer
     vkutil::upload_to_buffer(engine, &engine->sceneData, sizeof(GPUSceneData), gpuSceneDataBuffer);

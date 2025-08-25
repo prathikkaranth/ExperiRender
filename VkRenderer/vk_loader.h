@@ -58,11 +58,9 @@ struct LoadedGLTF : public IRenderable {
 
     VulkanEngine *creator;
 
-    ~LoadedGLTF() { clearAll(); };
+    ~LoadedGLTF() override { clearAll(); };
 
-    virtual void Draw(const glm::mat4 &topMatrix, DrawContext &ctx);
-
-    void translateLoadedScene(glm::vec3 translation, DrawContext &ctx);
+    void Draw(const glm::mat4 &topMatrix, DrawContext &ctx) override;
 
 private:
     void clearAll();
