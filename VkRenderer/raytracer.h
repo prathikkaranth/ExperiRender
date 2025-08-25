@@ -1,15 +1,8 @@
 #pragma once
 
-#include <RenderObject.h>
-#include <functional>
 #include <raytraceKHR_vk.h>
-#include <vk_descriptors.h>
 #include <vk_loader.h>
-#include <vk_pipelines.h>
 #include <vk_types.h>
-#include <vk_utils.h>
-
-#include "VkBootstrap.h"
 
 class VulkanEngine;
 

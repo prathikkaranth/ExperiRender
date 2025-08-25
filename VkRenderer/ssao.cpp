@@ -34,7 +34,7 @@ void ssao::init_ssao(VulkanEngine *engine) {
     _ssaoInputDescriptors = engine->globalDescriptorAllocator.allocate(engine->_device, _ssaoInputDescriptorLayout);
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyDescriptorSetLayout(engine->_device, _ssaoInputDescriptorLayout, nullptr); });
+        [=, this] { vkDestroyDescriptorSetLayout(engine->_device, _ssaoInputDescriptorLayout, nullptr); });
 
     VkPipelineLayoutCreateInfo ssao_layout_info{};
     ssao_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -66,7 +66,7 @@ void ssao::init_ssao(VulkanEngine *engine) {
     VK_CHECK(vkCreateComputePipelines(engine->_device, VK_NULL_HANDLE, 1, &ssaoPipelineInfo, nullptr, &_ssaoPipeline));
 
     vkDestroyShaderModule(engine->_device, ssaoDrawShader, nullptr);
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipelineLayout(engine->_device, _ssaoPipelineLayout, nullptr);
         vkDestroyPipeline(engine->_device, _ssaoPipeline, nullptr);
         vkutil::destroy_image(engine, _ssaoImage);
@@ -93,7 +93,7 @@ void ssao::init_ssao_blur(VulkanEngine *engine) {
         engine->globalDescriptorAllocator.allocate(engine->_device, _ssaoBlurInputDescriptorLayout);
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyDescriptorSetLayout(engine->_device, _ssaoBlurInputDescriptorLayout, nullptr); });
+        [=, this] { vkDestroyDescriptorSetLayout(engine->_device, _ssaoBlurInputDescriptorLayout, nullptr); });
 
     VkPipelineLayoutCreateInfo ssao_blur_layout_info{};
     ssao_blur_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -133,7 +133,7 @@ void ssao::init_ssao_blur(VulkanEngine *engine) {
     vkCreateSampler(engine->_device, &sampl, nullptr, &_ssaoSampler);
 
     vkDestroyShaderModule(engine->_device, ssaoBlurDrawShader, nullptr);
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipelineLayout(engine->_device, _ssaoBlurPipelineLayout, nullptr);
         vkDestroyPipeline(engine->_device, _ssaoBlurPipeline, nullptr);
         vkDestroySampler(engine->_device, _ssaoSampler, nullptr);
@@ -143,7 +143,7 @@ void ssao::init_ssao_blur(VulkanEngine *engine) {
 
 float ssao::ssaoLerp(float a, float b, float f) { return a + f * (b - a); }
 
-std::vector<glm::vec3> ssao::generate_ssao_kernels() {
+std::vector<glm::vec3> ssao::generate_ssao_kernels() const {
 
     // generate sample kernel
     // ----------------------
@@ -194,7 +194,7 @@ void ssao::init_ssao_data(VulkanEngine *engine) {
         ssaoData.samples[i] = glm::vec4(ssaoKernel[i], 1.0);
     }
 
-    engine->_mainDeletionQueue.push_function([=] { vkutil::destroy_image(engine, _ssaoNoiseImage); });
+    engine->_mainDeletionQueue.push_function([=, this] { vkutil::destroy_image(engine, _ssaoNoiseImage); });
 }
 
 

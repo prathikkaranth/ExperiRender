@@ -13,7 +13,7 @@ public:
 
     // Initialize with engine reference
     void init(VulkanEngine *engine);
-    void cleanup();
+    void cleanup() const;
 
     // Default texture resources
     AllocatedImage getWhiteImage() const { return _whiteImage; }

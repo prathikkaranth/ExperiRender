@@ -141,7 +141,6 @@ public:
     bool useRaytracer{false};
 
     // Ray tracing
-    void traverseLoadedMeshNodesOnceForRT();
     Raytracer raytracerPipeline;
 
     VkExtent2D _windowExtent{RenderConfig::getDefaultWindowExtent()};
@@ -264,7 +263,7 @@ private:
 
     // Screenshot functions
     void save_screenshot_full();
-    void save_screenshot_render_only();
+    void save_screenshot_render_only() const;
 
 #ifdef NSIGHT_AFTERMATH_ENABLED
     // Helper functions for GPU crash markers
