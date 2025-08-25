@@ -555,7 +555,7 @@ void VulkanEngine::draw() {
     VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
                                                                    get_current_frame()._swapchainSemaphore);
     VkSemaphoreSubmitInfo signalInfo =
-        vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame()._renderSemaphore);
+        vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_render_semaphore(swapchainImageIndex));
 
     const VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
@@ -573,7 +573,7 @@ void VulkanEngine::draw() {
     presentInfo.pSwapchains = &_swapchain;
     presentInfo.swapchainCount = 1;
 
-    presentInfo.pWaitSemaphores = &get_current_frame()._renderSemaphore;
+    presentInfo.pWaitSemaphores = &get_current_render_semaphore(swapchainImageIndex);
     presentInfo.waitSemaphoreCount = 1;
 
     presentInfo.pImageIndices = &swapchainImageIndex;
@@ -971,12 +971,10 @@ void VulkanEngine::init_sync_structures() {
         VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
 
         VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frame._swapchainSemaphore));
-        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frame._renderSemaphore));
 
         _mainDeletionQueue.push_function([=] {
             vkDestroyFence(_device, _frame._renderFence, nullptr);
             vkDestroySemaphore(_device, _frame._swapchainSemaphore, nullptr);
-            vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
         });
     }
 }
@@ -1001,6 +999,30 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height) {
     _swapchain = vkbSwapchain.swapchain;
     _swapchainImages = vkbSwapchain.get_images().value();
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+    // Create render semaphores for each swapchain image in each frame
+    VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+    for (auto &frame : _frames) {
+        // Clear any existing semaphores
+        for (VkSemaphore sem : frame._renderSemaphores) {
+            vkDestroySemaphore(_device, sem, nullptr);
+        }
+        
+        // Create new semaphores for each swapchain image
+        frame._renderSemaphores.clear();
+        frame._renderSemaphores.resize(_swapchainImages.size());
+        for (size_t i = 0; i < _swapchainImages.size(); i++) {
+            VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphores[i]));
+        }
+    }
+
+    _mainDeletionQueue.push_function([=] {
+        for (auto &frame : _frames) {
+            for (VkSemaphore sem : frame._renderSemaphores) {
+                vkDestroySemaphore(_device, sem, nullptr);
+            }
+        }
+    });
 }
 
 void VulkanEngine::init_swapchain() {
