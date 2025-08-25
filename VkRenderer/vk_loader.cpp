@@ -188,7 +188,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     }
 
     // we can stimate the descriptors we will need accurately
-    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
                                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
                                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}};
 

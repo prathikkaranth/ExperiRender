@@ -1283,7 +1283,7 @@ void VulkanEngine::init_descriptors() {
     // create a descriptor pool that will hold 10 sets with 1 image each
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
                                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-                                                                     {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+                                                                     {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
                                                                      {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1},
                                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}};
 
