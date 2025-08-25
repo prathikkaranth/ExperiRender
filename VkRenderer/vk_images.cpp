@@ -94,10 +94,6 @@ AllocatedImage vkutil::create_hdri_image(const VulkanEngine *engine, float *data
                                          int nrComponents, const char *name) {
     VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
-    // Calculate source size based on nrComponents from stb_image
-    size_t srcBytesPerPixel = nrComponents * 2; // RGB - 16: So each channel is 2 bytes
-    size_t srcSize = width * height * srcBytesPerPixel;
-
     // Calculate destination size for the R16G16B16A16_SFLOAT format
     size_t dstBytesPerPixel = 8; // 16-bit per channel × 4 channels / 8 bits per byte
     size_t dstSize = width * height * dstBytesPerPixel;

@@ -28,7 +28,8 @@ struct FrameData {
     VkCommandBuffer _mainCommandBuffer;
     VkCommandBuffer _rtCommandBuffer;
 
-    VkSemaphore _swapchainSemaphore, _renderSemaphore;
+    VkSemaphore _swapchainSemaphore;
+    std::vector<VkSemaphore> _renderSemaphores; // One per swapchain image
     VkFence _renderFence;
 
     DeletionQueue _deletionQueue;
@@ -140,7 +141,6 @@ public:
     bool useRaytracer{false};
 
     // Ray tracing
-    void traverseLoadedMeshNodesOnceForRT();
     Raytracer raytracerPipeline;
 
     VkExtent2D _windowExtent{RenderConfig::getDefaultWindowExtent()};
@@ -150,6 +150,9 @@ public:
     FrameData _frames[FRAME_OVERLAP];
 
     FrameData &get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
+    VkSemaphore &get_current_render_semaphore(uint32_t swapchainImageIndex) {
+        return get_current_frame()._renderSemaphores[swapchainImageIndex];
+    }
 
     VkQueue _graphicsQueue{};
     uint32_t _graphicsQueueFamily;
@@ -260,7 +263,7 @@ private:
 
     // Screenshot functions
     void save_screenshot_full();
-    void save_screenshot_render_only();
+    void save_screenshot_render_only() const;
 
 #ifdef NSIGHT_AFTERMATH_ENABLED
     // Helper functions for GPU crash markers

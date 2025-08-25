@@ -43,7 +43,7 @@ namespace experirender::vk {
         // The entire array will be used to build the BLAS
         VkAccelerationStructureBuildRangeInfoKHR offset{
             .primitiveCount = max_primitive_count,
-            .primitiveOffset = mesh.firstIndex * sizeof(std::uint32_t),
+            .primitiveOffset = static_cast<uint32_t>(mesh.firstIndex * sizeof(std::uint32_t)),
             .firstVertex = 0,
             .transformOffset = 0,
         };

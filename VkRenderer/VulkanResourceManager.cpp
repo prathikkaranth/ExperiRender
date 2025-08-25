@@ -2,8 +2,6 @@
 #include <glm/gtc/packing.hpp>
 #include "vk_engine.h"
 #include "vk_images.h"
-#include "vk_initializers.h"
-#include "vk_utils.h"
 
 void VulkanResourceManager::init(VulkanEngine *engine) {
     _engine = engine;
@@ -11,7 +9,7 @@ void VulkanResourceManager::init(VulkanEngine *engine) {
     createDefaultSamplers();
 }
 
-void VulkanResourceManager::cleanup() {
+void VulkanResourceManager::cleanup() const {
     if (!_engine)
         return;
 

@@ -147,7 +147,7 @@ void HDRI::load_hdri_to_buffer_fallback(VulkanEngine *engine) {
 
     stbi_set_flip_vertically_on_load(false);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroySampler(engine->_device, _hdriMapSampler, nullptr);
         vkutil::destroy_image(engine, _hdriMap);
     });
@@ -233,12 +233,12 @@ void HDRI::init_hdriMap(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, skyboxVertShader, nullptr);
     vkDestroyShaderModule(engine->_device, skyboxFragShader, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] { cleanup(engine); });
+    engine->_mainDeletionQueue.push_function([=, this] { cleanup(engine); });
 }
 
 void HDRI::draw_hdriMap(VulkanEngine *engine, VkCommandBuffer cmd) {
 
-    VkClearValue clearVal = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+    VkClearValue clearVal = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
 
     std::array<VkRenderingAttachmentInfo, 2> colorAttachments = {
         vkinit::attachment_info(engine->_drawImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),

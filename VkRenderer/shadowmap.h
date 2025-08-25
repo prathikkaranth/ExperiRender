@@ -1,14 +1,7 @@
 #pragma once
 
-#include <functional>
 #include <glm/gtx/transform.hpp>
-#include <vk_descriptors.h>
-#include <vk_loader.h>
-#include <vk_pipelines.h>
 #include <vk_types.h>
-#include <vk_utils.h>
-
-#include "VkBootstrap.h"
 
 class VulkanEngine;
 

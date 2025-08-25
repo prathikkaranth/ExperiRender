@@ -200,7 +200,7 @@ void VulkanEngine::init_default_data() {
     _resourceManager.init(this);
 
     // Add resource manager cleanup to deletion queue
-    _mainDeletionQueue.push_function([=] { _resourceManager.cleanup(); });
+    _mainDeletionQueue.push_function([=, this] { _resourceManager.cleanup(); });
 
     // Shadow light map
     _shadowMap.init_lightSpaceMatrix(this);
@@ -409,7 +409,7 @@ void VulkanEngine::draw() {
 
     if (useRaytracer) {
         // Raytracing path (grid not supported in raytracer mode yet)
-        raytracerPipeline.raytrace(this, cmd, glm::vec4(0.0f));
+        raytracerPipeline.raytrace(this, cmd);
         vkutil::transition_image(cmd, raytracerPipeline._rtOutputImage.image, VK_IMAGE_LAYOUT_GENERAL,
                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
@@ -527,7 +527,7 @@ void VulkanEngine::draw() {
 
     // Clear the swapchain before drawing UI
     VkClearValue clearValue = {};
-    clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f}; // Black background
+    clearValue.color = {{0.0f, 0.0f, 0.0f, 1.0f}}; // Black background
 
     VkRenderingAttachmentInfo colorAttachment = vkinit::attachment_info(
         _swapchainImageViews[swapchainImageIndex], &clearValue, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -554,8 +554,8 @@ void VulkanEngine::draw() {
 
     VkSemaphoreSubmitInfo waitInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
                                                                    get_current_frame()._swapchainSemaphore);
-    VkSemaphoreSubmitInfo signalInfo =
-        vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, get_current_frame()._renderSemaphore);
+    VkSemaphoreSubmitInfo signalInfo = vkinit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT,
+                                                                     get_current_render_semaphore(swapchainImageIndex));
 
     const VkSubmitInfo2 submit = vkinit::submit_info(&cmdinfo, &signalInfo, &waitInfo);
 
@@ -573,7 +573,7 @@ void VulkanEngine::draw() {
     presentInfo.pSwapchains = &_swapchain;
     presentInfo.swapchainCount = 1;
 
-    presentInfo.pWaitSemaphores = &get_current_frame()._renderSemaphore;
+    presentInfo.pWaitSemaphores = &get_current_render_semaphore(swapchainImageIndex);
     presentInfo.waitSemaphoreCount = 1;
 
     presentInfo.pImageIndices = &swapchainImageIndex;
@@ -939,7 +939,7 @@ void VulkanEngine::init_commands() {
 
         VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frame._mainCommandBuffer));
 
-        _mainDeletionQueue.push_function([=] { vkDestroyCommandPool(_device, _frame._commandPool, nullptr); });
+        _mainDeletionQueue.push_function([=, this] { vkDestroyCommandPool(_device, _frame._commandPool, nullptr); });
     }
 
     VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
@@ -949,7 +949,7 @@ void VulkanEngine::init_commands() {
 
     VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
 
-    _mainDeletionQueue.push_function([=] { vkDestroyCommandPool(_device, _immCommandPool, nullptr); });
+    _mainDeletionQueue.push_function([=, this] { vkDestroyCommandPool(_device, _immCommandPool, nullptr); });
 }
 
 void VulkanEngine::init_sync_structures() {
@@ -962,7 +962,7 @@ void VulkanEngine::init_sync_structures() {
     const VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
     VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
 
-    _mainDeletionQueue.push_function([=] { vkDestroyFence(_device, _immFence, nullptr); });
+    _mainDeletionQueue.push_function([=, this] { vkDestroyFence(_device, _immFence, nullptr); });
 
     for (auto &_frame: _frames) {
 
@@ -971,12 +971,10 @@ void VulkanEngine::init_sync_structures() {
         VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
 
         VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frame._swapchainSemaphore));
-        VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frame._renderSemaphore));
 
-        _mainDeletionQueue.push_function([=] {
+        _mainDeletionQueue.push_function([=, this] {
             vkDestroyFence(_device, _frame._renderFence, nullptr);
             vkDestroySemaphore(_device, _frame._swapchainSemaphore, nullptr);
-            vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
         });
     }
 }
@@ -1001,6 +999,30 @@ void VulkanEngine::create_swapchain(uint32_t width, uint32_t height) {
     _swapchain = vkbSwapchain.swapchain;
     _swapchainImages = vkbSwapchain.get_images().value();
     _swapchainImageViews = vkbSwapchain.get_image_views().value();
+
+    // Create render semaphores for each swapchain image in each frame
+    VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
+    for (auto &frame: _frames) {
+        // Clear any existing semaphores
+        for (VkSemaphore sem: frame._renderSemaphores) {
+            vkDestroySemaphore(_device, sem, nullptr);
+        }
+
+        // Create new semaphores for each swapchain image
+        frame._renderSemaphores.clear();
+        frame._renderSemaphores.resize(_swapchainImages.size());
+        for (size_t i = 0; i < _swapchainImages.size(); i++) {
+            VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphores[i]));
+        }
+    }
+
+    _mainDeletionQueue.push_function([=, this] {
+        for (auto &frame: _frames) {
+            for (VkSemaphore sem: frame._renderSemaphores) {
+                vkDestroySemaphore(_device, sem, nullptr);
+            }
+        }
+    });
 }
 
 void VulkanEngine::init_swapchain() {
@@ -1053,7 +1075,7 @@ void VulkanEngine::init_swapchain() {
     VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
 
     // add to deletion queues
-    _mainDeletionQueue.push_function([=] {
+    _mainDeletionQueue.push_function([=, this] {
         vkDestroyImageView(_device, _drawImage.imageView, nullptr);
         vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
 
@@ -1117,7 +1139,7 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
     std::vector<uint32_t> opaque_draws;
     opaque_draws.reserve(mainDrawContext.OpaqueSurfaces.size());
 
-    for (int i = 0; i < mainDrawContext.OpaqueSurfaces.size(); i++) {
+    for (int i = 0; i < static_cast<int>(mainDrawContext.OpaqueSurfaces.size()); i++) {
         /*if (is_visible(mainDrawContext.OpaqueSurfaces[i], sceneData.viewproj)) {*/
         opaque_draws.push_back(i);
         /*}*/
@@ -1260,7 +1282,10 @@ void VulkanEngine::draw_geometry(VkCommandBuffer cmd) {
 void VulkanEngine::init_descriptors() {
     // create a descriptor pool that will hold 10 sets with 1 image each
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1},
-                                                                     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}};
+                                                                     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+                                                                     {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
+                                                                     {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1},
+                                                                     {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}};
 
     globalDescriptorAllocator.init(_device, 10, sizes);
 
@@ -1520,7 +1545,7 @@ void GLTFMetallic_Roughness::build_pipelines(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, meshFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, meshVertexShader, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyDescriptorSetLayout(engine->_device, materialLayout, nullptr);
         vkDestroyPipelineLayout(engine->_device, newLayout, nullptr);
         vkDestroyPipeline(engine->_device, opaquePipeline.pipeline, nullptr);
@@ -1580,8 +1605,6 @@ MaterialInstance GLTFMetallic_Roughness::write_material(VulkanEngine *engine, Vk
 
     return matData;
 }
-
-void GLTFMetallic_Roughness::clear_resources(VkDevice device) {}
 
 void MeshNode::Draw(const glm::mat4 &topMatrix, DrawContext &ctx) {
     const glm::mat4 nodeMatrix = topMatrix * worldTransform;
@@ -1694,7 +1717,7 @@ void VulkanEngine::save_screenshot_full() {
 
     // Save as PNG (BGRA -> RGBA conversion needed for swapchain format)
     std::vector<uint8_t> rgba_data(_swapchainExtent.width * _swapchainExtent.height * 4);
-    uint8_t *src = static_cast<uint8_t *>(data);
+    const auto *src = static_cast<uint8_t *>(data);
 
     for (uint32_t i = 0; i < _swapchainExtent.width * _swapchainExtent.height; i++) {
         rgba_data[i * 4 + 0] = src[i * 4 + 2]; // R = B
@@ -1703,8 +1726,9 @@ void VulkanEngine::save_screenshot_full() {
         rgba_data[i * 4 + 3] = src[i * 4 + 3]; // A = A
     }
 
-    if (stbi_write_png(ss.str().c_str(), _swapchainExtent.width, _swapchainExtent.height, 4, rgba_data.data(),
-                       _swapchainExtent.width * 4)) {
+    if (stbi_write_png(ss.str().c_str(), static_cast<int>(_swapchainExtent.width),
+                       static_cast<int>(_swapchainExtent.height), 4, rgba_data.data(),
+                       static_cast<int>(_swapchainExtent.width * 4))) {
         spdlog::info("Full screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save full screenshot: {}", ss.str());
@@ -1714,7 +1738,7 @@ void VulkanEngine::save_screenshot_full() {
     vkutil::destroy_buffer(this, stagingBuffer);
 }
 
-void VulkanEngine::save_screenshot_render_only() {
+void VulkanEngine::save_screenshot_render_only() const {
     // Wait for current frame to complete
     vkDeviceWaitIdle(_device);
 
@@ -1766,7 +1790,7 @@ void VulkanEngine::save_screenshot_render_only() {
        << std::setw(3) << ms.count() << ".png";
 
     // Convert HDR float data to LDR uint8 (raw conversion, no tone mapping)
-    float *src = static_cast<float *>(data);
+    const auto src = static_cast<float *>(data);
     std::vector<uint8_t> ldr_data(finalImage.imageExtent.width * finalImage.imageExtent.height * 3);
 
     for (uint32_t i = 0; i < finalImage.imageExtent.width * finalImage.imageExtent.height; i++) {
@@ -1780,8 +1804,9 @@ void VulkanEngine::save_screenshot_render_only() {
         ldr_data[i * 3 + 2] = static_cast<uint8_t>(std::clamp(b * 255.0f, 0.0f, 255.0f));
     }
 
-    if (stbi_write_png(ss.str().c_str(), finalImage.imageExtent.width, finalImage.imageExtent.height, 3,
-                       ldr_data.data(), finalImage.imageExtent.width * 3)) {
+    if (stbi_write_png(ss.str().c_str(), static_cast<int>(finalImage.imageExtent.width),
+                       static_cast<int>(finalImage.imageExtent.height), 3, ldr_data.data(),
+                       static_cast<int>(finalImage.imageExtent.width * 3))) {
         spdlog::info("Render-only screenshot saved: {}", ss.str());
     } else {
         spdlog::error("Failed to save render-only screenshot: {}", ss.str());

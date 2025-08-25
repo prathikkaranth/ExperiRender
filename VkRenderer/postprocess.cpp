@@ -14,8 +14,8 @@ void PostProcessor::init(VulkanEngine *engine) {
                                  // validation error. Should debug this later.
 
     // init FXAA data
-    _fxaaData.R_inverseFilterTextureSize =
-        glm::vec3(1.0f / engine->_windowExtent.width, 1.0f / engine->_windowExtent.height, 0.0f);
+    _fxaaData.R_inverseFilterTextureSize = glm::vec3(1.0f / static_cast<float>(engine->_windowExtent.width),
+                                                     1.0f / static_cast<float>(engine->_windowExtent.height), 0.0f);
     _fxaaData.R_fxaaSpanMax = 8.0f;
     _fxaaData.R_fxaaReduceMin = 1.0f / 128.0f;
     _fxaaData.R_fxaaReduceMul = 1.0f / 8.0f;
@@ -58,7 +58,7 @@ void PostProcessor::init(VulkanEngine *engine) {
         engine->globalDescriptorAllocator.allocate(engine->_device, _postProcessDescriptorSetLayout);
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyDescriptorSetLayout(engine->_device, _postProcessDescriptorSetLayout, nullptr); });
+        [=, this] { vkDestroyDescriptorSetLayout(engine->_device, _postProcessDescriptorSetLayout, nullptr); });
 
     VkPipelineLayoutCreateInfo post_process_layout_info{};
     post_process_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -69,7 +69,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &post_process_layout_info, nullptr, &_postProcessPipelineLayout));
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyPipelineLayout(engine->_device, _postProcessPipelineLayout, nullptr); });
+        [=, this] { vkDestroyPipelineLayout(engine->_device, _postProcessPipelineLayout, nullptr); });
 
     // layout code
     VkShaderModule fullscreenDrawVertShader;
@@ -115,7 +115,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     _fxaaDescriptorSet = engine->globalDescriptorAllocator.allocate(engine->_device, _fxaaDescriptorSetLayout);
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyDescriptorSetLayout(engine->_device, _fxaaDescriptorSetLayout, nullptr); });
+        [=, this] { vkDestroyDescriptorSetLayout(engine->_device, _fxaaDescriptorSetLayout, nullptr); });
 
     VkPipelineLayoutCreateInfo fxaa_layout_info{};
     fxaa_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -126,7 +126,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &fxaa_layout_info, nullptr, &_fxaaPipelineLayout));
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyPipelineLayout(engine->_device, _fxaaPipelineLayout, nullptr); });
+        [=, this] { vkDestroyPipelineLayout(engine->_device, _fxaaPipelineLayout, nullptr); });
 
     // FXAA shaders
     VkShaderModule fxaaVertShader;
@@ -167,7 +167,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     }
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyDescriptorSetLayout(engine->_device, _gridDescriptorSetLayout, nullptr); });
+        [=, this] { vkDestroyDescriptorSetLayout(engine->_device, _gridDescriptorSetLayout, nullptr); });
 
     VkPipelineLayoutCreateInfo grid_layout_info{};
     grid_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -178,7 +178,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     VK_CHECK(vkCreatePipelineLayout(engine->_device, &grid_layout_info, nullptr, &_gridPipelineLayout));
 
     engine->_mainDeletionQueue.push_function(
-        [=] { vkDestroyPipelineLayout(engine->_device, _gridPipelineLayout, nullptr); });
+        [=, this] { vkDestroyPipelineLayout(engine->_device, _gridPipelineLayout, nullptr); });
 
     // Grid shaders
     VkShaderModule gridVertShader;
@@ -209,7 +209,7 @@ void PostProcessor::init(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, gridFragShader, nullptr);
     vkDestroyShaderModule(engine->_device, gridVertShader, nullptr);
 
-    engine->_mainDeletionQueue.push_function([=] {
+    engine->_mainDeletionQueue.push_function([=, this] {
         vkDestroyPipeline(engine->_device, _postProcessPipeline, nullptr);
         vkDestroyPipeline(engine->_device, _fxaaPipeline, nullptr);
         vkDestroyPipeline(engine->_device, _gridPipeline, nullptr);
@@ -220,7 +220,7 @@ void PostProcessor::init(VulkanEngine *engine) {
 }
 
 void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
-    VkClearValue clearVal = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+    VkClearValue clearVal = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
 
     std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
         vkinit::attachment_info(_fullscreenImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
@@ -294,7 +294,7 @@ void PostProcessor::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
 }
 
 void PostProcessor::draw_fxaa(VulkanEngine *engine, VkCommandBuffer cmd) {
-    VkClearValue clearVal = {.color = {0.0f, 0.0f, 0.0f, 1.0f}};
+    VkClearValue clearVal = {.color = {{0.0f, 0.0f, 0.0f, 1.0f}}};
 
     std::array<VkRenderingAttachmentInfo, 1> colorAttachments = {
         vkinit::attachment_info(_fxaaImage.imageView, &clearVal, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),

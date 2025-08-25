@@ -1,13 +1,6 @@
 #pragma once
 
-#include <functional>
-#include <vk_descriptors.h>
-#include <vk_loader.h>
-#include <vk_pipelines.h>
 #include <vk_types.h>
-#include <vk_utils.h>
-
-#include "VkBootstrap.h"
 
 class VulkanEngine;
 
@@ -40,8 +33,8 @@ public:
     AllocatedImage _ssaoNoiseImage{};
 
     // SSAO
-    std::vector<glm::vec3> generate_ssao_kernels();
-    float ssaoLerp(float a, float b, float f);
+    [[nodiscard]] std::vector<glm::vec3> generate_ssao_kernels() const;
+    static float ssaoLerp(float a, float b, float f);
     void init_ssao_data(VulkanEngine *engine);
     void init_ssao(VulkanEngine *engine);
     void init_ssao_blur(VulkanEngine *engine);

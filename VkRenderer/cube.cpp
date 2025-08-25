@@ -3,7 +3,6 @@
 #include "vk_buffers.h"
 #include "vk_descriptors.h"
 #include "vk_engine.h"
-#include "vk_initializers.h"
 #include "vk_pipelines.h"
 
 void CubePipeline::init(VulkanEngine *engine) {
@@ -58,7 +57,6 @@ void CubePipeline::init(VulkanEngine *engine) {
     vkDestroyShaderModule(engine->_device, cubeFragShader, nullptr);
 
     hasPipeline = true;
-    spdlog::info("Cube pipeline created successfully");
 
     // Add to deletion queue
     engine->_mainDeletionQueue.push_function([=, this]() { destroy(); });
@@ -81,7 +79,7 @@ void CubePipeline::destroy() {
     hasPipeline = false;
 }
 
-void CubePipeline::draw(VulkanEngine *engine, VkCommandBuffer cmd) {
+void CubePipeline::draw(VulkanEngine *engine, VkCommandBuffer cmd) const {
     if (!hasPipeline)
         return;
 

@@ -1,15 +1,8 @@
 #pragma once
 
-#include <RenderObject.h>
-#include <functional>
 #include <raytraceKHR_vk.h>
-#include <vk_descriptors.h>
 #include <vk_loader.h>
-#include <vk_pipelines.h>
 #include <vk_types.h>
-#include <vk_utils.h>
-
-#include "VkBootstrap.h"
 
 class VulkanEngine;
 
@@ -44,7 +37,7 @@ public:
     void createRtPipeline(VulkanEngine *engine);
     void createRtShaderBindingTable(VulkanEngine *engine);
     void resetSamples();
-    void raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf, const glm::vec4 &clearColor);
+    void raytrace(VulkanEngine *engine, const VkCommandBuffer &cmdBuf);
     void rtSampleUpdates(const VulkanEngine *engine);
     void setRTDefaultData();
 

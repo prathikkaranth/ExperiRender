@@ -5,6 +5,7 @@
 
 // header for std::visit
 
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <vk_buffers.h>
 #include <vk_images.h>
@@ -188,7 +189,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
     }
 
     // we can stimate the descriptors we will need accurately
-    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3},
+    std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5},
                                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
                                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}};
 
@@ -499,7 +500,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
             // loop the vertices of this surface, find min/max bounds
             glm::vec3 minpos = vertices[initial_vtx].position;
             glm::vec3 maxpos = vertices[initial_vtx].position;
-            for (int i = static_cast<int>(initial_vtx); i < vertices.size(); i++) {
+            for (int i = static_cast<int>(initial_vtx); i < static_cast<int>(vertices.size()); i++) {
                 minpos = glm::min(minpos, vertices[i].position);
                 maxpos = glm::max(maxpos, vertices[i].position);
             }
@@ -533,27 +534,25 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine *engine, std::s
         nodes.push_back(newNode);
         file.nodes[node.name.c_str()];
 
-        std::visit(fastgltf::visitor{[&](fastgltf::math::fmat4x4 matrix) {
-                                         memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
-                                     },
-                                     [&](fastgltf::TRS transform) {
-                                         glm::vec3 tl(transform.translation[0], transform.translation[1],
-                                                      transform.translation[2]);
-                                         glm::quat rot(transform.rotation[3], transform.rotation[0],
-                                                       transform.rotation[1], transform.rotation[2]);
-                                         glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+        std::visit(fastgltf::visitor{
+                       [&](fastgltf::math::fmat4x4 matrix) { newNode->localTransform = glm::make_mat4(matrix.data()); },
+                       [&](fastgltf::TRS transform) {
+                           glm::vec3 tl(transform.translation[0], transform.translation[1], transform.translation[2]);
+                           glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
+                                         transform.rotation[2]);
+                           glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
 
-                                         glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
-                                         glm::mat4 rm = glm::toMat4(rot);
-                                         glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
+                           glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
+                           glm::mat4 rm = glm::toMat4(rot);
+                           glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
 
-                                         newNode->localTransform = tm * rm * sm;
-                                     }},
+                           newNode->localTransform = tm * rm * sm;
+                       }},
                    node.transform);
     }
 
     // run loop again to setup transform hierarchy
-    for (int i = 0; i < gltf.nodes.size(); i++) {
+    for (int i = 0; i < static_cast<int>(gltf.nodes.size()); i++) {
         fastgltf::Node &node = gltf.nodes[i];
         std::shared_ptr<Node> &sceneNode = nodes[i];
 
