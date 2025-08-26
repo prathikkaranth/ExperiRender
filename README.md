@@ -1,15 +1,6 @@
 # ExperiRender
 
-<table>
-  <tr>
-    <td><img src="docs/images/ExperiRender_Sponza.png" width="1000"/></td>
-    <td><img src="docs/images/Sponza-RT_Mat.png" width="1000"/></td>
-  </tr>
-  <tr>
-    <td align="center">Raster Render</td>
-    <td align="center">Raytraced Render</td>
-  </tr>
-</table>
+![ExperiRenderMain](docs/images/ExperiRenderMain.png)
 
 A cross-platform Graphics Renderer written in Vulkan mainly for visualization purposes required in research fields. Current iteration has support for rasterization and ray tracing. 
 
@@ -19,9 +10,12 @@ A cross-platform Graphics Renderer written in Vulkan mainly for visualization pu
     - Mipmaps 
     - Environment Maps (HDRI)
     - PBR
+    - FXAA
 - Hardware Ray Tracing
     - PBR
+    - Environment Maps (HDRI)
     - Shadows
+    - Refraction
 
 # Build
 
@@ -85,8 +79,7 @@ Custom assets can be drag and dropped to the window. Drag and drop feature curre
 
 ## Models Used for Showcase
 
-- [Sponza](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Sponza)
-- [Flight Helmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/FlightHelmet)
+- SciFi Helmet
 
 ## Dependencies:
 
